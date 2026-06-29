@@ -1,0 +1,21 @@
+# Security Requirements
+
+- Enforce server-side authorization for every protected action.
+- Use capability-based staff permissions.
+- Hash passwords with Argon2id.
+- Use secure, HTTP-only, same-site cookies.
+- Apply CSRF protection where applicable.
+- Rate-limit login, RSN lookup, chat, checkout, and uploads.
+- Validate inputs with Zod.
+- Sanitize rendered HTML and user content.
+- Validate upload type, MIME, size, and filename.
+- Use private file URLs for sensitive attachments.
+- Never store raw payment-card data.
+- Never request a RuneScape password for eligibility checking.
+- Record sensitive administrative changes in audit logs.
+- Authenticate payment webhooks and make them idempotent.
+- Use database transactions for order and stock updates.
+- Never commit production secrets.
+- Avoid sensitive values in production logs.
+- Document backup, restore, and rollback procedures.
+- Run dependency and security checks before launch.
