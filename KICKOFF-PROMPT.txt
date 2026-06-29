@@ -1,0 +1,19 @@
+You are beginning the OSRS Services custom web application.
+
+Work only on `tasks/CODEX-TASK-001.md`.
+
+Before changing anything:
+1. Read `AGENTS.md`.
+2. Read every file referenced by the task.
+3. Inspect the repository and assets.
+4. Give me a short implementation plan and list any blocking issue.
+5. If there is no blocker, execute the task fully.
+
+Follow all acceptance criteria. Do not begin the homepage or any later task.
+
+At completion:
+- run lint, typecheck, automated tests, database migration/seed, and production build;
+- capture the required desktop and mobile screenshots;
+- update documentation;
+- return a report using `templates/CODEX-COMPLETION-REPORT.md`;
+- stop and wait for review.

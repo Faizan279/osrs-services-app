@@ -1,0 +1,29 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build
+.next/
+dist/
+coverage/
+playwright-report/
+test-results/
+
+# environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# local data
+*.log
+.DS_Store
+references/raw/
+
+# editor
+.vscode/
+.idea/
+
+# generated uploads
+storage/
+tmp/

@@ -1,0 +1,39 @@
+{
+  "project": "OSRS Services",
+  "domain": "osrsservices.com",
+  "currency": "USD",
+  "region": "United States",
+  "delivery_weeks": 7,
+  "database": "MySQL 8",
+  "framework": "Next.js App Router",
+  "realtime": "Socket.IO",
+  "roles": [
+    "SUPER_ADMIN",
+    "EDITOR",
+    "SUPPORT_AGENT"
+  ],
+  "pricing_defaults": {
+    "discord_stream_percent": 2,
+    "secure_100_combat_percent": 10,
+    "game_mode": {
+      "normal": 0,
+      "iron": 10,
+      "hcim": 20,
+      "uim": 30
+    },
+    "delivery": {
+      "standard": {
+        "enabled": true,
+        "percent": 0
+      },
+      "priority": {
+        "enabled": false,
+        "percent": null
+      },
+      "express": {
+        "enabled": false,
+        "percent": null
+      }
+    }
+  }
+}
