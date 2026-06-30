@@ -1,0 +1,188 @@
+# Codex Completion Report
+
+## Task
+
+- Task ID: CODEX-TASK-001
+- Task title: Project Foundation
+- Branch: `codex/task-001-project-foundation`
+- Date: 2026-06-30
+
+## Summary
+
+Implemented only the Task 001 project foundation:
+
+- Next.js App Router with strict TypeScript, Tailwind CSS, ESLint, Prettier, Zod environment validation, and absolute imports
+- MySQL 8.4 and Mailpit Docker Compose definitions with health checks
+- Prisma 7 schema, initial migration, and idempotent seed for users, roles, permissions, sessions, feature flags, and audit logs
+- Environment-only Super Admin seeding, Argon2id credentials verification, opaque database sessions, protected routes, and server-enforced capabilities
+- Public, authentication, customer, and admin route groups with placeholders only
+- OSRS Services design tokens, reusable UI primitives, and protected admin showcase
+- Vitest and Playwright coverage for the required authentication, authorization, and health behaviors
+- Exact-width desktop and mobile screenshots and reproducible capture script
+- Local setup, architecture, and package/version documentation
+
+No homepage, catalogue, pricing, cart, payment, chat, RSN, or WooCommerce migration work was started.
+
+## Files changed
+
+Modified:
+
+- `.gitignore`
+- `README.md`
+- `docs/ARCHITECTURE.md`
+- `docs/DECISIONS.md`
+
+Created:
+
+- `.env.example`
+- `.npmrc`
+- `artifacts/task-001/design-system-1440.png`
+- `artifacts/task-001/design-system-390.png`
+- `artifacts/task-001/login-1440.png`
+- `artifacts/task-001/login-390.png`
+- `docker-compose.yml`
+- `eslint.config.mjs`
+- `next-env.d.ts`
+- `next.config.ts`
+- `package.json`
+- `playwright.config.ts`
+- `pnpm-lock.yaml`
+- `pnpm-workspace.yaml`
+- `postcss.config.mjs`
+- `prettier.config.mjs`
+- `prisma.config.ts`
+- `prisma/migrations/20260629170000_task001_foundation/migration.sql`
+- `prisma/migrations/migration_lock.toml`
+- `prisma/schema.prisma`
+- `prisma/seed.ts`
+- `public/branding/osrs-services-logo.svg`
+- `reports/CODEX-TASK-001-COMPLETION.md`
+- `scripts/capture-task-001.ts`
+- `src/app/(admin)/admin/design-system/page.tsx`
+- `src/app/(admin)/admin/layout.tsx`
+- `src/app/(admin)/admin/page.tsx`
+- `src/app/(auth)/layout.tsx`
+- `src/app/(auth)/login/page.tsx`
+- `src/app/(dashboard)/account/layout.tsx`
+- `src/app/(dashboard)/account/page.tsx`
+- `src/app/(public)/layout.tsx`
+- `src/app/(public)/page.tsx`
+- `src/app/actions.ts`
+- `src/app/error.tsx`
+- `src/app/forbidden.tsx`
+- `src/app/globals.css`
+- `src/app/health/route.ts`
+- `src/app/layout.tsx`
+- `src/app/loading.tsx`
+- `src/app/not-found.tsx`
+- `src/components/admin-shell.tsx`
+- `src/components/brand-logo.tsx`
+- `src/components/design-system-showcase.tsx`
+- `src/components/login-form.tsx`
+- `src/components/offline-indicator.tsx`
+- `src/components/ui/alert.tsx`
+- `src/components/ui/badge.tsx`
+- `src/components/ui/button.tsx`
+- `src/components/ui/card.tsx`
+- `src/components/ui/dialog.tsx`
+- `src/components/ui/input.tsx`
+- `src/components/ui/skeleton.tsx`
+- `src/components/ui/toast.tsx`
+- `src/lib/auth/capabilities.ts`
+- `src/lib/auth/credentials-core.ts`
+- `src/lib/auth/credentials.ts`
+- `src/lib/auth/guards.ts`
+- `src/lib/auth/password.ts`
+- `src/lib/auth/permissions.ts`
+- `src/lib/auth/rate-limit.ts`
+- `src/lib/auth/session.ts`
+- `src/lib/db/prisma.ts`
+- `src/lib/env.ts`
+- `src/lib/utils.ts`
+- `src/proxy.ts`
+- `src/tests/capabilities.test.ts`
+- `src/tests/credentials.test.ts`
+- `src/tests/health.test.ts`
+- `tests/e2e/foundation.spec.ts`
+- `tsconfig.json`
+- `vitest.config.ts`
+
+Deleted: none.
+
+## Database
+
+- Migration names: `20260629170000_task001_foundation`
+- Seed changes:
+  - Roles: `SUPER_ADMIN`, `EDITOR`, `SUPPORT_AGENT`
+  - 15 initial capabilities with role assignments
+  - 9 disabled feature flags covering provider payments and Priority/Express delivery
+  - Optional local Super Admin created only when both seed environment variables are supplied
+- Rollback considerations:
+  - This is the initial schema. A rollback would drop session, authorization, feature-flag, audit, and user tables in reverse foreign-key order and is destructive.
+  - Back up non-disposable data before any rollback; local disposable databases may use `pnpm db:reset`.
+
+## Commands run
+
+```text
+pnpm install --frozen-lockfile
+pnpm db:generate
+pnpm db:migrate
+pnpm db:seed
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm exec playwright install chromium
+pnpm test:e2e
+pnpm format
+pnpm format:check
+pnpm build
+pnpm screenshots:task001
+```
+
+Environment validation commands also initialized and ran official MySQL Community Server 8.4.10 from its Windows ZIP distribution because Docker was unavailable in this runner.
+
+## Test results
+
+- Lint: pass, zero warnings
+- Typecheck: pass, strict TypeScript
+- Unit: pass, 3 files / 6 tests
+- Integration: pass, migration deploy and idempotent seed on MySQL Community Server 8.4.10
+- Browser: pass, 8/8 Playwright tests across desktop and mobile projects
+- Authorization: pass, anonymous admin denial and seeded Super Admin showcase access
+- Formatting: pass
+- Build: pass, Next.js 16.2.9 production build
+- Docker Compose: not executed; Docker is not installed in the current environment
+
+## Screenshots
+
+- `artifacts/task-001/login-1440.png` — 1440 × 1000
+- `artifacts/task-001/design-system-1440.png` — 1440 × 1000
+- `artifacts/task-001/login-390.png` — 390 × 844
+- `artifacts/task-001/design-system-390.png` — 390 × 844
+
+All four files were regenerated by `pnpm screenshots:task001` and visually inspected.
+
+## Assumptions
+
+- Node.js 24 LTS is the current Hostinger-supported LTS choice.
+- The repository-provided development SVG is the approved Task 001 placeholder; final brand artwork remains a later approval.
+- Auth.js compatibility means retaining compatible core `User`/`Session` fields while using a custom credentials handler to satisfy the database-session requirement.
+- Local non-TLS MySQL may explicitly enable RSA public-key retrieval; production keeps it disabled and uses provider TLS configuration.
+- The in-memory login limiter is sufficient for a single local instance and must move to shared storage before multi-instance deployment.
+
+## Known issues
+
+- Docker and Docker Compose are not installed in this runner, so the Compose health check and Mailpit service could not be executed. The YAML, health-check definitions, documented commands, MySQL migration, and seed are present; Docker execution remains the only unverified acceptance layer.
+- The in-app browser connection could not be re-established after the interrupted session. The final corrected runtime was instead verified by 8 passing Playwright tests, exact-width screenshot automation, and visual inspection of all four PNGs.
+- The local Git baseline is a content-equivalent synthetic snapshot of GitHub `main` because the bundled Git client has no private-repository credential. GitHub connector access was used to retrieve the authoritative files.
+
+## Documentation updates
+
+- `README.md` — exact install, environment, database, test, screenshot, and startup commands
+- `docs/ARCHITECTURE.md` — Task 001 runtime, authentication, session, and authorization implementation notes
+- `docs/DECISIONS.md` — pinned versions, session architecture, local MySQL RSA setting, and deployment assumptions
+- `reports/CODEX-TASK-001-COMPLETION.md` — this report
+
+## Stop condition
+
+Confirmed: no work beyond CODEX-TASK-001 was started. The homepage and all later business modules remain untouched.
