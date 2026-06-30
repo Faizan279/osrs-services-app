@@ -5,17 +5,18 @@ import type { ButtonHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
 export const buttonVariants = cva(
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-45",
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border font-semibold transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-45",
   {
     variants: {
       variant: {
         primary:
-          "border-primary bg-primary px-5 text-primary-foreground hover:border-primary-hover hover:bg-primary-hover",
+          "border-primary/90 bg-primary px-5 text-primary-foreground shadow-[inset_0_1px_0_rgb(255_255_255_/_0.2)] hover:border-primary-hover hover:bg-primary-hover hover:shadow-[0_8px_24px_rgb(166_215_25_/_0.12)]",
         secondary:
-          "border-border bg-surface-2 px-5 text-text-primary hover:bg-surface-3",
+          "border-border-strong/70 bg-surface-2 px-5 text-text-primary shadow-[inset_0_1px_0_rgb(255_255_255_/_0.025)] hover:border-gold/30 hover:bg-surface-3",
         ghost:
-          "border-transparent bg-transparent px-4 text-text-secondary hover:bg-surface-2 hover:text-text-primary",
-        danger: "border-danger bg-danger px-5 text-white hover:brightness-110",
+          "border-transparent bg-transparent px-4 text-text-secondary hover:border-border hover:bg-surface-2/70 hover:text-text-primary",
+        danger:
+          "border-danger/60 bg-danger/90 px-5 text-white hover:border-danger hover:bg-danger",
       },
       size: {
         default: "h-11 text-sm",

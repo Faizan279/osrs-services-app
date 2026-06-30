@@ -14,7 +14,7 @@ export function LoginForm({ next }: { next: string }) {
   const [state, action, pending] = useActionState(loginAction, initialState);
 
   return (
-    <form action={action} className="mt-8 space-y-5" noValidate>
+    <form action={action} className="mt-7 space-y-5" noValidate>
       <input type="hidden" name="next" value={next} />
       {state.error ? (
         <Alert data-testid="login-error" variant="danger">
@@ -24,7 +24,7 @@ export function LoginForm({ next }: { next: string }) {
       <div className="space-y-2">
         <label
           htmlFor="email"
-          className="text-text-primary text-sm font-semibold"
+          className="text-text-primary text-sm font-semibold tracking-[0.01em]"
         >
           Email address
         </label>
@@ -39,7 +39,7 @@ export function LoginForm({ next }: { next: string }) {
             type="email"
             autoComplete="email"
             required
-            className="pl-11"
+            className="bg-background/55 pl-11"
             placeholder="admin@example.com"
           />
         </div>
@@ -47,7 +47,7 @@ export function LoginForm({ next }: { next: string }) {
       <div className="space-y-2">
         <label
           htmlFor="password"
-          className="text-text-primary text-sm font-semibold"
+          className="text-text-primary text-sm font-semibold tracking-[0.01em]"
         >
           Password
         </label>
@@ -62,12 +62,17 @@ export function LoginForm({ next }: { next: string }) {
             type="password"
             autoComplete="current-password"
             required
-            className="pl-11"
+            className="bg-background/55 pl-11"
             placeholder="Enter your password"
           />
         </div>
       </div>
-      <Button type="submit" size="lg" className="w-full" disabled={pending}>
+      <Button
+        type="submit"
+        size="lg"
+        className="mt-1 w-full shadow-[0_12px_30px_rgb(166_215_25_/_0.12)]"
+        disabled={pending}
+      >
         {pending ? "Signing in…" : "Sign in securely"}
       </Button>
     </form>

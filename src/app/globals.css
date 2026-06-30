@@ -1,26 +1,31 @@
 @import "tailwindcss";
 
 :root {
-  --background: #050806;
-  --surface-1: #0b110d;
-  --surface-2: #111a14;
-  --surface-3: #18231b;
-  --border: #26352b;
-  --primary: #78e51e;
-  --primary-hover: #8df33a;
-  --primary-muted: #1d3c19;
-  --primary-foreground: #071005;
-  --text-primary: #f6f8f6;
-  --text-secondary: #a7b2a9;
-  --text-muted: #758079;
-  --success: #42d97b;
-  --warning: #d6aa2e;
-  --danger: #e65b5b;
-  --info: #5ba9e6;
+  --background: #030705;
+  --surface-1: #08100b;
+  --surface-2: #0d1710;
+  --surface-3: #142119;
+  --surface-raised: #17261c;
+  --border: #25352b;
+  --border-strong: #36513f;
+  --primary: #a6d719;
+  --primary-hover: #b9e83c;
+  --primary-muted: #1c3518;
+  --primary-foreground: #081004;
+  --gold: #c7a45a;
+  --gold-hover: #ddbd78;
+  --gold-muted: #322919;
+  --text-primary: #f5f7f3;
+  --text-secondary: #b5bdb6;
+  --text-muted: #78837b;
+  --success: #55d484;
+  --warning: #d5ab52;
+  --danger: #e66b68;
+  --info: #6aa9d8;
   --font-sans:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
-  --font-display: "Arial Narrow", Inter, ui-sans-serif, system-ui, sans-serif;
+    "Segoe UI Variable Text", "Segoe UI", Inter, ui-sans-serif, system-ui,
+    sans-serif;
+  --font-display: Georgia, "Times New Roman", ui-serif, serif;
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
   --radius-lg: 1rem;
@@ -31,11 +36,16 @@
   --color-surface-1: var(--surface-1);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
+  --color-surface-raised: var(--surface-raised);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
   --color-primary-muted: var(--primary-muted);
   --color-primary-foreground: var(--primary-foreground);
+  --color-gold: var(--gold);
+  --color-gold-hover: var(--gold-hover);
+  --color-gold-muted: var(--gold-muted);
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
@@ -61,12 +71,9 @@ body {
   min-height: 100vh;
   margin: 0;
   background:
-    radial-gradient(
-      circle at 15% -10%,
-      rgb(120 229 30 / 10%),
-      transparent 32rem
-    ),
-    var(--background);
+    radial-gradient(circle at 16% -10%, rgb(42 88 46 / 20%), transparent 34rem),
+    radial-gradient(circle at 92% 0%, rgb(199 164 90 / 6%), transparent 26rem),
+    linear-gradient(180deg, #040805 0%, var(--background) 55%);
   color: var(--text-primary);
   font-family: var(--font-sans);
   text-rendering: optimizeLegibility;
@@ -79,13 +86,119 @@ body {
 
 .display-type {
   font-family: var(--font-display);
-  font-stretch: condensed;
-  letter-spacing: -0.035em;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.kicker-type {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.surface-panel {
+  border: 1px solid rgb(54 81 63 / 72%);
+  background:
+    linear-gradient(145deg, rgb(18 31 22 / 96%), rgb(7 14 10 / 98%)),
+    var(--surface-1);
+  box-shadow:
+    0 28px 80px rgb(0 0 0 / 34%),
+    inset 0 1px 0 rgb(255 255 255 / 3%);
+}
+
+.login-atmosphere {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 20% 62%, rgb(49 102 49 / 22%), transparent 32rem),
+    radial-gradient(circle at 80% 18%, rgb(199 164 90 / 8%), transparent 24rem),
+    linear-gradient(120deg, #040805 0%, #061009 48%, #030705 100%);
+}
+
+.login-atmosphere::before {
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+  background:
+    linear-gradient(
+      110deg,
+      transparent 0 44%,
+      rgb(199 164 90 / 5%) 44.1% 44.2%,
+      transparent 44.3%
+    ),
+    linear-gradient(
+      70deg,
+      transparent 0 62%,
+      rgb(166 215 25 / 4%) 62.1% 62.2%,
+      transparent 62.3%
+    );
+  content: "";
+}
+
+.login-atmosphere::after {
+  position: absolute;
+  z-index: -1;
+  width: 42rem;
+  height: 42rem;
+  border: 1px solid rgb(199 164 90 / 9%);
+  border-radius: 50%;
+  top: 50%;
+  left: -18rem;
+  box-shadow:
+    0 0 0 5rem rgb(166 215 25 / 1.4%),
+    0 0 0 11rem rgb(199 164 90 / 1.5%);
+  content: "";
+  transform: translateY(-50%);
+}
+
+.ornament-rule {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ornament-rule::before {
+  width: 2.5rem;
+  height: 1px;
+  background: linear-gradient(90deg, var(--gold), transparent);
+  content: "";
+}
+
+.ornament-rule::after {
+  width: 0.32rem;
+  height: 0.32rem;
+  border: 1px solid var(--gold);
+  content: "";
+  transform: rotate(45deg);
+}
+
+.admin-atmosphere {
+  min-height: calc(100vh - 5rem);
+  background:
+    radial-gradient(circle at 92% 4%, rgb(199 164 90 / 5%), transparent 24rem),
+    radial-gradient(circle at 38% 0%, rgb(50 104 53 / 10%), transparent 30rem);
 }
 
 .grid-pattern {
   background-image:
-    linear-gradient(rgb(120 229 30 / 4%) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(120 229 30 / 4%) 1px, transparent 1px);
-  background-size: 32px 32px;
+    linear-gradient(rgb(166 215 25 / 2.5%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(166 215 25 / 2.5%) 1px, transparent 1px);
+  background-size: 42px 42px;
+}
+
+@media (max-width: 1023px) {
+  .login-atmosphere::after {
+    width: 30rem;
+    height: 30rem;
+    top: auto;
+    bottom: -20rem;
+    left: 50%;
+    transform: translateX(-50%);
+  }
 }
