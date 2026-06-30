@@ -1,0 +1,116 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+  runtime      = "nodejs"
+  engineType   = "client"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+model User {
+  id            String      @id @default(cuid()) @db.VarChar(30)
+  email         String      @unique @db.VarChar(191)
+  emailVerified DateTime?
+  name          String?     @db.VarChar(120)
+  image         String?     @db.VarChar(500)
+  passwordHash  String      @db.VarChar(255)
+  status        UserStatus  @default(ACTIVE)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  roles         UserRole[]
+  sessions      Session[]
+  auditLogs     AuditLog[]  @relation("AuditActor")
+
+  @@index([status])
+}
+
+model Role {
+  id          String           @id @default(cuid()) @db.VarChar(30)
+  key         String           @unique @db.VarChar(64)
+  name        String           @db.VarChar(120)
+  description String?          @db.VarChar(500)
+  isSystem    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  users       UserRole[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          String           @id @default(cuid()) @db.VarChar(30)
+  key         String           @unique @db.VarChar(100)
+  description String           @db.VarChar(500)
+  createdAt   DateTime         @default(now())
+  roles       RolePermission[]
+}
+
+model UserRole {
+  userId     String   @db.VarChar(30)
+  roleId     String   @db.VarChar(30)
+  assignedAt DateTime @default(now())
+  assignedBy String?  @db.VarChar(30)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+}
+
+model RolePermission {
+  roleId       String     @db.VarChar(30)
+  permissionId String     @db.VarChar(30)
+  grantedAt    DateTime   @default(now())
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model Session {
+  id           String   @id @default(cuid()) @db.VarChar(30)
+  sessionToken String   @unique @db.VarChar(191)
+  userId       String   @db.VarChar(30)
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  lastSeenAt   DateTime @default(now())
+  ipAddress    String?  @db.VarChar(64)
+  userAgent    String?  @db.VarChar(500)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expires])
+}
+
+model FeatureFlag {
+  id          String   @id @default(cuid()) @db.VarChar(30)
+  key         String   @unique @db.VarChar(120)
+  enabled     Boolean  @default(false)
+  description String   @db.VarChar(500)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(cuid()) @db.VarChar(30)
+  actorId    String?  @db.VarChar(30)
+  action     String   @db.VarChar(120)
+  targetType String?  @db.VarChar(120)
+  targetId   String?  @db.VarChar(191)
+  metadata   Json?
+  ipAddress  String?  @db.VarChar(64)
+  createdAt  DateTime @default(now())
+  actor      User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@index([targetType, targetId])
+}

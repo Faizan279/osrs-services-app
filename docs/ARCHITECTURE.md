@@ -77,3 +77,12 @@ The application itself may run through the local Node package manager for faster
 2. Confirm custom start command and WebSocket behaviour.
 3. Use Hostinger MySQL if acceptable.
 4. If real-time or operational limits fail, move application/realtime services to a VPS while retaining domain/email at Hostinger.
+
+## Task 001 implementation notes
+
+- Node.js 24 LTS and pnpm 11.7 are pinned for Hostinger compatibility and reproducible installs.
+- The foundation uses Next.js App Router, React Server Components, strict TypeScript, Tailwind CSS design tokens, Prisma, and MySQL 8.4.
+- Credentials are verified with Argon2id. A random opaque session secret is issued in a secure, HTTP-only, same-site cookie, while only its HMAC digest is stored in MySQL.
+- The `User` and `Session` models use Auth.js-compatible core fields. The credentials handler is custom because the credentials provider does not support Auth.js database-session strategy.
+- The proxy provides an inexpensive cookie-presence redirect for `/account` and `/admin`; protected server layouts then validate the database session and enforce capabilities.
+- Socket.IO and the remaining deployment decision gate are deferred until a later realtime task.

@@ -2,7 +2,7 @@
 node_modules/
 .pnpm-store/
 
-# build
+# build and test output
 .next/
 dist/
 coverage/
@@ -15,15 +15,15 @@ test-results/
 .env.*.local
 !.env.example
 
-# local data
+# local data and generated files
 *.log
+*.tsbuildinfo
 .DS_Store
 references/raw/
+src/generated/prisma/
+storage/
+tmp/
 
 # editor
 .vscode/
 .idea/
-
-# generated uploads
-storage/
-tmp/

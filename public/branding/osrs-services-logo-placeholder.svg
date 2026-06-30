@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 180" role="img" aria-labelledby="title desc">
+  <title id="title">OSRS Services temporary development wordmark</title>
+  <desc id="desc">Temporary repository-safe placeholder awaiting the official OSRS Services logo.</desc>
+  <rect width="640" height="180" rx="24" fill="#050806"/>
+  <path d="M48 46h72l34 44-34 44H48L14 90z" fill="#A6D719"/>
+  <path d="M48 66h52l18 24-18 24H48L30 90z" fill="#111A14"/>
+  <text x="180" y="84" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="800" fill="#F5F7F3">OSRS</text>
+  <text x="180" y="132" font-family="Arial, Helvetica, sans-serif" font-size="44" font-weight="700" fill="#A6D719">SERVICES</text>
+</svg>

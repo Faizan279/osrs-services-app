@@ -1,0 +1,52 @@
+"use client";
+
+import { Blocks, LayoutDashboard } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+import { cn } from "@/lib/utils";
+
+const navigation = [
+  { href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
+  {
+    href: "/admin/design-system",
+    label: "Design system",
+    icon: Blocks,
+    exact: false,
+  },
+];
+
+export function AdminNav() {
+  const pathname = usePathname();
+
+  return (
+    <nav
+      aria-label="Admin navigation"
+      className="flex gap-2 overflow-x-auto px-4 pb-4 lg:block lg:space-y-1.5 lg:overflow-visible lg:px-5 lg:pb-0"
+    >
+      {navigation.map((item) => {
+        const active = item.exact
+          ? pathname === item.href
+          : pathname.startsWith(item.href);
+        const Icon = item.icon;
+
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-current={active ? "page" : undefined}
+            className={cn(
+              "focus-visible:ring-primary flex min-h-11 shrink-0 items-center gap-3 rounded-xl border px-4 text-sm font-semibold transition focus-visible:ring-2 focus-visible:outline-none lg:w-full",
+              active
+                ? "border-primary/20 bg-primary-muted/70 text-primary shadow-[inset_3px_0_0_var(--primary)]"
+                : "text-text-secondary hover:border-border hover:bg-surface-2 hover:text-text-primary border-transparent",
+            )}
+          >
+            <Icon className="size-4" aria-hidden="true" />
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
