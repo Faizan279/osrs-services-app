@@ -1,23 +1,23 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
 
-import { BrandLogo } from "@/components/brand-logo";
-import { Button } from "@/components/ui/button";
+import { PublicFooter } from "@/components/public-footer";
+import { PublicHeader } from "@/components/public-header";
+import { getDiscordHref } from "@/config/public-navigation";
 
 export default function PublicLayout({ children }: { children: ReactNode }) {
+  const discordHref = getDiscordHref();
+
   return (
-    <div className="min-h-screen">
-      <header className="border-border/80 bg-background/80 border-b backdrop-blur-xl">
-        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 lg:px-8">
-          <Link href="/" aria-label="OSRS Services home">
-            <BrandLogo priority className="w-40" />
-          </Link>
-          <Button asChild size="sm" variant="secondary">
-            <Link href="/login">Staff sign in</Link>
-          </Button>
-        </div>
-      </header>
+    <div className="min-h-screen overflow-x-clip">
+      <a
+        href="#main-content"
+        className="bg-primary text-primary-foreground focus-visible:ring-background fixed top-3 left-3 z-[70] -translate-y-24 rounded-lg px-4 py-3 text-sm font-bold transition focus:translate-y-0 focus-visible:ring-2 focus-visible:outline-none"
+      >
+        Skip to main content
+      </a>
+      <PublicHeader discordHref={discordHref} />
       {children}
+      <PublicFooter />
     </div>
   );
 }

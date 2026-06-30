@@ -5,6 +5,7 @@ The complete raw reference pack should remain outside source control unless a sp
 Reference groups available locally:
 
 ## Bald.gg
+
 - Homepage
 - Fire Cape
 - Infernal Cape
@@ -12,6 +13,7 @@ Reference groups available locally:
 - Yama
 
 ## MyPvM
+
 - All services
 - Accounts
 - Bossing
@@ -19,12 +21,14 @@ Reference groups available locally:
 - Buy Gold
 
 ## Firstseller
+
 - PvM
 - Quests
 - Diaries
 - Minigames
 
 ## Current OSRS Services
+
 - Homepage screenshot
 - Official logo
 - WooCommerce export

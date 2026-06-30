@@ -1,6 +1,7 @@
 # Final Functional Scope
 
 ## Public storefront
+
 - Homepage and responsive navigation
 - Service catalogue and category pages
 - Premium special-service landing pages
@@ -13,9 +14,11 @@
 - Quotes, reviews, FAQs, and custom live chat
 
 ## Service categories
+
 Skilling, Quests, Achievement Diaries, Combat Achievements, Minigames, Bossing/PvM, Fire Cape, Infernal Cape, Colosseum, Yama, Royal Titans, Corrupted Gauntlet, Doom of Mokhaiotl, Raids, Outfits, Ironman Gathering, Gold, Items, Bonds, Accounts, Custom Account Builds, and Membership.
 
 ## Customer capabilities
+
 - Browse without signing in
 - Order as guest using contact details and RSN/game ID
 - Create an account optionally
@@ -25,6 +28,7 @@ Skilling, Quests, Achievement Diaries, Combat Achievements, Minigames, Bossing/P
 - Use live chat and review completed orders
 
 ## Admin capabilities
+
 - Dashboard and reports
 - Catalogue, media, SEO, and content
 - Pricing and calculator rules
@@ -35,6 +39,7 @@ Skilling, Quests, Achievement Diaries, Combat Achievements, Minigames, Bossing/P
 - Notifications, feature flags, audit logs, exports, and backup preparation
 
 ## Later activation
+
 - Real payment-provider credentials
 - Automatic subscription renewal
 - WhatsApp/n8n automation

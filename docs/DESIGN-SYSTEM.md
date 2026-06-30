@@ -77,3 +77,14 @@ These tokens were refined during the Task 001 visual revision:
 - Large desktop: 1920 px
 
 The interface must remain usable at 320 px minimum width.
+
+## Task 002 public patterns
+
+- The public shell uses a slim announcement bar, sticky translucent header, desktop service menu, focus-managed mobile drawer, and a full multi-column footer.
+- Public page sections use a maximum content width of `80rem`, generous vertical spacing, and alternating near-black or forest surfaces to create rhythm without bright-green saturation.
+- Major page headings use the display serif at restrained sizes. Navigation, controls, labels, prices, and operational copy remain in the sans-serif family.
+- Lime remains reserved for primary calls to action, active indicators, small icons, and selected states. Gold appears only in kickers, ornaments, and secondary premium cues.
+- Category cards may span different column widths to establish hierarchy; repeated service previews use centralized typed content and consistent factual labels.
+- Atmospheric artwork must be built from original CSS geometry, gradients, borders, and licensed icons. Do not use copied game or competitor artwork.
+- Placeholder reviews must be visibly identified as demo content in both the interface and source data until client-approved feedback is supplied.
+- Interactive public components preserve visible focus, Escape behavior, correct expanded state, mobile scroll locking, minimum practical touch targets, and reduced-motion handling.

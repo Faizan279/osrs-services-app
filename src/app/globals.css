@@ -192,6 +192,57 @@ body {
   background-size: 42px 42px;
 }
 
+.public-atmosphere {
+  background:
+    radial-gradient(circle at 88% 4%, rgb(199 164 90 / 5%), transparent 28rem),
+    radial-gradient(circle at 12% 12%, rgb(45 100 48 / 10%), transparent 32rem),
+    linear-gradient(180deg, #030705 0%, #050a07 48%, #030705 100%);
+}
+
+.public-grid {
+  background-image:
+    linear-gradient(rgb(166 215 25 / 2.4%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(166 215 25 / 2.4%) 1px, transparent 1px);
+  background-size: 54px 54px;
+  mask-image: linear-gradient(to bottom, black, transparent 88%);
+}
+
+.hero-visual::before {
+  position: absolute;
+  z-index: -1;
+  inset: 12% 8% -8%;
+  border-radius: 50%;
+  background: rgb(55 117 58 / 16%);
+  filter: blur(72px);
+  content: "";
+}
+
+.hero-orbit {
+  border-color: rgb(199 164 90 / 22%);
+  box-shadow:
+    0 0 0 1.75rem rgb(166 215 25 / 2.5%),
+    0 0 0 3.5rem rgb(199 164 90 / 2.2%);
+}
+
+.section-anchor {
+  scroll-margin-top: 7.75rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-atmosphere *,
+  .public-atmosphere *::before,
+  .public-atmosphere *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 @media (max-width: 1023px) {
   .login-atmosphere::after {
     width: 30rem;

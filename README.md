@@ -32,9 +32,11 @@ The planned launch includes:
 
 Live payment activation will occur after the client obtains approved payment-provider accounts and credentials.
 
-## Task 001 foundation
+## Task 002 public homepage
 
-The current UI intentionally contains placeholders only. The homepage and business modules remain later tasks.
+The public route now contains the complete Task 002 homepage, responsive navigation, accessible service menu, mobile drawer, FAQ, conversion sections, and footer. Catalogue engines, pricing, checkout, legal pages, live chat, and other business modules remain later tasks.
+
+The official transparent OSRS Services logo is stored at `public/branding/osrs-services-logo.png`. Set `NEXT_PUBLIC_DISCORD_URL` only when a verified support or invitation URL is available; otherwise Discord calls to action safely return to the homepage support section.
 
 ### Requirements
 
@@ -83,8 +85,12 @@ pnpm test:seed
 pnpm exec playwright install chromium
 pnpm test:e2e
 pnpm screenshots:task001
+pnpm screenshots:task002
+pnpm format:check
 pnpm build
 ```
+
+Task 002 screenshot capture expects the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
 
 ### Database commands
 
