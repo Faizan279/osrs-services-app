@@ -16,6 +16,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
+    "test:seed": "vitest run src/tests/seed-idempotence.test.ts",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "screenshots:task001": "tsx scripts/capture-task-001.ts",

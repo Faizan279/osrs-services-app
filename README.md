@@ -52,6 +52,8 @@ cp .env.example .env
 
 Set `AUTH_SECRET` to at least 32 random characters. To seed a local Super Admin, also set `ADMIN_SEED_EMAIL` and `ADMIN_SEED_PASSWORD` together. There is no default password.
 
+Normal seed runs preserve an existing administrator password. Set `ADMIN_SEED_RESET_PASSWORD=true` only for a deliberate password reset, with both administrator seed credentials supplied; return it to `false` immediately afterward. Seed reruns also preserve feature-flag activation states and existing role-permission assignments while adding any missing defaults.
+
 `DATABASE_ALLOW_PUBLIC_KEY_RETRIEVAL=true` supports the non-TLS Docker MySQL account locally. Leave it disabled in production and use the database provider's TLS configuration.
 
 ```bash
@@ -77,6 +79,7 @@ Open:
 pnpm lint
 pnpm typecheck
 pnpm test
+pnpm test:seed
 pnpm exec playwright install chromium
 pnpm test:e2e
 pnpm screenshots:task001

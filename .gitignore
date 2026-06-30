@@ -17,6 +17,7 @@ test-results/
 
 # local data and generated files
 *.log
+*.tsbuildinfo
 .DS_Store
 references/raw/
 src/generated/prisma/
