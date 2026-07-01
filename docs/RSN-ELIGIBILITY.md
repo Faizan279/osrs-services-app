@@ -1,9 +1,11 @@
 # RSN Eligibility Checker
 
 ## Goal
+
 Allow a guest or customer to enter an RSN and compare public account statistics with a service's requirements.
 
 ## Flow
+
 1. Enter RSN.
 2. Fetch public OSRS statistics.
 3. Cache the response briefly.
@@ -12,11 +14,13 @@ Allow a guest or customer to enter an RSN and compare public account statistics 
 6. Recommend prerequisite services where appropriate.
 
 ## Automatically verifiable examples
+
 - Public skill levels
 - Total level and XP
 - Public boss or activity values where available
 
 ## Not reliably verifiable from RSN alone
+
 - Completed quests
 - Diary completion
 - Inventory or bank contents

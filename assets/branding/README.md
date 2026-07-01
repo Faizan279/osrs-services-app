@@ -1,10 +1,13 @@
 # Branding Assets
 
-`osrs-services-logo-placeholder.svg` is clearly named as a temporary development asset. The approved transparent PNG was not present in the repository or accessible project inputs during the Task 001 visual revision.
+`osrs-services-logo-placeholder.svg` remains as a clearly named Task 001 development artifact and must not be presented as official artwork.
 
-When the official file is supplied:
+Task 002 integrates the existing transparent OSRS Services brand logo at:
 
-1. Add it at `public/branding/osrs-services-logo.png` (and retain a source copy here if required).
-2. Set `NEXT_PUBLIC_OSRS_SERVICES_LOGO_SRC="/branding/osrs-services-logo.png"`.
+```text
+public/branding/osrs-services-logo.png
+```
 
-The shared `BrandLogo` component already reads that setting, so no page-level changes are required. Do not treat, export, or redistribute the placeholder as official artwork.
+The file was retrieved unchanged from the established logo upload used by the current OSRS Services website and visually verified as the transparent OSRS Services wordmark. `NEXT_PUBLIC_OSRS_SERVICES_LOGO_SRC` points to this file, and the shared `BrandLogo` component supplies it to public and internal layouts.
+
+Do not treat, export, or redistribute the placeholder as official artwork.
