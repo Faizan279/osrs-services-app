@@ -45,3 +45,15 @@
 - Real prebuilt account listings
 - Approved payment providers
 - Final US business address
+
+## Task 003 catalogue decisions — 2026-07-01
+
+- Categories and services use stable IDs plus unique URL slugs; services also retain a unique canonical-ready slug for later migration and SEO work.
+- Game modes, requirements, media references and publication revisions are normalized rather than stored as editable JSON blobs.
+- Engine type is stored as a typed selection only. Task 003 does not execute calculators, pricing, inventory, checkout or marketplace engines.
+- Scheduled visibility is evaluated at request time. No worker or scheduler is introduced.
+- Previously published services are archived rather than permanently deleted. Publication, republication and archive events create immutable content snapshots.
+- Public queries use an allow-listed scalar projection that excludes internal notes, legacy metadata and actor relations.
+- Media management accepts only internal paths and HTTP(S) references with alt text. Production upload/storage remains deferred.
+- Seeded catalogue records use stable seed keys and empty update clauses so reruns add missing defaults without overwriting edited content or operational state.
+- Category/service mutation inputs are explicitly allow-listed and Zod-validated. Optimistic service versions reject stale editor submissions.

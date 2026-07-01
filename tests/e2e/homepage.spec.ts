@@ -110,7 +110,7 @@ test("important homepage calls to action use the planned destinations", async ({
 
   await expect(
     page.getByRole("link", { name: "Browse services" }).first(),
-  ).toHaveAttribute("href", "/#service-categories");
+  ).toHaveAttribute("href", "/services");
   await expect(
     page.getByRole("link", { name: "Get an Estimate" }),
   ).toHaveAttribute("href", "/#calculator-preview");
@@ -144,7 +144,7 @@ test("marketplace search discovers a matching service path", async ({
     page
       .locator("#hero-search-results")
       .getByRole("link", { name: /Questing/ }),
-  ).toHaveAttribute("href", "/#questing");
+  ).toHaveAttribute("href", "/services/quests");
 });
 
 test("featured service filters never show unrelated category listings", async ({

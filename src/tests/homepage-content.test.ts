@@ -46,4 +46,13 @@ describe("homepage content safeguards", () => {
       { label: "Reviews", href: "/#reviews" },
     ]);
   });
+
+  it("links implemented catalogue previews to real service routes", () => {
+    expect(featuredServices.map(({ href }) => href)).toEqual([
+      "/services/power-levelling/skill-training-request",
+      "/services/quests/quest-progression",
+      "/services/bossing-pvm/pvm-support",
+      "/services/achievement-diaries/diary-progression",
+    ]);
+  });
 });
