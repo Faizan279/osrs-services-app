@@ -6,6 +6,10 @@ import {
   homepageCategories,
   homepageFaqs,
 } from "@/content/homepage";
+import {
+  deferredPrimaryNavigation,
+  primaryNavigation,
+} from "@/config/public-navigation";
 
 describe("homepage content safeguards", () => {
   it("keeps categories and FAQ prompts unique", () => {
@@ -32,5 +36,14 @@ describe("homepage content safeguards", () => {
         attribution.toLowerCase().includes("not a customer review"),
       ),
     ).toBe(true);
+  });
+
+  it("keeps Reviews out of public navigation until it has verified content", () => {
+    expect(primaryNavigation.some(({ label }) => label === "Reviews")).toBe(
+      false,
+    );
+    expect(deferredPrimaryNavigation).toEqual([
+      { label: "Reviews", href: "/#reviews" },
+    ]);
   });
 });

@@ -21,8 +21,9 @@ export function FeaturedServicesMarketplace() {
     activeFilter === "All services"
       ? featuredServices
       : featuredServices.filter(({ category }) => category === activeFilter);
-  const highlighted = filteredServices[0] ?? featuredServices[0];
+  const highlighted = filteredServices[0];
   const supporting = filteredServices.slice(1);
+  const hasSupportingServices = supporting.length > 0;
 
   return (
     <div className="mt-10">
@@ -51,7 +52,14 @@ export function FeaturedServicesMarketplace() {
       </div>
 
       {highlighted ? (
-        <div className="mt-6 grid gap-5 lg:grid-cols-[1.08fr_0.92fr]">
+        <div
+          className={cn(
+            "mt-6 grid gap-5",
+            hasSupportingServices
+              ? "lg:grid-cols-[1.08fr_0.92fr]"
+              : "lg:grid-cols-1",
+          )}
+        >
           <article className="featured-service-stage relative isolate min-h-[28rem] overflow-hidden rounded-[1.75rem] p-6 sm:p-8">
             <div
               className="marketplace-object pointer-events-none absolute right-[-2rem] bottom-[-2.5rem] opacity-90"
@@ -64,7 +72,12 @@ export function FeaturedServicesMarketplace() {
                 <Swords className="size-11" />
               </span>
             </div>
-            <div className="relative z-10 flex h-full max-w-lg flex-col">
+            <div
+              className={cn(
+                "relative z-10 flex h-full flex-col",
+                hasSupportingServices ? "max-w-lg" : "max-w-2xl",
+              )}
+            >
               <p className="text-gold kicker-type">Highlighted service path</p>
               <h3 className="display-type text-text-primary mt-5 text-3xl sm:text-4xl">
                 {highlighted.name}
@@ -110,9 +123,9 @@ export function FeaturedServicesMarketplace() {
             </div>
           </article>
 
-          <div className="divide-border/60 border-border/70 divide-y overflow-hidden rounded-[1.75rem] border-y lg:border">
-            {(supporting.length ? supporting : featuredServices.slice(1)).map(
-              (service) => (
+          {hasSupportingServices ? (
+            <div className="divide-border/60 border-border/70 divide-y overflow-hidden rounded-[1.75rem] border-y lg:border">
+              {supporting.map((service) => (
                 <article
                   key={service.name}
                   className="hover:bg-surface-3/65 group bg-surface-1/40 px-1 py-5 transition sm:px-5"
@@ -147,9 +160,9 @@ export function FeaturedServicesMarketplace() {
                     </Link>
                   </div>
                 </article>
-              ),
-            )}
-          </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

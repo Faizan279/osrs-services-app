@@ -54,8 +54,12 @@ export const primaryNavigation = [
   { label: "Gold", href: "/#gold-service" },
   { label: "Accounts", href: "/#accounts-service" },
   { label: "Membership", href: "/#membership-service" },
-  { label: "Reviews", href: "/#support" },
   { label: "Help", href: "/#faq" },
+] satisfies readonly PublicLink[];
+
+// Reintroduce this item only when verified reviews and a genuine destination exist.
+export const deferredPrimaryNavigation = [
+  { label: "Reviews", href: "/#reviews" },
 ] satisfies readonly PublicLink[];
 
 export const footerNavigation = {

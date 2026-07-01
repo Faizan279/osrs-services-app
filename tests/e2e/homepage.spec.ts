@@ -147,6 +147,64 @@ test("marketplace search discovers a matching service path", async ({
   ).toHaveAttribute("href", "/#questing");
 });
 
+test("featured service filters never show unrelated category listings", async ({
+  page,
+}) => {
+  await page.goto("/#featured-services");
+
+  const filters = page.getByRole("tablist", {
+    name: "Featured service categories",
+  });
+  await filters.getByRole("tab", { name: "Questing", exact: true }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Quest progression", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Skill training request", exact: true }),
+  ).toBeHidden();
+  await expect(
+    page.getByRole("heading", { name: "PvM support", exact: true }),
+  ).toBeHidden();
+  await expect(
+    page.getByRole("heading", { name: "Diary progression", exact: true }),
+  ).toBeHidden();
+
+  await filters.getByRole("tab", { name: "All services", exact: true }).click();
+
+  for (const service of [
+    "Skill training request",
+    "Quest progression",
+    "PvM support",
+    "Diary progression",
+  ]) {
+    await expect(
+      page.getByRole("heading", { name: service, exact: true }),
+    ).toBeVisible();
+  }
+});
+
+test("public navigation omits Reviews while verified content is unavailable", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/");
+
+  if (testInfo.project.name === "mobile-chromium") {
+    await page.getByRole("button", { name: "Open mobile navigation" }).click();
+    await expect(
+      page
+        .getByRole("dialog", { name: "Mobile navigation" })
+        .getByRole("link", { name: "Reviews", exact: true }),
+    ).toHaveCount(0);
+  } else {
+    await expect(
+      page
+        .getByRole("navigation", { name: "Main navigation" })
+        .getByRole("link", { name: "Reviews", exact: true }),
+    ).toHaveCount(0);
+  }
+});
+
 test("homepage has no horizontal overflow at target widths", async ({
   page,
 }, testInfo) => {
