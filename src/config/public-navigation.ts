@@ -34,9 +34,19 @@ export const serviceNavigation = [
     description: "Configurable PvM and encounter assistance.",
   },
   {
-    label: "Skill training",
-    href: "/#skill-training",
-    description: "Account-aware training options and custom quotes.",
+    label: "Gold and items",
+    href: "/#gold-service",
+    description: "Planned gold, item and marketplace flows.",
+  },
+  {
+    label: "Membership and bonds",
+    href: "/#membership-service",
+    description: "Future membership and bond service options.",
+  },
+  {
+    label: "Accounts",
+    href: "/#accounts-service",
+    description: "Marketplace and custom account-build requests.",
   },
 ] satisfies readonly ServiceNavigationItem[];
 
@@ -44,7 +54,7 @@ export const primaryNavigation = [
   { label: "Gold", href: "/#gold-service" },
   { label: "Accounts", href: "/#accounts-service" },
   { label: "Membership", href: "/#membership-service" },
-  { label: "Reviews", href: "/#feedback" },
+  { label: "Reviews", href: "/#support" },
   { label: "Help", href: "/#faq" },
 ] satisfies readonly PublicLink[];
 
@@ -55,27 +65,32 @@ export const footerNavigation = {
     { label: "Bossing and PvM", href: "/#bossing-pvm" },
     { label: "Gold", href: "/#gold-service" },
   ],
-  support: [
-    { label: "How it works", href: "/#how-it-works" },
-    { label: "Security and privacy", href: "/#security" },
-    { label: "Frequently asked questions", href: "/#faq" },
-    { label: "Contact support", href: "/#support" },
+  marketplace: [
+    { label: "Gold and items", href: "/#gold-service" },
+    { label: "Accounts", href: "/#accounts-service" },
+    { label: "Membership and bonds", href: "/#membership-service" },
+    { label: "Estimate preview", href: "/#calculator-preview" },
   ],
   account: [
     { label: "My account", href: "/account" },
     { label: "Sign in", href: "/login" },
-    { label: "Order process", href: "/#how-it-works" },
+    { label: "Track an order", href: "/account" },
   ],
-  legal: [
+  help: [
+    { label: "How it works", href: "/#how-it-works" },
+    { label: "Security and privacy", href: "/#security" },
+    { label: "Frequently asked questions", href: "/#faq" },
+    { label: "Contact support", href: "/#support" },
     { label: "Terms placeholder", href: "/#legal-note" },
     { label: "Privacy placeholder", href: "/#legal-note" },
-    { label: "Refund policy placeholder", href: "/#legal-note" },
   ],
 } satisfies Record<string, readonly PublicLink[]>;
 
 export const publicCtaLinks = {
   browseServices: "/#service-categories",
   account: "/account",
+  getEstimate: "/#calculator-preview",
+  search: "/#marketplace-search",
   support: "/#support",
 } as const;
 

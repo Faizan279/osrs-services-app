@@ -10,19 +10,19 @@ export function FaqAccordion({ items }: { items: readonly FaqItem[] }) {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <div className="border-border divide-border divide-y overflow-hidden rounded-2xl border">
+    <div className="divide-border/80 divide-y border-y border-[#26342c]">
       {items.map((item, index) => {
         const isOpen = openIndex === index;
         const triggerId = `faq-trigger-${index}`;
         const panelId = `faq-panel-${index}`;
 
         return (
-          <div key={item.question} className="bg-surface-1/70">
+          <div key={item.question}>
             <h3>
               <button
                 id={triggerId}
                 type="button"
-                className="text-text-primary hover:bg-surface-2 focus-visible:ring-primary flex min-h-16 w-full items-center justify-between gap-5 px-5 py-4 text-left text-sm font-bold transition focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset sm:px-6 sm:text-base"
+                className="text-text-primary hover:text-primary focus-visible:ring-primary flex min-h-16 w-full items-center justify-between gap-5 py-4 text-left text-sm font-bold transition focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset sm:text-base"
                 aria-expanded={isOpen}
                 aria-controls={panelId}
                 onClick={() => setOpenIndex(isOpen ? null : index)}
@@ -51,7 +51,7 @@ export function FaqAccordion({ items }: { items: readonly FaqItem[] }) {
               )}
             >
               <div className="overflow-hidden">
-                <p className="text-text-secondary max-w-3xl px-5 pb-5 text-sm leading-7 sm:px-6 sm:pb-6">
+                <p className="text-text-secondary max-w-3xl pb-5 text-sm leading-7 sm:pb-6">
                   {item.answer}
                 </p>
               </div>

@@ -4,36 +4,44 @@ import {
   Activity,
   ArrowRight,
   BadgeCheck,
-  CircleCheck,
+  BarChart3,
+  Calculator,
+  CheckCircle2,
   Coins,
   Crown,
-  Eye,
   Flag,
+  Gauge,
   Headphones,
-  KeyRound,
   LockKeyhole,
   Map,
+  MapPin,
   MessageCircle,
   MessagesSquare,
-  Quote,
+  PackageCheck,
   ScrollText,
+  Shield,
   ShieldCheck,
   Sparkles,
   Swords,
-  UserRoundCheck,
+  Target,
+  Waypoints,
+  Zap,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 
 import { FaqAccordion } from "@/components/faq-accordion";
+import { FeaturedServicesMarketplace } from "@/components/featured-services-marketplace";
+import { MarketplaceSearch } from "@/components/marketplace-search";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { getDiscordHref, publicCtaLinks } from "@/config/public-navigation";
 import {
-  featuredServices,
-  feedbackPreviews,
+  expertiseAreas,
   homepageCategories,
   homepageFaqs,
   orderSteps,
+  orderTrackingPreview,
   processBenefits,
   type HomepageCategoryIcon,
 } from "@/content/homepage";
@@ -41,7 +49,7 @@ import { cn } from "@/lib/utils";
 
 const title = "Professional OSRS Services Marketplace";
 const description =
-  "Explore OSRS power levelling, questing, PvM and progression services through a clear, privacy-conscious ordering process.";
+  "Configure professional OSRS services, review transparent estimates and track progress through a clear, privacy-conscious marketplace.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -71,18 +79,22 @@ const categoryIcons: Record<HomepageCategoryIcon, LucideIcon> = {
   swords: Swords,
 };
 
-const benefitIcons: readonly LucideIcon[] = [
-  ShieldCheck,
+const trustIcons: readonly LucideIcon[] = [
   MessagesSquare,
-  UserRoundCheck,
-  Eye,
-  Headphones,
+  BarChart3,
   LockKeyhole,
+];
+
+const stepIcons: readonly LucideIcon[] = [
+  Target,
+  Waypoints,
+  ShieldCheck,
+  Gauge,
 ];
 
 function SectionIntro({
   eyebrow,
-  title,
+  title: sectionTitle,
   description: sectionDescription,
   align = "left",
 }: {
@@ -103,8 +115,8 @@ function SectionIntro({
       >
         {eyebrow}
       </p>
-      <h2 className="display-type text-text-primary mt-4 text-3xl leading-[1.05] sm:text-4xl lg:text-5xl">
-        {title}
+      <h2 className="display-type text-text-primary mt-4 text-3xl leading-[1.02] text-balance sm:text-4xl lg:text-5xl">
+        {sectionTitle}
       </h2>
       <p className="text-text-secondary mt-5 text-base leading-7 sm:text-lg">
         {sectionDescription}
@@ -113,330 +125,264 @@ function SectionIntro({
   );
 }
 
-function HeroVisual() {
+function PortalArtwork() {
   return (
-    <div
-      aria-label="Illustration of the OSRS Services ordering workflow"
-      role="img"
-      className="hero-visual relative mx-auto w-full max-w-[35rem] lg:mx-0 lg:ml-auto"
-    >
-      <div className="border-gold/15 absolute -inset-4 rounded-[2rem] border" />
-      <div className="border-border-strong bg-surface-1 relative overflow-hidden rounded-[1.75rem] border p-4 shadow-[0_38px_90px_rgb(0_0_0_/_0.48)] sm:p-5">
-        <div className="border-border bg-background/55 flex items-center justify-between rounded-xl border px-4 py-3">
-          <div className="flex items-center gap-3">
-            <span className="bg-primary/12 border-primary/25 flex size-9 items-center justify-center rounded-lg border">
-              <Swords aria-hidden="true" className="text-primary size-4" />
-            </span>
-            <div>
-              <p className="text-text-primary text-xs font-bold">
-                Service request
-              </p>
-              <p className="text-text-muted mt-0.5 text-[0.65rem]">
-                Clear scope · private communication
-              </p>
-            </div>
-          </div>
-          <span className="border-gold/25 bg-gold-muted/60 text-gold rounded-full border px-2.5 py-1 text-[0.6rem] font-bold tracking-[0.12em] uppercase">
-            In review
-          </span>
-        </div>
-
-        <div className="mt-4 grid gap-4 sm:grid-cols-[1.12fr_0.88fr]">
-          <div className="border-border from-surface-3 to-background relative min-h-72 overflow-hidden rounded-2xl border bg-gradient-to-br p-5">
-            <div className="hero-orbit absolute top-1/2 left-1/2 size-52 -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed" />
-            <div className="border-gold/12 absolute top-1/2 left-1/2 size-36 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-3xl border" />
-            <div className="border-primary/30 bg-primary-muted/80 absolute top-1/2 left-1/2 flex size-24 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[1.5rem] border shadow-[0_0_50px_rgb(166_215_25_/_0.12)]">
-              <ShieldCheck
-                aria-hidden="true"
-                className="text-primary size-10"
-              />
-            </div>
-            <span className="border-border-strong bg-surface-raised text-text-primary absolute top-5 left-5 flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[0.62rem] font-bold shadow-xl">
-              <CircleCheck aria-hidden="true" className="text-primary size-3" />
-              Goal selected
-            </span>
-            <span className="border-border-strong bg-surface-raised text-text-primary absolute right-4 bottom-6 flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[0.62rem] font-bold shadow-xl">
-              <MessageCircle aria-hidden="true" className="text-gold size-3" />
-              Updates ready
-            </span>
-          </div>
-
-          <div className="grid gap-3">
-            {[
-              ["01", "Choose", "Select the right service"],
-              ["02", "Configure", "Share the useful details"],
-              ["03", "Track", "Follow clear progress"],
-            ].map(([number, step, detail], index) => (
-              <div
-                key={number}
-                className={cn(
-                  "border-border bg-background/45 rounded-xl border p-3.5",
-                  index === 1 && "border-primary/25 bg-primary-muted/20",
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-primary text-[0.62rem] font-black tracking-[0.16em]">
-                    {number}
-                  </span>
-                  {index === 1 ? (
-                    <Sparkles
-                      aria-hidden="true"
-                      className="text-gold size-3.5"
-                    />
-                  ) : null}
-                </div>
-                <p className="text-text-primary mt-3 text-xs font-bold">
-                  {step}
-                </p>
-                <p className="text-text-muted mt-1 text-[0.65rem] leading-4">
-                  {detail}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="border-border bg-background/35 mt-4 grid grid-cols-3 gap-2 rounded-xl border p-3">
-          {["Privacy-aware", "Scope first", "Support access"].map((item) => (
-            <span
-              key={item}
-              className="text-text-secondary flex items-center justify-center gap-1.5 text-center text-[0.62rem] font-semibold"
-            >
-              <span className="bg-primary size-1.5 shrink-0 rounded-full" />
-              {item}
-            </span>
-          ))}
-        </div>
-      </div>
-    </div>
+    <figure className="portal-artwork relative h-full min-h-[31rem] overflow-hidden md:min-h-[38rem] lg:min-h-[47rem]">
+      <picture>
+        <source
+          media="(max-width: 767px)"
+          srcSet="/artwork/portal-hero-mobile.webp"
+        />
+        <Image
+          src="/artwork/portal-hero-desktop.webp"
+          alt="Armoured knight standing before a glowing green fantasy portal surrounded by coins and crystals"
+          width={1600}
+          height={900}
+          priority
+          sizes="(max-width: 767px) 100vw, 62vw"
+          className="absolute inset-0 size-full object-cover object-center"
+        />
+      </picture>
+      <div className="portal-artwork-fade pointer-events-none absolute inset-0" />
+      <div className="portal-floor-glow pointer-events-none absolute right-[10%] bottom-[2%] h-24 w-2/3 rounded-[50%] blur-3xl" />
+      <span className="hero-float-label hero-float-gold hidden md:flex">
+        <Coins aria-hidden="true" className="size-3.5" /> Gold &amp; Items
+      </span>
+      <span className="hero-float-label hero-float-level hidden md:flex">
+        <Zap aria-hidden="true" className="size-3.5" /> Power Levelling
+      </span>
+      <span className="hero-float-label hero-float-raids hidden md:flex">
+        <Swords aria-hidden="true" className="size-3.5" /> Raids &amp; Bossing
+      </span>
+      <span className="hero-float-label hero-float-track hidden md:flex">
+        <Gauge aria-hidden="true" className="size-3.5" /> Order Tracking
+      </span>
+    </figure>
   );
 }
 
 export default function Homepage() {
   const discordHref = getDiscordHref();
+  const priorityCategories = homepageCategories.filter(({ id }) =>
+    ["power-levelling", "questing"].includes(id),
+  );
+  const secondaryCategories = homepageCategories.filter(
+    ({ id }) => !["power-levelling", "questing"].includes(id),
+  );
 
   return (
-    <main id="main-content" className="public-atmosphere overflow-hidden">
-      <section className="relative isolate flex min-h-[calc(100svh-7rem)] items-center">
-        <div className="public-grid pointer-events-none absolute inset-0 -z-20 opacity-50" />
-        <div className="bg-primary/8 pointer-events-none absolute top-16 left-[-12rem] -z-10 size-[32rem] rounded-full blur-[110px]" />
-        <div className="bg-gold/5 pointer-events-none absolute right-[-10rem] bottom-[-8rem] -z-10 size-[28rem] rounded-full blur-[100px]" />
+    <main id="main-content" className="redesign-atmosphere overflow-hidden">
+      <section className="hero-marketplace relative isolate min-h-[calc(100svh-6.8rem)] overflow-hidden">
+        <div className="hero-grid pointer-events-none absolute inset-0 -z-20" />
+        <div className="hero-portal-haze pointer-events-none absolute top-[15%] right-[8%] -z-10 size-[34rem] rounded-full blur-[120px]" />
 
-        <div className="mx-auto grid w-full max-w-7xl items-center gap-14 px-5 py-18 sm:px-6 sm:py-22 lg:grid-cols-[0.93fr_1.07fr] lg:px-8 lg:py-20 xl:gap-20">
-          <div className="max-w-2xl">
-            <Badge
-              variant="success"
-              className="border-primary/25 bg-primary-muted/65 text-primary"
-            >
-              <ShieldCheck aria-hidden="true" className="size-3.5" />
-              Professional service workflow
-            </Badge>
-            <h1 className="display-type text-text-primary mt-6 text-[2.75rem] leading-[0.98] text-balance sm:text-6xl lg:text-[4.35rem]">
-              Your next goal,
-              <span className="text-primary block">handled with care.</span>
-            </h1>
-            <p className="text-text-secondary mt-6 max-w-xl text-base leading-7 sm:text-lg sm:leading-8">
-              Explore professional OSRS services through a clear ordering path
-              designed around thoughtful account handling, useful updates and
-              access to support.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link
-                href={publicCtaLinks.browseServices}
-                className={buttonVariants({ size: "lg" })}
+        <div className="mx-auto grid min-h-[calc(100svh-6.8rem)] max-w-[100rem] lg:grid-cols-[44%_56%]">
+          <div className="relative z-20 flex items-center px-5 py-14 sm:px-8 sm:py-18 lg:px-12 xl:pl-[max(3rem,calc((100vw-80rem)/2))]">
+            <div className="max-w-2xl">
+              <Badge
+                variant="success"
+                className="border-primary/20 bg-primary-muted/55 text-primary"
               >
-                Browse services
-                <ArrowRight aria-hidden="true" className="size-4" />
-              </Link>
-              <Link
-                href="/#how-it-works"
-                className={buttonVariants({ variant: "secondary", size: "lg" })}
-              >
-                See how it works
-              </Link>
-            </div>
+                <Sparkles aria-hidden="true" className="size-3.5" />
+                Built around your next milestone
+              </Badge>
+              <h1 className="display-type text-text-primary mt-6 text-[2.7rem] leading-[0.96] text-balance sm:text-6xl lg:text-[4.15rem] xl:text-[4.65rem]">
+                Your next OSRS milestone,
+                <span className="text-primary block">handled with care.</span>
+              </h1>
+              <p className="text-text-secondary mt-6 max-w-xl text-base leading-7 sm:text-lg sm:leading-8">
+                Configure professional OSRS services, review transparent
+                estimates and track your order from one secure dashboard.
+              </p>
 
-            <ul className="text-text-muted mt-9 grid gap-3 text-xs sm:grid-cols-3 sm:gap-5">
-              {[
-                [LockKeyhole, "Privacy-conscious"],
-                [MessagesSquare, "Clear communication"],
-                [Headphones, "Support access"],
-              ].map(([Icon, label]) => {
-                const TrustIcon = Icon as LucideIcon;
-                return (
+              <MarketplaceSearch />
+
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href={publicCtaLinks.browseServices}
+                  className={buttonVariants({ size: "lg" })}
+                >
+                  Browse Services
+                  <ArrowRight aria-hidden="true" className="size-4" />
+                </Link>
+                <Link
+                  href={publicCtaLinks.getEstimate}
+                  className={buttonVariants({
+                    variant: "secondary",
+                    size: "lg",
+                  })}
+                >
+                  Get an Estimate
+                </Link>
+              </div>
+
+              <ul className="mt-8 flex flex-wrap gap-x-5 gap-y-3">
+                {[
+                  "Clear estimates",
+                  "Secure communication",
+                  "Order progress visibility",
+                ].map((item) => (
                   <li
-                    key={label as string}
-                    className="flex items-center gap-2.5"
+                    key={item}
+                    className="text-text-muted flex items-center gap-2 text-xs font-semibold"
                   >
-                    <span className="border-border bg-surface-2 flex size-8 items-center justify-center rounded-lg border">
-                      <TrustIcon
-                        aria-hidden="true"
-                        className="text-gold size-3.5"
-                      />
-                    </span>
-                    <span className="font-semibold">{label as string}</span>
+                    <CheckCircle2
+                      aria-hidden="true"
+                      className="text-primary size-3.5"
+                    />
+                    {item}
                   </li>
-                );
-              })}
-            </ul>
+                ))}
+              </ul>
+            </div>
           </div>
 
-          <HeroVisual />
+          <div className="relative min-h-[25rem] md:min-h-[38rem] lg:min-h-0">
+            <PortalArtwork />
+          </div>
         </div>
       </section>
 
       <section
         id="service-categories"
-        className="section-anchor border-border/70 bg-background/45 border-y py-20 sm:py-24 lg:py-28"
+        className="section-anchor category-marketplace py-20 sm:py-24 lg:py-28"
       >
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
+          <div className="grid gap-8 lg:grid-cols-[1fr_0.7fr] lg:items-end">
             <SectionIntro
-              eyebrow="Service index"
-              title="Start with the kind of progress you need."
-              description="Browse the major service areas now. Detailed calculators, live inventory and checkout configuration remain intentionally scheduled for later tasks."
+              eyebrow="Marketplace entry points"
+              title="Go straight to the progress you have in mind."
+              description="Start with a priority service path or scan the wider marketplace. Each route keeps requirements and estimates visible before an order is confirmed."
             />
-            <p className="text-text-muted max-w-sm text-sm leading-6 lg:text-right">
-              Every category will grow into a purpose-built order experience —
-              never a one-size-fits-all product form.
+            <p className="text-text-muted max-w-md text-sm leading-6 lg:justify-self-end lg:text-right">
+              Full service configuration is scheduled for later tasks. These
+              entry points establish the discovery experience without inventing
+              prices or availability.
             </p>
           </div>
 
-          <div className="mt-12 grid auto-rows-fr gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {homepageCategories.map((category) => {
+          <div className="mt-12 grid gap-5 lg:grid-cols-2">
+            {priorityCategories.map((category, index) => {
               const Icon = categoryIcons[category.icon];
               return (
                 <article
                   key={category.id}
                   id={category.id}
                   className={cn(
-                    "section-anchor group border-border from-surface-2 to-surface-1 hover:border-primary/35 relative flex min-h-64 flex-col overflow-hidden rounded-2xl border bg-gradient-to-br p-5 transition duration-200 sm:p-6",
-                    category.treatment === "feature" &&
-                      "sm:col-span-2 lg:min-h-72",
-                    category.treatment === "compact" && "lg:min-h-60",
+                    "priority-category section-anchor group relative isolate min-h-80 overflow-hidden rounded-[1.75rem] p-7 sm:p-9",
+                    index === 1 && "priority-category-quest",
                   )}
                 >
-                  <div className="bg-primary/6 group-hover:bg-primary/10 pointer-events-none absolute -top-12 -right-12 size-36 rounded-full blur-3xl transition" />
-                  <span className="border-border-strong bg-background/45 group-hover:border-primary/35 flex size-11 items-center justify-center rounded-xl border transition">
-                    <Icon aria-hidden="true" className="text-primary size-5" />
-                  </span>
-                  <div className="mt-auto pt-8">
-                    <h3 className="display-type text-text-primary text-2xl">
+                  <div className="category-poly-object" aria-hidden="true">
+                    <span className="category-poly-ring" />
+                    <span className="category-poly-core">
+                      <Icon className="size-10" />
+                    </span>
+                  </div>
+                  <div className="relative z-10 flex h-full max-w-md flex-col">
+                    <p className="text-gold kicker-type">
+                      {index === 0 ? "Build a skill path" : "Plan progression"}
+                    </p>
+                    <h3 className="display-type text-text-primary mt-auto pt-20 text-3xl sm:text-4xl">
                       {category.title}
                     </h3>
-                    <p className="text-text-secondary mt-3 max-w-xl text-sm leading-6">
+                    <p className="text-text-secondary mt-3 text-sm leading-6">
                       {category.description}
                     </p>
                     <Link
                       href={category.href}
-                      className="text-primary focus-visible:ring-primary mt-5 inline-flex min-h-9 items-center gap-2 rounded-lg text-xs font-bold tracking-[0.04em] uppercase focus-visible:ring-2 focus-visible:outline-none"
+                      className="text-primary focus-visible:ring-primary mt-5 inline-flex min-h-10 w-fit items-center gap-2 rounded-lg text-sm font-bold focus-visible:ring-2 focus-visible:outline-none"
                     >
-                      Explore category
+                      Explore service path
                       <ArrowRight
                         aria-hidden="true"
-                        className="size-3.5 transition-transform group-hover:translate-x-1"
+                        className="size-4 transition-transform group-hover:translate-x-1"
                       />
                     </Link>
                   </div>
                 </article>
               );
             })}
-            <span id="skill-training" className="section-anchor sr-only" />
+          </div>
+
+          <div className="secondary-category-rail mt-5 grid sm:grid-cols-2 lg:grid-cols-3">
+            {secondaryCategories.map((category) => {
+              const Icon = categoryIcons[category.icon];
+              return (
+                <Link
+                  key={category.id}
+                  id={category.id}
+                  href={category.href}
+                  className="section-anchor group focus-visible:ring-primary flex min-h-32 items-center gap-4 px-5 py-5 transition focus-visible:ring-2 focus-visible:outline-none sm:px-6"
+                >
+                  <span className="secondary-category-icon">
+                    <Icon
+                      aria-hidden="true"
+                      className="text-primary size-5 transition-transform group-hover:-translate-y-1"
+                    />
+                  </span>
+                  <span>
+                    <span className="text-text-primary group-hover:text-primary block text-sm font-bold transition">
+                      {category.title}
+                    </span>
+                    <span className="text-text-muted mt-1 block text-xs leading-5">
+                      {category.description}
+                    </span>
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         </div>
       </section>
 
       <section
-        id="featured-services"
-        className="section-anchor py-20 sm:py-24 lg:py-28"
+        id="security"
+        className="section-anchor trust-editorial py-20 sm:py-24 lg:py-28"
       >
-        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
-          <SectionIntro
-            eyebrow="Featured paths"
-            title="A useful preview — without invented prices."
-            description="These service cards show how the future catalogue will communicate scope, scheduling and next actions while client pricing remains unconfigured."
-          />
-
-          <div className="mt-12 grid gap-4 md:grid-cols-2">
-            {featuredServices.map((service, index) => (
-              <article
-                key={service.name}
-                className="border-border bg-surface-1/75 hover:border-border-strong group rounded-2xl border p-5 transition sm:p-6"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-gold text-[0.65rem] font-bold tracking-[0.16em] uppercase">
-                      {service.category}
-                    </p>
-                    <h3 className="text-text-primary mt-3 text-xl font-bold">
-                      {service.name}
-                    </h3>
-                  </div>
-                  <span className="border-border bg-background/55 text-text-muted flex size-9 shrink-0 items-center justify-center rounded-lg border text-xs font-black">
-                    0{index + 1}
-                  </span>
-                </div>
-                <p className="text-text-secondary mt-4 text-sm leading-6">
-                  {service.summary}
-                </p>
-                <dl className="border-border mt-6 grid gap-4 border-y py-4 sm:grid-cols-2">
-                  <div>
-                    <dt className="text-text-muted text-[0.62rem] font-bold tracking-[0.14em] uppercase">
-                      Starting price
-                    </dt>
-                    <dd className="text-text-primary mt-1.5 text-sm font-bold">
-                      {service.price}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-text-muted text-[0.62rem] font-bold tracking-[0.14em] uppercase">
-                      Scheduling
-                    </dt>
-                    <dd className="text-text-primary mt-1.5 text-sm font-bold">
-                      {service.delivery}
-                    </dd>
-                  </div>
-                </dl>
-                <Link
-                  href={service.href}
-                  className="text-primary focus-visible:ring-primary mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg text-sm font-bold focus-visible:ring-2 focus-visible:outline-none"
-                >
-                  {service.label}
-                  <ArrowRight
-                    aria-hidden="true"
-                    className="size-4 transition-transform group-hover:translate-x-1"
-                  />
-                </Link>
-              </article>
-            ))}
+        <div className="mx-auto grid max-w-7xl items-center gap-12 px-5 sm:px-6 lg:grid-cols-[0.9fr_0.65fr_0.95fr] lg:px-8">
+          <div>
+            <p className="text-gold kicker-type ornament-rule">
+              Ordering confidence
+            </p>
+            <h2 className="display-type text-text-primary mt-5 text-3xl leading-[1.03] sm:text-5xl">
+              One clear path from request to progress.
+            </h2>
+            <p className="text-text-secondary mt-5 text-base leading-7">
+              Useful detail should make an order easier to understand—not make
+              the experience feel like an internal system. Scope, updates and
+              support stay connected around your milestone.
+            </p>
           </div>
-        </div>
-      </section>
 
-      <section className="border-border bg-surface-1/45 border-y py-20 sm:py-24 lg:py-28">
-        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
-          <SectionIntro
-            eyebrow="Why OSRS Services"
-            title="Trust comes from a better process."
-            description="The marketplace is being built around practical operating principles, not fabricated popularity numbers or marketing guarantees."
-            align="center"
-          />
+          <div className="trust-relic mx-auto" aria-hidden="true">
+            <span className="trust-relic-orbit" />
+            <span className="trust-relic-shield">
+              <Shield className="size-14" />
+            </span>
+            <span className="trust-relic-gem trust-relic-gem-one" />
+            <span className="trust-relic-gem trust-relic-gem-two" />
+          </div>
 
-          <div className="border-border bg-border mt-12 grid gap-px overflow-hidden rounded-2xl border sm:grid-cols-2 lg:grid-cols-3">
+          <div className="divide-border/50 divide-y">
             {processBenefits.map((benefit, index) => {
-              const Icon = benefitIcons[index] ?? ShieldCheck;
+              const Icon = trustIcons[index] ?? ShieldCheck;
               return (
                 <article
                   key={benefit.title}
-                  className="bg-surface-1 p-6 sm:p-7"
+                  className="flex gap-4 py-6 first:pt-0 last:pb-0"
                 >
-                  <Icon aria-hidden="true" className="text-primary size-5" />
-                  <h3 className="text-text-primary mt-5 text-base font-bold">
-                    {benefit.title}
-                  </h3>
-                  <p className="text-text-secondary mt-2 text-sm leading-6">
-                    {benefit.description}
-                  </p>
+                  <span className="bg-primary/10 text-primary flex size-10 shrink-0 items-center justify-center rounded-xl">
+                    <Icon aria-hidden="true" className="size-4.5" />
+                  </span>
+                  <div>
+                    <h3 className="text-text-primary text-base font-bold">
+                      {benefit.title}
+                    </h3>
+                    <p className="text-text-secondary mt-2 text-sm leading-6">
+                      {benefit.description}
+                    </p>
+                  </div>
                 </article>
               );
             })}
@@ -445,101 +391,379 @@ export default function Homepage() {
       </section>
 
       <section
-        id="how-it-works"
-        className="section-anchor py-20 sm:py-24 lg:py-28"
+        id="featured-services"
+        className="section-anchor featured-marketplace py-20 sm:py-24 lg:py-28"
       >
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
-          <div className="grid gap-12 lg:grid-cols-[0.72fr_1.28fr] lg:gap-20">
+          <div className="flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
             <SectionIntro
-              eyebrow="How it works"
-              title="Four clear steps from goal to progress."
-              description="This explains the intended order journey. Live service configuration and checkout are deliberately outside Task 002."
+              eyebrow="Popular service paths"
+              title="A marketplace view built around useful choices."
+              description="Compare service context, supported account modes and estimate states without fabricated rankings, prices or delivery promises."
             />
-            <ol className="grid gap-4 sm:grid-cols-2">
-              {orderSteps.map((step) => (
-                <li
-                  key={step.number}
-                  className="border-border bg-surface-1/70 relative rounded-2xl border p-6"
-                >
-                  <span className="text-primary text-xs font-black tracking-[0.18em]">
-                    {step.number}
-                  </span>
-                  <h3 className="text-text-primary mt-8 text-lg font-bold">
-                    {step.title}
-                  </h3>
-                  <p className="text-text-secondary mt-2 text-sm leading-6">
-                    {step.description}
-                  </p>
+            <Link
+              href={publicCtaLinks.browseServices}
+              className="text-primary focus-visible:ring-primary inline-flex min-h-11 w-fit items-center gap-2 rounded-lg text-sm font-bold focus-visible:ring-2 focus-visible:outline-none"
+            >
+              View all service areas
+              <ArrowRight aria-hidden="true" className="size-4" />
+            </Link>
+          </div>
+          <FeaturedServicesMarketplace />
+        </div>
+      </section>
+
+      <section
+        id="calculator-preview"
+        className="section-anchor calculator-atmosphere py-20 sm:py-24 lg:py-28"
+      >
+        <div className="mx-auto grid max-w-7xl items-center gap-12 px-5 sm:px-6 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16 lg:px-8">
+          <div>
+            <Badge variant="warning">Transparent estimate preview</Badge>
+            <h2 className="display-type text-text-primary mt-5 text-3xl leading-[1.02] sm:text-5xl">
+              Configure first. Confirm the final price before ordering.
+            </h2>
+            <p className="text-text-secondary mt-5 text-base leading-7">
+              The planned calculators will adapt to service type, current
+              progress, target, account mode and relevant requirements. This
+              preview demonstrates the information hierarchy only.
+            </p>
+            <ul className="text-text-secondary mt-7 space-y-3 text-sm">
+              {[
+                "Skill and XP targets",
+                "Quest and diary requirements",
+                "Bossing and PvM scope",
+                "Account-mode adjustments",
+              ].map((item) => (
+                <li key={item} className="flex items-center gap-3">
+                  <CheckCircle2
+                    aria-hidden="true"
+                    className="text-primary size-4"
+                  />
+                  {item}
                 </li>
               ))}
-            </ol>
+            </ul>
+            <Link
+              href={publicCtaLinks.browseServices}
+              className={cn(
+                buttonVariants({ variant: "secondary", size: "lg" }),
+                "mt-8",
+              )}
+            >
+              Browse calculator types
+              <ArrowRight aria-hidden="true" className="size-4" />
+            </Link>
+          </div>
+
+          <div className="calculator-stage relative" data-content-status="demo">
+            <div
+              className="calculator-coins pointer-events-none"
+              aria-hidden="true"
+            >
+              <span />
+              <span />
+              <span />
+            </div>
+            <div
+              className="calculator-crystal pointer-events-none"
+              aria-hidden="true"
+            />
+            <div className="calculator-window relative z-10">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-gold text-[0.65rem] font-bold tracking-[0.16em] uppercase">
+                    Calculator interface preview
+                  </p>
+                  <h3 className="text-text-primary mt-2 text-xl font-bold">
+                    Skill progression estimate
+                  </h3>
+                </div>
+                <span className="bg-primary/10 text-primary flex size-10 items-center justify-center rounded-xl">
+                  <Calculator aria-hidden="true" className="size-5" />
+                </span>
+              </div>
+
+              <fieldset className="mt-7 grid gap-4 sm:grid-cols-2" disabled>
+                <label className="space-y-2 sm:col-span-2">
+                  <span className="text-text-secondary text-xs font-bold">
+                    Service
+                  </span>
+                  <select
+                    aria-label="Preview service"
+                    defaultValue="Agility training"
+                    className="border-border bg-background/65 text-text-primary h-12 w-full rounded-xl border px-4 text-sm"
+                  >
+                    <option>Agility training</option>
+                  </select>
+                </label>
+                <label className="space-y-2">
+                  <span className="text-text-secondary text-xs font-bold">
+                    Current level
+                  </span>
+                  <input
+                    aria-label="Preview current level"
+                    value="62"
+                    readOnly
+                    className="border-border bg-background/65 text-text-primary h-12 w-full rounded-xl border px-4 text-sm"
+                  />
+                </label>
+                <label className="space-y-2">
+                  <span className="text-text-secondary text-xs font-bold">
+                    Target level
+                  </span>
+                  <input
+                    aria-label="Preview target level"
+                    value="80"
+                    readOnly
+                    className="border-border bg-background/65 text-text-primary h-12 w-full rounded-xl border px-4 text-sm"
+                  />
+                </label>
+                <label className="space-y-2 sm:col-span-2">
+                  <span className="text-text-secondary text-xs font-bold">
+                    Game mode
+                  </span>
+                  <select
+                    aria-label="Preview game mode"
+                    defaultValue="Normal"
+                    className="border-border bg-background/65 text-text-primary h-12 w-full rounded-xl border px-4 text-sm"
+                  >
+                    <option>Normal</option>
+                  </select>
+                </label>
+              </fieldset>
+
+              <div className="estimate-preview mt-6 p-5">
+                <div className="flex items-center justify-between gap-4">
+                  <p className="text-text-primary text-sm font-bold">
+                    Estimate summary
+                  </p>
+                  <span className="text-primary text-[0.62rem] font-bold tracking-[0.12em] uppercase">
+                    Configuration required
+                  </span>
+                </div>
+                <p className="display-type text-text-primary mt-5 text-2xl">
+                  Estimate updates after configuration
+                </p>
+                <p className="text-text-muted mt-2 text-xs leading-5">
+                  Final pricing is confirmed before order submission.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       <section
-        id="security"
-        className="section-anchor mx-auto max-w-7xl px-5 pb-20 sm:px-6 sm:pb-24 lg:px-8 lg:pb-28"
+        id="how-it-works"
+        className="section-anchor journey-atmosphere py-20 sm:py-24 lg:py-28"
       >
-        <div className="border-border-strong from-primary-muted/55 via-surface-2 to-background relative overflow-hidden rounded-[1.75rem] border bg-gradient-to-br p-6 sm:p-10 lg:p-14">
-          <div className="public-grid pointer-events-none absolute inset-0 opacity-35" />
-          <div className="relative grid items-center gap-12 lg:grid-cols-[1.08fr_0.92fr] lg:gap-20">
-            <div>
-              <Badge variant="warning">Privacy-conscious service</Badge>
-              <h2 className="display-type text-text-primary mt-5 text-3xl leading-[1.05] sm:text-4xl lg:text-5xl">
-                Your order details belong in a controlled workflow.
-              </h2>
-              <p className="text-text-secondary mt-5 max-w-2xl text-base leading-7">
-                Account and order information should be shared only when needed,
-                through the approved communication path, and with staff access
-                limited by their responsibilities.
-              </p>
-              <Link
-                href="/#faq"
-                className={cn(buttonVariants({ variant: "secondary" }), "mt-7")}
-              >
-                Read security FAQs
-                <ArrowRight aria-hidden="true" className="size-4" />
-              </Link>
-            </div>
-            <div className="grid gap-3">
-              {[
-                [
-                  KeyRound,
-                  "Account and order privacy",
-                  "Share only the information required for the agreed service.",
-                ],
-                [
-                  MessageCircle,
-                  "Secure communication",
-                  "Keep important updates connected to the order workflow.",
-                ],
-                [
-                  UserRoundCheck,
-                  "Permission-aware operations",
-                  "Staff access follows the responsibilities established in the platform foundation.",
-                ],
-              ].map(([Icon, itemTitle, itemDescription]) => {
-                const SecurityIcon = Icon as LucideIcon;
-                return (
-                  <article
-                    key={itemTitle as string}
-                    className="border-border bg-background/55 flex gap-4 rounded-xl border p-4 backdrop-blur"
-                  >
-                    <span className="border-primary/25 bg-primary/8 flex size-10 shrink-0 items-center justify-center rounded-lg border">
-                      <SecurityIcon
-                        aria-hidden="true"
-                        className="text-primary size-4"
-                      />
+        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
+          <SectionIntro
+            eyebrow="How ordering works"
+            title="Follow one connected route to your next milestone."
+            description="The homepage explains the intended journey. Service engines, checkout and real tracking remain later implementation tasks."
+            align="center"
+          />
+          <ol className="journey-path relative mt-14 grid gap-8 lg:grid-cols-4 lg:gap-5">
+            {orderSteps.map((step, index) => {
+              const Icon = stepIcons[index] ?? MapPin;
+              return (
+                <li
+                  key={step.number}
+                  className="journey-stop relative flex gap-5 lg:block"
+                >
+                  <span className="journey-marker">
+                    <Icon aria-hidden="true" className="size-5" />
+                  </span>
+                  <div className="lg:pt-7">
+                    <span className="text-gold text-[0.62rem] font-black tracking-[0.16em]">
+                      {step.number}
                     </span>
+                    <h3 className="text-text-primary mt-2 text-lg font-bold">
+                      {index === 0
+                        ? "Choose a service"
+                        : index === 1
+                          ? "Configure requirements"
+                          : index === 2
+                            ? "Confirm securely"
+                            : "Track progress"}
+                    </h3>
+                    <p className="text-text-secondary mt-2 text-sm leading-6">
+                      {step.description}
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      </section>
+
+      <section
+        id="order-tracking"
+        className="section-anchor tracking-atmosphere py-20 sm:py-24 lg:py-28"
+      >
+        <div className="mx-auto grid max-w-7xl items-center gap-12 px-5 sm:px-6 lg:grid-cols-[0.78fr_1.22fr] lg:gap-20 lg:px-8">
+          <div>
+            <Badge variant="success">Development-safe preview</Badge>
+            <h2 className="display-type text-text-primary mt-5 text-3xl leading-[1.02] sm:text-5xl">
+              Keep progress, messages and the next milestone together.
+            </h2>
+            <p className="text-text-secondary mt-5 text-base leading-7">
+              The planned customer dashboard will make the meaningful parts of
+              an order easy to follow without exposing internal operations. All
+              information shown here is demonstration content.
+            </p>
+            <Link
+              href={publicCtaLinks.account}
+              className={cn(
+                buttonVariants({ variant: "secondary", size: "lg" }),
+                "mt-8",
+              )}
+            >
+              Customer account
+              <ArrowRight aria-hidden="true" className="size-4" />
+            </Link>
+          </div>
+
+          <div className="tracking-stage relative" data-content-status="demo">
+            <span className="tracking-float tracking-float-one">
+              Secure messages
+            </span>
+            <span className="tracking-float tracking-float-two">
+              Milestone completed
+            </span>
+            <span className="tracking-float tracking-float-three">
+              Support available
+            </span>
+            <div className="tracking-window">
+              <div className="border-border/70 flex flex-wrap items-center justify-between gap-4 border-b px-5 py-4 sm:px-7">
+                <div className="flex items-center gap-3">
+                  <span className="bg-primary/12 text-primary flex size-10 items-center justify-center rounded-xl">
+                    <PackageCheck aria-hidden="true" className="size-5" />
+                  </span>
+                  <div>
+                    <p className="text-text-primary text-sm font-bold">
+                      {orderTrackingPreview.title}
+                    </p>
+                    <p className="text-text-muted mt-0.5 text-xs">
+                      {orderTrackingPreview.category}
+                    </p>
+                  </div>
+                </div>
+                <span className="bg-primary/10 text-primary rounded-full px-3 py-1.5 text-[0.65rem] font-bold tracking-[0.1em] uppercase">
+                  {orderTrackingPreview.status}
+                </span>
+              </div>
+
+              <div className="grid gap-6 p-5 sm:p-7 md:grid-cols-[1.1fr_0.9fr]">
+                <div>
+                  <div className="flex items-end justify-between gap-4">
                     <div>
-                      <h3 className="text-text-primary text-sm font-bold">
-                        {itemTitle as string}
-                      </h3>
-                      <p className="text-text-muted mt-1 text-xs leading-5">
-                        {itemDescription as string}
+                      <p className="text-text-muted text-xs font-bold">
+                        Order progress
+                      </p>
+                      <p className="display-type text-text-primary mt-2 text-4xl">
+                        {orderTrackingPreview.progress}%
                       </p>
                     </div>
+                    <Gauge aria-hidden="true" className="text-primary size-8" />
+                  </div>
+                  <div className="bg-background mt-5 h-2 overflow-hidden rounded-full">
+                    <span
+                      className="bg-primary block h-full rounded-full"
+                      style={{ width: `${orderTrackingPreview.progress}%` }}
+                    />
+                  </div>
+                  <div className="tracking-route mt-8">
+                    {[
+                      "Confirmed",
+                      "Requirements",
+                      "In progress",
+                      "Complete",
+                    ].map((milestone, index) => (
+                      <span
+                        key={milestone}
+                        className={cn(index < 3 && "tracking-route-active")}
+                      >
+                        {milestone}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="tracking-info-row">
+                    <MessagesSquare
+                      aria-hidden="true"
+                      className="text-gold size-4"
+                    />
+                    <span>
+                      <span className="text-text-muted block text-[0.62rem] font-bold uppercase">
+                        Communication
+                      </span>
+                      <span className="text-text-primary mt-1 block text-xs font-bold">
+                        {orderTrackingPreview.activity}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="tracking-info-row">
+                    <Target
+                      aria-hidden="true"
+                      className="text-primary size-4"
+                    />
+                    <span>
+                      <span className="text-text-muted block text-[0.62rem] font-bold uppercase">
+                        Next milestone
+                      </span>
+                      <span className="text-text-primary mt-1 block text-xs font-bold">
+                        {orderTrackingPreview.nextMilestone}
+                      </span>
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled
+                    className="border-border text-text-secondary flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border text-xs font-bold disabled:opacity-70"
+                  >
+                    <Headphones aria-hidden="true" className="size-4" />
+                    Support action preview
+                  </button>
+                </div>
+              </div>
+              <p className="border-border/70 text-warning border-t px-5 py-3 text-center text-[0.62rem] font-bold tracking-[0.1em] uppercase sm:px-7">
+                Demonstration content — not a real customer order
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="expertise-atmosphere py-20 sm:py-24 lg:py-28">
+        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
+          <div className="grid gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:items-end">
+            <SectionIntro
+              eyebrow="Areas of expertise"
+              title="Service knowledge organised around the work."
+              description="Explore category expertise without fabricated employee profiles, qualifications or experience claims."
+            />
+            <div className="expertise-rail grid sm:grid-cols-2">
+              {expertiseAreas.map((area) => {
+                const Icon = categoryIcons[area.icon];
+                return (
+                  <article key={area.title} className="expertise-item group">
+                    <span className="expertise-symbol">
+                      <Icon
+                        aria-hidden="true"
+                        className="size-6 transition-transform group-hover:-translate-y-1"
+                      />
+                    </span>
+                    <h3 className="text-text-primary mt-5 text-base font-bold">
+                      {area.title}
+                    </h3>
+                    <p className="text-text-secondary mt-2 text-sm leading-6">
+                      {area.description}
+                    </p>
                   </article>
                 );
               })}
@@ -549,94 +773,70 @@ export default function Homepage() {
       </section>
 
       <section
-        id="feedback"
-        className="section-anchor border-border bg-background/55 border-y py-20 sm:py-24 lg:py-28"
+        id="faq"
+        className="section-anchor faq-atmosphere py-20 sm:py-24 lg:py-28"
       >
-        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
+        <div className="mx-auto grid max-w-7xl gap-12 px-5 sm:px-6 lg:grid-cols-[0.72fr_1.28fr] lg:gap-20 lg:px-8">
+          <div>
             <SectionIntro
-              eyebrow="Customer feedback"
-              title="A transparent home for verified voices."
-              description="The reusable review layout is ready. These cards are visibly marked as demo content until client-approved feedback is supplied."
+              eyebrow="Common questions"
+              title="Clear answers before you configure an order."
+              description="Review the planned service process, account information, communication and custom-estimate approach."
             />
-            <Badge variant="warning">Demo content — not real reviews</Badge>
+            <div className="help-relic mt-10" aria-hidden="true">
+              <span className="help-scroll" />
+              <span className="help-seal">
+                <MessageCircle className="size-5" />
+              </span>
+            </div>
+            <Link
+              href={discordHref}
+              className="text-primary focus-visible:ring-primary mt-8 inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-bold focus-visible:ring-2 focus-visible:outline-none"
+            >
+              <Headphones aria-hidden="true" className="size-4" />
+              Request support
+              <ArrowRight aria-hidden="true" className="size-4" />
+            </Link>
           </div>
-          <div className="mt-12 grid gap-4 lg:grid-cols-3">
-            {feedbackPreviews.map((feedback) => (
-              <article
-                key={feedback.context}
-                className="border-border bg-surface-1 relative rounded-2xl border p-6"
-                data-content-status="demo"
-              >
-                <Quote aria-hidden="true" className="text-gold/45 size-7" />
-                <p className="text-text-primary mt-6 text-base leading-7">
-                  “{feedback.quote}”
-                </p>
-                <div className="border-border mt-7 border-t pt-4">
-                  <p className="text-text-secondary text-xs font-bold">
-                    {feedback.context}
-                  </p>
-                  <p className="text-warning mt-1 text-[0.65rem] font-bold tracking-[0.08em] uppercase">
-                    {feedback.attribution}
-                  </p>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="faq" className="section-anchor py-20 sm:py-24 lg:py-28">
-        <div className="mx-auto max-w-5xl px-5 sm:px-6 lg:px-8">
-          <SectionIntro
-            eyebrow="Common questions"
-            title="Good orders begin with clear answers."
-            description="A careful overview of the planned service process, account details, communication and custom quotes."
-            align="center"
-          />
-          <div className="mt-12">
-            <FaqAccordion items={homepageFaqs} />
-          </div>
+          <FaqAccordion items={homepageFaqs} />
         </div>
       </section>
 
       <section
         id="support"
-        className="section-anchor mx-auto max-w-7xl px-5 pb-20 sm:px-6 sm:pb-24 lg:px-8 lg:pb-28"
+        className="section-anchor final-portal-cta relative isolate overflow-hidden py-20 sm:py-24"
       >
-        <div className="border-primary/25 bg-primary text-primary-foreground relative overflow-hidden rounded-[1.75rem] border px-6 py-10 shadow-[0_24px_70px_rgb(166_215_25_/_0.12)] sm:px-10 sm:py-12 lg:px-14">
-          <div className="pointer-events-none absolute top-1/2 right-[-5rem] size-72 -translate-y-1/2 rounded-full border border-black/10" />
-          <div className="pointer-events-none absolute top-1/2 right-[-1rem] size-48 -translate-y-1/2 rounded-full border border-black/10" />
-          <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-2xl">
-              <p className="text-[0.68rem] font-black tracking-[0.18em] uppercase">
-                Ready when you are
-              </p>
-              <h2 className="display-type mt-3 text-3xl leading-[1.05] sm:text-4xl">
-                Find the right service path for your next goal.
-              </h2>
-              <p className="mt-4 max-w-xl text-sm leading-6 font-semibold text-black/70 sm:text-base">
-                Browse the current service preview or contact support before you
-                decide. Discord uses a verified configurable link when one is
-                supplied.
-              </p>
-            </div>
-            <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
-              <Link
-                href={publicCtaLinks.browseServices}
-                className="focus-visible:ring-background inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-black/25 bg-black px-6 text-sm font-bold text-white transition hover:bg-black/85 focus-visible:ring-2 focus-visible:outline-none"
-              >
-                Browse services
-                <ArrowRight aria-hidden="true" className="size-4" />
-              </Link>
-              <Link
-                href={discordHref}
-                className="focus-visible:ring-background inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-black/25 bg-transparent px-6 text-sm font-bold transition hover:bg-black/8 focus-visible:ring-2 focus-visible:outline-none"
-              >
-                <MessageCircle aria-hidden="true" className="size-4" />
-                Discord &amp; support
-              </Link>
-            </div>
+        <div className="cta-grid pointer-events-none absolute inset-0 -z-20" />
+        <div className="cta-portal-energy pointer-events-none absolute top-1/2 right-[8%] -z-10 size-80 -translate-y-1/2 rounded-full" />
+        <span className="cta-crystal cta-crystal-one" aria-hidden="true" />
+        <span className="cta-crystal cta-crystal-two" aria-hidden="true" />
+        <span className="cta-coin cta-coin-one" aria-hidden="true" />
+        <span className="cta-coin cta-coin-two" aria-hidden="true" />
+        <div className="mx-auto flex max-w-7xl flex-col gap-9 px-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+          <div className="max-w-3xl">
+            <p className="text-gold kicker-type">Continue the journey</p>
+            <h2 className="display-type text-text-primary mt-4 text-3xl leading-[1.02] text-balance sm:text-5xl">
+              Ready to plan your next OSRS milestone?
+            </h2>
+            <p className="text-text-secondary mt-4 max-w-2xl text-base leading-7">
+              Explore the marketplace preview or request support before choosing
+              a service path.
+            </p>
+          </div>
+          <div className="relative z-10 flex shrink-0 flex-col gap-3 sm:flex-row">
+            <Link
+              href={publicCtaLinks.browseServices}
+              className={buttonVariants({ size: "lg" })}
+            >
+              Browse Services
+              <ArrowRight aria-hidden="true" className="size-4" />
+            </Link>
+            <Link
+              href={discordHref}
+              className={buttonVariants({ variant: "secondary", size: "lg" })}
+            >
+              Request Support
+            </Link>
           </div>
         </div>
       </section>

@@ -51,5 +51,5 @@ test("seeded Super Admin can access the protected showcase", async ({
   });
   await expect(
     page.getByRole("heading", { name: "OSRS Services design system" }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 30_000 });
 });

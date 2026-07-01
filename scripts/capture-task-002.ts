@@ -8,8 +8,11 @@ const outputDirectory = path.join(process.cwd(), "artifacts", "task-002");
 
 async function openHomepage(page: Page) {
   await page.goto(baseUrl, { waitUntil: "networkidle" });
+  await page.addStyleTag({ content: "* { cursor: none !important; }" });
   await page
-    .getByRole("heading", { name: "Your next goal, handled with care." })
+    .getByRole("heading", {
+      name: "Your next OSRS milestone, handled with care.",
+    })
     .waitFor();
 }
 
@@ -32,6 +35,12 @@ async function main() {
     await desktopPage.screenshot({
       path: path.join(outputDirectory, "homepage-desktop-full-1440.png"),
       fullPage: true,
+    });
+    await desktopPage.locator("#calculator-preview").screenshot({
+      path: path.join(outputDirectory, "calculator-section-1440.png"),
+    });
+    await desktopPage.locator("#order-tracking").screenshot({
+      path: path.join(outputDirectory, "order-tracking-section-1440.png"),
     });
     await desktopPage.evaluate(() => window.scrollTo(0, 0));
     await desktopPage

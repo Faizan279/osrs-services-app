@@ -6,14 +6,16 @@ test("homepage renders the primary public experience", async ({
   await page.goto("/");
 
   await expect(
-    page.getByRole("heading", { name: "Your next goal, handled with care." }),
+    page.getByRole("heading", {
+      name: "Your next OSRS milestone, handled with care.",
+    }),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "OSRS Services home" }).first(),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", {
-      name: "Start with the kind of progress you need.",
+      name: "Go straight to the progress you have in mind.",
     }),
   ).toBeVisible();
 
@@ -50,7 +52,9 @@ test("desktop services menu supports click, outside click and Escape", async ({
 
   await trigger.click();
   await page
-    .getByRole("heading", { name: "Your next goal, handled with care." })
+    .getByRole("heading", {
+      name: "Your next OSRS milestone, handled with care.",
+    })
     .click();
   await expect(menu).toBeHidden();
 });
@@ -108,20 +112,39 @@ test("important homepage calls to action use the planned destinations", async ({
     page.getByRole("link", { name: "Browse services" }).first(),
   ).toHaveAttribute("href", "/#service-categories");
   await expect(
-    page.getByRole("link", { name: "See how it works" }),
-  ).toHaveAttribute("href", "/#how-it-works");
+    page.getByRole("link", { name: "Get an Estimate" }),
+  ).toHaveAttribute("href", "/#calculator-preview");
   if (testInfo.project.name === "mobile-chromium") {
     await page.getByRole("button", { name: "Open mobile navigation" }).click();
     await expect(
       page
         .getByRole("dialog", { name: "Mobile navigation" })
-        .getByRole("link", { name: "Account", exact: true }),
-    ).toHaveAttribute("href", "/account");
+        .getByRole("link", { name: "Sign in", exact: true }),
+    ).toHaveAttribute("href", "/login");
   } else {
     await expect(
-      page.getByRole("link", { name: "Account", exact: true }),
-    ).toHaveAttribute("href", "/account");
+      page
+        .getByRole("banner")
+        .getByRole("link", { name: "Sign in", exact: true }),
+    ).toHaveAttribute("href", "/login");
   }
+});
+
+test("marketplace search discovers a matching service path", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  const search = page.getByPlaceholder(
+    "Search quests, skills, bosses, gold or account services",
+  );
+  await expect(search).toBeVisible();
+  await search.fill("quest");
+  await expect(
+    page
+      .locator("#hero-search-results")
+      .getByRole("link", { name: /Questing/ }),
+  ).toHaveAttribute("href", "/#questing");
 });
 
 test("homepage has no horizontal overflow at target widths", async ({

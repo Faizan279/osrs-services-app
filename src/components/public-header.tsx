@@ -1,11 +1,13 @@
 "use client";
 
 import {
+  ArrowRight,
   ChevronDown,
-  CircleUserRound,
   Menu,
   MessageCircle,
+  Search,
   ShieldCheck,
+  UserRound,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -96,11 +98,12 @@ export function PublicHeader({ discordHref }: { discordHref: string }) {
 
   return (
     <>
-      <div className="border-primary/10 bg-primary-muted/45 border-b">
+      <div className="border-primary/10 border-b bg-[#06140f]">
         <div className="mx-auto flex min-h-9 max-w-7xl items-center justify-center gap-x-5 px-4 py-1.5 text-center sm:justify-between sm:px-6 lg:px-8">
           <p className="text-text-secondary flex items-center gap-2 text-[0.7rem] font-semibold tracking-[0.04em] sm:text-xs">
             <ShieldCheck aria-hidden="true" className="text-primary size-3.5" />
-            Secure OSRS service ordering, built around clear communication
+            Secure ordering, clear communication and order tracking from one
+            dashboard.
           </p>
           <Link
             href={discordHref}
@@ -112,7 +115,7 @@ export function PublicHeader({ discordHref }: { discordHref: string }) {
         </div>
       </div>
 
-      <header className="border-border/70 bg-background/88 sticky top-0 z-40 border-b shadow-[0_10px_32px_rgb(0_0_0_/_0.2)] backdrop-blur-xl">
+      <header className="border-border/70 sticky top-0 z-40 border-b bg-[#020b12]/92 shadow-[0_12px_36px_rgb(0_0_0_/_0.28)] backdrop-blur-xl">
         <div className="mx-auto flex h-[4.75rem] max-w-7xl items-center justify-between gap-5 px-4 sm:px-6 lg:px-8">
           <Link
             href="/"
@@ -150,7 +153,7 @@ export function PublicHeader({ discordHref }: { discordHref: string }) {
               <div
                 id="desktop-services-menu"
                 className={cn(
-                  "border-border-strong/75 bg-surface-1 absolute top-[calc(100%-0.35rem)] left-0 w-[40rem] origin-top-left rounded-2xl border p-3 shadow-[0_26px_70px_rgb(0_0_0_/_0.55)] transition duration-150",
+                  "border-border-strong/75 absolute top-[calc(100%-0.35rem)] left-0 w-[46rem] origin-top-left rounded-2xl border bg-[#07120e] p-3 shadow-[0_26px_70px_rgb(0_0_0_/_0.55)] transition duration-150",
                   servicesOpen
                     ? "visible translate-y-0 opacity-100"
                     : "invisible -translate-y-1 opacity-0",
@@ -163,8 +166,7 @@ export function PublicHeader({ discordHref }: { discordHref: string }) {
                       Explore professional services
                     </p>
                     <p className="text-text-muted mt-0.5 text-xs">
-                      Start with a category. Configuration arrives in later
-                      tasks.
+                      Compare categories, delivery guidance and service modes.
                     </p>
                   </div>
                   <span className="text-gold text-[0.65rem] font-bold tracking-[0.18em] uppercase">
@@ -189,6 +191,18 @@ export function PublicHeader({ discordHref }: { discordHref: string }) {
                     </Link>
                   ))}
                 </div>
+                <Link
+                  href={publicCtaLinks.browseServices}
+                  tabIndex={servicesOpen ? 0 : -1}
+                  onClick={() => setServicesOpen(false)}
+                  className="border-primary/20 bg-primary/8 hover:border-primary/40 mt-2 flex min-h-12 items-center justify-between rounded-xl border px-4 text-sm font-bold transition"
+                >
+                  Browse the complete marketplace
+                  <ArrowRight
+                    aria-hidden="true"
+                    className="text-primary size-4"
+                  />
+                </Link>
               </div>
             </div>
 
@@ -205,11 +219,18 @@ export function PublicHeader({ discordHref }: { discordHref: string }) {
 
           <div className="hidden shrink-0 items-center gap-2 lg:flex">
             <Link
-              href={publicCtaLinks.account}
+              href={publicCtaLinks.search}
               className="text-text-secondary hover:text-text-primary focus-visible:ring-primary flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition focus-visible:ring-2 focus-visible:outline-none"
             >
-              <CircleUserRound aria-hidden="true" className="size-4" />
-              Account
+              <Search aria-hidden="true" className="size-4" />
+              Search
+            </Link>
+            <Link
+              href="/login"
+              className="text-text-secondary hover:text-text-primary focus-visible:ring-primary flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition focus-visible:ring-2 focus-visible:outline-none"
+            >
+              <UserRound aria-hidden="true" className="size-4" />
+              Sign in
             </Link>
             <Link
               href={publicCtaLinks.browseServices}
@@ -257,7 +278,7 @@ export function PublicHeader({ discordHref }: { discordHref: string }) {
           aria-modal="true"
           aria-label="Mobile navigation"
           className={cn(
-            "border-border bg-surface-1 absolute top-0 right-0 flex h-full w-[min(92vw,25rem)] flex-col overflow-y-auto border-l shadow-[-24px_0_70px_rgb(0_0_0_/_0.5)] transition-transform duration-200",
+            "border-border absolute top-0 right-0 flex h-full w-[min(92vw,25rem)] flex-col overflow-y-auto border-l bg-[#06110d] shadow-[-24px_0_70px_rgb(0_0_0_/_0.5)] transition-transform duration-200",
             mobileOpen ? "translate-x-0" : "translate-x-full",
           )}
         >
@@ -318,12 +339,12 @@ export function PublicHeader({ discordHref }: { discordHref: string }) {
             </Link>
             <div className="grid grid-cols-2 gap-3">
               <Link
-                href={publicCtaLinks.account}
+                href="/login"
                 tabIndex={mobileOpen ? 0 : -1}
                 className={buttonVariants({ variant: "secondary" })}
                 onClick={closeMobileMenu}
               >
-                Account
+                Sign in
               </Link>
               <Link
                 href={discordHref}

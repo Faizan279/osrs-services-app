@@ -20,7 +20,7 @@ describe("homepage content safeguards", () => {
   it("uses non-fabricated pricing labels", () => {
     expect(
       featuredServices.every(({ price }) =>
-        ["Custom quote", "Pricing configured at checkout"].includes(price),
+        ["Custom quote", "Estimate after configuration"].includes(price),
       ),
     ).toBe(true);
   });

@@ -34,7 +34,7 @@ export const homepageCategories = [
       "Plan individual quests or a broader progression route with requirements reviewed first.",
     href: "/#featured-services",
     icon: "scroll",
-    treatment: "standard",
+    treatment: "feature",
   },
   {
     id: "achievement-diaries",
@@ -61,11 +61,11 @@ export const homepageCategories = [
       "Explore encounter support with account requirements and service scope made clear.",
     href: "/#featured-services",
     icon: "swords",
-    treatment: "feature",
+    treatment: "standard",
   },
   {
     id: "gold-service",
-    title: "OSRS gold",
+    title: "Gold and items",
     description:
       "A preview of the planned buy-and-sell flow; live rates and stock arrive in a later task.",
     href: "/#support",
@@ -100,6 +100,7 @@ export type FeaturedService = {
   delivery: string;
   href: string;
   label: string;
+  modes: readonly string[];
 };
 
 export const featuredServices = [
@@ -112,16 +113,18 @@ export const featuredServices = [
     delivery: "Schedule confirmed after review",
     href: "/#support",
     label: "Plan a request",
+    modes: ["Normal", "Ironman", "HCIM", "UIM"],
   },
   {
     name: "Quest progression",
     category: "Questing",
     summary:
       "Build a quest shortlist and review prerequisites before the order is configured.",
-    price: "Pricing configured at checkout",
+    price: "Estimate after configuration",
     delivery: "Requirements reviewed first",
     href: "/#support",
     label: "Explore questing",
+    modes: ["Normal", "Ironman"],
   },
   {
     name: "PvM support",
@@ -132,47 +135,34 @@ export const featuredServices = [
     delivery: "Scope agreed before scheduling",
     href: "/#support",
     label: "Discuss PvM",
+    modes: ["Normal", "Ironman", "HCIM"],
   },
   {
     name: "Diary progression",
     category: "Achievement diaries",
     summary:
       "Organise region and tier goals while keeping missing skills and quests visible.",
-    price: "Pricing configured at checkout",
+    price: "Estimate after configuration",
     delivery: "Plan confirmed after review",
     href: "/#support",
     label: "View diary options",
+    modes: ["Normal", "Ironman"],
   },
 ] satisfies readonly FeaturedService[];
 
 export const processBenefits = [
   {
-    title: "Secure service workflow",
+    title: "Clear order communication",
     description:
-      "Requests move through a defined order process with the necessary details handled deliberately.",
-  },
-  {
-    title: "Clear communication",
-    description:
-      "The service scope, requirements and next actions are kept understandable from the start.",
-  },
-  {
-    title: "Experienced handling",
-    description:
-      "Service requests are routed for account-aware review before work is scheduled.",
+      "Keep the service scope, requirements and next action understandable from the start.",
   },
   {
     title: "Progress visibility",
     description:
-      "The planned customer workspace keeps order state and updates in one consistent place.",
+      "Follow the planned order state and meaningful milestones from one consistent place.",
   },
   {
-    title: "Support access",
-    description:
-      "Questions can be raised before ordering and throughout the service workflow.",
-  },
-  {
-    title: "Privacy-conscious operations",
+    title: "Privacy-conscious handling",
     description:
       "Account and order information is limited to the people and steps that require it.",
   },
@@ -204,6 +194,90 @@ export const orderSteps = [
       "Follow order status and stay connected as the service progresses.",
   },
 ] as const;
+
+export type MarketplaceSearchItem = {
+  label: string;
+  description: string;
+  href: string;
+  keywords: readonly string[];
+};
+
+export const marketplaceSearchItems = [
+  {
+    label: "Questing",
+    description: "Individual quests and planned progression routes",
+    href: "/#questing",
+    keywords: ["quests", "quest", "requirements"],
+  },
+  {
+    label: "Power levelling",
+    description: "Skill targets and training requests",
+    href: "/#power-levelling",
+    keywords: ["skills", "skilling", "levels", "xp"],
+  },
+  {
+    label: "Raids and bossing",
+    description: "PvM encounters and configurable support",
+    href: "/#bossing-pvm",
+    keywords: ["raids", "bosses", "pvm", "combat"],
+  },
+  {
+    label: "Gold and items",
+    description: "Planned marketplace flows for gold and items",
+    href: "/#gold-service",
+    keywords: ["gold", "gp", "items"],
+  },
+  {
+    label: "Achievement diaries",
+    description: "Region and tier progression planning",
+    href: "/#achievement-diaries",
+    keywords: ["diaries", "diary", "regions"],
+  },
+  {
+    label: "Account services",
+    description: "Marketplace and custom account-build requests",
+    href: "/#accounts-service",
+    keywords: ["accounts", "builds", "account"],
+  },
+] satisfies readonly MarketplaceSearchItem[];
+
+export const expertiseAreas = [
+  {
+    title: "Quest specialists",
+    description: "Quest paths, prerequisites and account-aware progression.",
+    icon: "scroll",
+  },
+  {
+    title: "PvM specialists",
+    description: "Bossing, raids and encounter-focused service planning.",
+    icon: "swords",
+  },
+  {
+    title: "Skilling specialists",
+    description: "Level, XP and method-based training requests.",
+    icon: "activity",
+  },
+  {
+    title: "Account-service support",
+    description: "Account marketplace and custom-build request guidance.",
+    icon: "badge",
+  },
+] satisfies ReadonlyArray<{
+  title: string;
+  description: string;
+  icon: HomepageCategoryIcon;
+}>;
+
+// Development-safe preview content only. This is not a real customer order.
+export const orderTrackingPreview = {
+  demo: true,
+  title: "Milestone service plan",
+  category: "Questing and progression",
+  status: "In progress",
+  progress: 64,
+  activity: "Secure message available",
+  nextMilestone: "Requirement review",
+} as const;
 
 export type FeedbackPreview = {
   context: string;

@@ -9,9 +9,9 @@ export function PublicFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-border border-t bg-[#020503]">
-      <div className="mx-auto max-w-7xl px-5 pt-14 pb-8 sm:px-6 lg:px-8 lg:pt-18">
-        <div className="grid gap-12 lg:grid-cols-[1.25fr_2fr]">
+    <footer className="border-border border-t bg-[#020a0d]">
+      <div className="mx-auto max-w-7xl px-5 pt-12 pb-7 sm:px-6 lg:px-8">
+        <div className="grid gap-10 lg:grid-cols-[1.05fr_2.3fr]">
           <div className="max-w-sm">
             <Link
               href="/"
@@ -21,17 +21,19 @@ export function PublicFooter() {
               <BrandLogo className="w-48" />
             </Link>
             <p className="text-text-secondary mt-5 text-sm leading-7">
-              A purpose-built marketplace for professional OSRS services, clear
-              order communication and privacy-conscious handling.
+              Professional OSRS services with clear estimates, visible order
+              progress and privacy-conscious handling.
             </p>
-            <Link
-              href={discordHref}
-              className="text-primary hover:text-primary-hover focus-visible:ring-primary mt-6 inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-bold focus-visible:ring-2 focus-visible:outline-none"
-            >
-              <MessageCircle aria-hidden="true" className="size-4" />
-              Discord and support
-              <ArrowUpRight aria-hidden="true" className="size-3.5" />
-            </Link>
+            <div className="border-primary/15 bg-primary/5 mt-6 inline-flex rounded-xl border p-1.5">
+              <Link
+                href={discordHref}
+                className="text-primary hover:text-primary-hover focus-visible:ring-primary inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-bold focus-visible:ring-2 focus-visible:outline-none"
+              >
+                <MessageCircle aria-hidden="true" className="size-4" />
+                Discord support
+                <ArrowUpRight aria-hidden="true" className="size-3.5" />
+              </Link>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-4">
