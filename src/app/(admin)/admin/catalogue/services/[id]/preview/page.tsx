@@ -25,6 +25,8 @@ export default async function ServicePreviewPage({
   const service = await getAdminService(id);
   if (!service) notFound();
   const issues = publicationIssues(service);
+  const primaryMedia =
+    service.mediaReferences.find((media) => media.isPrimary) ?? null;
   return (
     <main className="mx-auto max-w-6xl px-5 py-8 sm:px-8 lg:py-12">
       <div className="flex flex-wrap items-end justify-between gap-5">
@@ -32,11 +34,15 @@ export default async function ServicePreviewPage({
           <div className="flex gap-2">
             <Badge variant="info">Private preview</Badge>
             <StatusBadge status={service.publicationStatus} />
+            {service.hasPendingChanges && (
+              <Badge variant="warning">Pending unpublished version</Badge>
+            )}
           </div>
           <h1 className="display-type mt-4 text-4xl">{service.name}</h1>
           <p className="text-text-secondary mt-3">
-            This preview includes saved draft content but never changes
-            publication state.
+            {service.hasPendingChanges
+              ? "This preview shows pending changes. The public catalogue still shows the published version."
+              : "This preview includes saved private content but never changes publication state."}
           </p>
         </div>
         <Button asChild variant="secondary">
@@ -99,6 +105,17 @@ export default async function ServicePreviewPage({
               ))}
             </ul>
           </div>
+          {primaryMedia && (
+            <div>
+              <h3 className="text-sm font-bold">Primary service media</h3>
+              <p className="text-text-secondary mt-2 text-sm">
+                {primaryMedia.altText}
+              </p>
+              <p className="text-text-muted mt-1 text-xs break-all">
+                {primaryMedia.assetPath}
+              </p>
+            </div>
+          )}
         </aside>
       </div>
       <section className="border-danger/30 bg-danger/5 mt-8 rounded-2xl border p-5">

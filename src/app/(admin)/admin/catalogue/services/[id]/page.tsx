@@ -24,6 +24,7 @@ import {
   archiveServiceAction,
   deleteMediaAction,
   deleteRequirementAction,
+  discardServiceStageAction,
   duplicateServiceAction,
   publishServiceAction,
   saveServiceAction,
@@ -54,11 +55,23 @@ export default async function EditServicePage({
           <div className="flex flex-wrap gap-2">
             <StatusBadge status={service.publicationStatus} />
             <StatusBadge status={service.availabilityState} />
+            {service.hasPendingChanges && (
+              <span className="border-warning/40 bg-warning/10 text-warning rounded-full border px-3 py-1 text-xs font-bold">
+                Pending unpublished changes
+              </span>
+            )}
           </div>
           <h1 className="display-type mt-4 text-4xl">{service.name}</h1>
           <p className="text-text-muted mt-2 text-sm">
-            Version {service.version} · last updated{" "}
-            {service.updatedAt.toLocaleString()}
+            {service.hasPendingChanges ? (
+              <>
+                Pending version {service.version} · published version{" "}
+                {service.publishedVersion?.version}
+              </>
+            ) : (
+              <>Version {service.version}</>
+            )}{" "}
+            · last updated {service.updatedAt.toLocaleString()}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -81,29 +94,61 @@ export default async function EditServicePage({
               Duplicate
             </ConfirmSubmitButton>
           </form>
-          {service.publicationStatus !== "ARCHIVED" && (
-            <form action={archiveServiceAction}>
+          {service.publicationStatus === "PUBLISHED" &&
+            !service.hasPendingChanges && (
+              <form action={archiveServiceAction}>
+                <input type="hidden" name="id" value={id} />
+                <ConfirmSubmitButton
+                  variant="danger"
+                  confirmation="Archive this service and remove it from public discovery?"
+                >
+                  Archive
+                </ConfirmSubmitButton>
+              </form>
+            )}
+          {service.hasPendingChanges && (
+            <form action={discardServiceStageAction}>
               <input type="hidden" name="id" value={id} />
               <ConfirmSubmitButton
                 variant="danger"
-                confirmation="Archive this service and remove it from public discovery?"
+                confirmation="Discard all pending unpublished changes and restore the editor to the published version?"
               >
-                Archive
+                Discard pending changes
               </ConfirmSubmitButton>
             </form>
           )}
-          <form action={publishServiceAction}>
-            <input type="hidden" name="id" value={id} />
-            <ConfirmSubmitButton confirmation="Publish this saved version to the public catalogue?">
-              {service.publicationStatus === "PUBLISHED"
-                ? "Republish"
-                : "Publish"}
-            </ConfirmSubmitButton>
-          </form>
+          {(service.publicationStatus !== "PUBLISHED" ||
+            service.hasPendingChanges) && (
+            <form action={publishServiceAction}>
+              <input type="hidden" name="id" value={id} />
+              <ConfirmSubmitButton confirmation="Publish this saved version to the public catalogue?">
+                {service.hasPendingChanges
+                  ? "Republish pending changes"
+                  : service.hasPublicationHistory
+                    ? "Republish archived service"
+                    : "Publish"}
+              </ConfirmSubmitButton>
+            </form>
+          )}
         </div>
       </div>
       <div className="mt-8">
         <CatalogueNotice {...notice} />
+        {service.hasPendingChanges && (
+          <section
+            aria-label="Pending publication state"
+            className="border-warning/40 bg-warning/10 mb-6 rounded-2xl border p-5"
+          >
+            <h2 className="text-warning font-bold">
+              Pending unpublished changes
+            </h2>
+            <p className="text-text-secondary mt-2 text-sm leading-6">
+              The public catalogue still shows {service.publishedVersion?.name}.
+              Preview shows this pending version; republish applies every staged
+              field, requirement, game mode and media change together.
+            </p>
+          </section>
+        )}
       </div>
       <div className="grid gap-8 xl:grid-cols-[14rem_minmax(0,1fr)]">
         <nav
@@ -147,6 +192,7 @@ export default async function EditServicePage({
               <h2 className="display-type text-2xl">Requirements</h2>
               <p className="text-text-muted text-sm">
                 Structured prerequisites shown on the public detail page.
+                Changes to a published service remain pending until republish.
               </p>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -265,6 +311,11 @@ export default async function EditServicePage({
                         <p className="text-text-muted mt-1 text-xs break-all">
                           {media.assetPath}
                         </p>
+                        {media.isPrimary && (
+                          <span className="text-warning mt-2 block text-xs font-bold">
+                            Primary service media
+                          </span>
+                        )}
                       </div>
                       <form action={deleteMediaAction}>
                         <input type="hidden" name="serviceId" value={id} />

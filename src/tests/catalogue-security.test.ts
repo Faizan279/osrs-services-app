@@ -11,7 +11,7 @@ describe("catalogue route security", () => {
     );
     expect(
       source.match(/requireCapability\(\s*"products\.edit"/g)?.length,
-    ).toBe(9);
+    ).toBe(10);
   });
 
   it("enforces products.view on protected catalogue pages and preview", () => {

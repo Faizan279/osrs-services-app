@@ -1,11 +1,36 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+
 import type { Prisma } from "@/generated/prisma/client";
+import {
+  CatalogueConflictError,
+  CataloguePublicationError,
+  CatalogueTransitionError,
+} from "@/lib/catalogue/errors";
 import {
   createOwnedMediaReference,
   mediaOwnerWhere,
 } from "@/lib/catalogue/media";
 import { publicationIssues } from "@/lib/catalogue/rules";
+import {
+  editableSnapshot,
+  loadServiceAggregate,
+  mutatePublishedStage,
+  persistServiceStage,
+} from "@/lib/catalogue/staging-repository";
+import {
+  addStagedMedia,
+  addStagedRequirement,
+  applyServiceEdit,
+  assertArchiveTransition,
+  primaryMedia,
+  publicationEventFromHistory,
+  removeStagedMedia,
+  removeStagedRequirement,
+  snapshotFromService,
+  type StagedCatalogueAggregate,
+} from "@/lib/catalogue/staging";
 import {
   categoryInputSchema,
   mediaReferenceInputSchema,
@@ -19,13 +44,6 @@ type CategoryInput = ReturnType<typeof categoryInputSchema.parse>;
 type ServiceInput = ReturnType<typeof serviceInputSchema.parse>;
 type RequirementInput = ReturnType<typeof requirementInputSchema.parse>;
 type MediaInput = ReturnType<typeof mediaReferenceInputSchema.parse>;
-
-export class CatalogueConflictError extends Error {}
-export class CataloguePublicationError extends Error {
-  constructor(public readonly issues: string[]) {
-    super(issues.join(" "));
-  }
-}
 
 function auditMetadata(value: Record<string, unknown>) {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -128,9 +146,39 @@ export async function updateService(
 ) {
   const { gameModes, version, ...data } = input;
   return prisma.$transaction(async (transaction) => {
-    const previous = await transaction.catalogueService.findUniqueOrThrow({
-      where: { id },
-    });
+    const previous = await loadServiceAggregate(transaction, id);
+    if (previous.publicationStatus === "PUBLISHED") {
+      const snapshot = applyServiceEdit(editableSnapshot(previous), {
+        ...data,
+        gameModes,
+      });
+      const stage = await persistServiceStage({
+        transaction,
+        service: previous,
+        snapshot,
+        actorId,
+        expectedVersion: version,
+      });
+      await transaction.auditLog.create({
+        data: {
+          actorId,
+          action: "catalogue.service.changes_staged",
+          targetType: "CatalogueService",
+          targetId: id,
+          metadata: auditMetadata({
+            stageVersion: stage.version,
+            availabilityChanged:
+              previous.availabilityState !== data.availabilityState,
+            seoChanged:
+              previous.seoTitle !== data.seoTitle ||
+              previous.seoDescription !== data.seoDescription,
+            gameModesChanged: true,
+          }),
+        },
+      });
+      return { id, staged: true };
+    }
+
     const result = await transaction.catalogueService.updateMany({
       where: { id, version },
       data: {
@@ -195,48 +243,136 @@ export async function updateService(
         },
       });
     }
-    return transaction.catalogueService.findUniqueOrThrow({ where: { id } });
+    return { id, staged: false };
   });
+}
+
+function serviceDataFromSnapshot(snapshot: StagedCatalogueAggregate) {
+  const service = snapshot.service;
+  return {
+    categoryId: service.categoryId,
+    name: service.name,
+    slug: service.slug,
+    canonicalSlug: service.canonicalSlug,
+    shortSummary: service.shortSummary,
+    content: service.content,
+    serviceType: service.serviceType,
+    engineType: service.engineType,
+    availabilityState: service.availabilityState,
+    isFeatured: service.isFeatured,
+    isQuoteOnly: service.isQuoteOnly,
+    displayOrder: service.displayOrder,
+    internalNotes: service.internalNotes,
+    publicPreparationNotes: service.publicPreparationNotes,
+    primaryMediaPath: primaryMedia(snapshot)?.assetPath ?? null,
+    seoTitle: service.seoTitle,
+    seoDescription: service.seoDescription,
+    publishAt: service.publishAt ? new Date(service.publishAt) : null,
+    unpublishAt: service.unpublishAt ? new Date(service.unpublishAt) : null,
+    needsClientReview: service.needsClientReview,
+  };
 }
 
 export async function publishService(id: string, actorId: string) {
   return prisma.$transaction(async (transaction) => {
-    const service = await transaction.catalogueService.findUniqueOrThrow({
-      where: { id },
-      include: {
-        category: true,
-        gameModes: true,
-        requirements: { orderBy: { displayOrder: "asc" } },
-        mediaReferences: { orderBy: { displayOrder: "asc" } },
-      },
+    const service = await loadServiceAggregate(transaction, id);
+    if (service.publicationStatus === "PUBLISHED" && !service.stage) {
+      throw new CatalogueTransitionError(
+        "There are no pending changes to republish.",
+      );
+    }
+    if (service.stage && service.stage.baseVersion !== service.version) {
+      throw new CatalogueConflictError(
+        "The published version changed after these edits were staged. Discard or review the pending changes.",
+      );
+    }
+
+    const snapshot = service.stage
+      ? editableSnapshot(service)
+      : snapshotFromService(service);
+    const category = await transaction.catalogueCategory.findUniqueOrThrow({
+      where: { id: snapshot.service.categoryId },
     });
-    const issues = publicationIssues(service);
+    const candidate = {
+      ...snapshot.service,
+      publishAt: snapshot.service.publishAt
+        ? new Date(snapshot.service.publishAt)
+        : null,
+      unpublishAt: snapshot.service.unpublishAt
+        ? new Date(snapshot.service.unpublishAt)
+        : null,
+      category,
+      gameModes: snapshot.gameModes,
+    };
+    const issues = publicationIssues(candidate);
     if (issues.length) throw new CataloguePublicationError(issues);
 
-    const event =
-      service.publicationStatus === "PUBLISHED" ? "REPUBLISHED" : "PUBLISHED";
-    const aggregate = await transaction.catalogueRevision.aggregate({
+    const revisions = await transaction.catalogueRevision.findMany({
       where: { serviceId: id },
-      _max: { revisionNumber: true },
+      select: { event: true, revisionNumber: true },
+      orderBy: { revisionNumber: "desc" },
     });
-    const published = await transaction.catalogueService.update({
+    const event = publicationEventFromHistory(
+      revisions.map(({ event: revisionEvent }) => revisionEvent),
+    );
+    const previousRoute = {
+      categorySlug: service.category.slug,
+      serviceSlug: service.slug,
+    };
+
+    await transaction.catalogueService.update({
       where: { id },
       data: {
+        ...serviceDataFromSnapshot(snapshot),
         publicationStatus: "PUBLISHED",
         updatedById: actorId,
         version: { increment: 1 },
       },
+    });
+    await transaction.catalogueServiceGameMode.deleteMany({
+      where: { serviceId: id },
+    });
+    await transaction.catalogueServiceGameMode.createMany({
+      data: snapshot.gameModes.map((gameMode) => ({ serviceId: id, gameMode })),
+    });
+    await transaction.catalogueRequirement.deleteMany({
+      where: { serviceId: id },
+    });
+    if (snapshot.requirements.length) {
+      await transaction.catalogueRequirement.createMany({
+        data: snapshot.requirements.map((requirement) => ({
+          ...requirement,
+          serviceId: id,
+        })),
+      });
+    }
+    await transaction.catalogueMediaReference.deleteMany({
+      where: { serviceId: id },
+    });
+    if (snapshot.mediaReferences.length) {
+      await transaction.catalogueMediaReference.createMany({
+        data: snapshot.mediaReferences.map((media) => ({
+          ...media,
+          serviceId: id,
+        })),
+      });
+    }
+
+    const published = await transaction.catalogueService.findUniqueOrThrow({
+      where: { id },
       include: {
         category: true,
-        gameModes: true,
+        gameModes: { orderBy: { gameMode: "asc" } },
         requirements: { orderBy: { displayOrder: "asc" } },
-        mediaReferences: { orderBy: { displayOrder: "asc" } },
+        mediaReferences: {
+          orderBy: [{ isPrimary: "desc" }, { displayOrder: "asc" }],
+        },
       },
     });
     await transaction.catalogueRevision.create({
       data: {
         serviceId: id,
-        revisionNumber: (aggregate._max.revisionNumber ?? 0) + 1,
+        revisionNumber: (revisions[0]?.revisionNumber ?? 0) + 1,
         event,
         publicationStatus: "PUBLISHED",
         summary:
@@ -259,24 +395,31 @@ export async function publishService(id: string, actorId: string) {
         metadata: auditMetadata({
           slug: published.slug,
           categoryId: published.categoryId,
+          staged: Boolean(service.stage),
         }),
       },
     });
-    return published;
+    if (service.stage) {
+      await transaction.catalogueServiceStage.delete({
+        where: { id: service.stage.id },
+      });
+    }
+    return {
+      published,
+      event,
+      previousRoute,
+      currentRoute: {
+        categorySlug: published.category.slug,
+        serviceSlug: published.slug,
+      },
+    };
   });
 }
 
 export async function archiveService(id: string, actorId: string) {
   return prisma.$transaction(async (transaction) => {
-    const service = await transaction.catalogueService.findUniqueOrThrow({
-      where: { id },
-      include: {
-        category: true,
-        gameModes: true,
-        requirements: { orderBy: { displayOrder: "asc" } },
-        mediaReferences: { orderBy: { displayOrder: "asc" } },
-      },
-    });
+    const service = await loadServiceAggregate(transaction, id);
+    assertArchiveTransition(service.publicationStatus, Boolean(service.stage));
     const aggregate = await transaction.catalogueRevision.aggregate({
       where: { serviceId: id },
       _max: { revisionNumber: true },
@@ -315,7 +458,40 @@ export async function archiveService(id: string, actorId: string) {
         metadata: auditMetadata({ previousStatus: service.publicationStatus }),
       },
     });
-    return archived;
+    return {
+      archived,
+      previousRoute: {
+        categorySlug: service.category.slug,
+        serviceSlug: service.slug,
+      },
+    };
+  });
+}
+
+export async function discardServiceStage(id: string, actorId: string) {
+  return prisma.$transaction(async (transaction) => {
+    const service = await transaction.catalogueService.findUniqueOrThrow({
+      where: { id },
+      include: { stage: true },
+    });
+    if (!service.stage) {
+      throw new CatalogueTransitionError(
+        "There are no pending changes to discard.",
+      );
+    }
+    await transaction.catalogueServiceStage.delete({
+      where: { id: service.stage.id },
+    });
+    await transaction.auditLog.create({
+      data: {
+        actorId,
+        action: "catalogue.service.changes_discarded",
+        targetType: "CatalogueService",
+        targetId: id,
+        metadata: auditMetadata({ stageVersion: service.stage.version }),
+      },
+    });
+    return service;
   });
 }
 
@@ -353,7 +529,9 @@ export async function duplicateService(id: string, actorId: string) {
         displayOrder: source.displayOrder,
         internalNotes: source.internalNotes,
         publicPreparationNotes: source.publicPreparationNotes,
-        primaryMediaPath: source.primaryMediaPath,
+        primaryMediaPath:
+          source.mediaReferences.find((media) => media.isPrimary)?.assetPath ??
+          null,
         seoTitle: source.seoTitle,
         seoDescription: source.seoDescription,
         createdById: actorId,
@@ -396,8 +574,41 @@ export async function duplicateService(id: string, actorId: string) {
   });
 }
 
+function stagedId() {
+  return `stg${randomUUID().replaceAll("-", "").slice(0, 27)}`;
+}
+
 export async function addRequirement(input: RequirementInput, actorId: string) {
   return prisma.$transaction(async (transaction) => {
+    const stagedRequirement = {
+      id: stagedId(),
+      title: input.title,
+      description: input.description,
+      type: input.type,
+      isRequired: input.isRequired,
+      displayOrder: input.displayOrder,
+      verificationMode: input.verificationMode,
+      seededKey: null,
+    };
+    const staged = await mutatePublishedStage(
+      transaction,
+      input.serviceId,
+      actorId,
+      (snapshot) => addStagedRequirement(snapshot, stagedRequirement),
+    );
+    if (staged) {
+      await transaction.auditLog.create({
+        data: {
+          actorId,
+          action: "catalogue.requirement.change_staged",
+          targetType: "CatalogueService",
+          targetId: input.serviceId,
+          metadata: auditMetadata({ requirementId: stagedRequirement.id }),
+        },
+      });
+      return { ...stagedRequirement, staged: true };
+    }
+
     const requirement = await transaction.catalogueRequirement.create({
       data: input,
     });
@@ -414,7 +625,7 @@ export async function addRequirement(input: RequirementInput, actorId: string) {
         metadata: auditMetadata({ requirementId: requirement.id }),
       },
     });
-    return requirement;
+    return { ...requirement, staged: false };
   });
 }
 
@@ -424,6 +635,34 @@ export async function deleteRequirement(
   actorId: string,
 ) {
   return prisma.$transaction(async (transaction) => {
+    const staged = await mutatePublishedStage(
+      transaction,
+      serviceId,
+      actorId,
+      (snapshot) => {
+        if (
+          !snapshot.requirements.some(
+            (requirement) => requirement.id === requirementId,
+          )
+        ) {
+          throw new CatalogueConflictError("Requirement not found.");
+        }
+        return removeStagedRequirement(snapshot, requirementId);
+      },
+    );
+    if (staged) {
+      await transaction.auditLog.create({
+        data: {
+          actorId,
+          action: "catalogue.requirement.change_staged",
+          targetType: "CatalogueService",
+          targetId: serviceId,
+          metadata: auditMetadata({ requirementId, removed: true }),
+        },
+      });
+      return { staged: true };
+    }
+
     const result = await transaction.catalogueRequirement.deleteMany({
       where: { id: requirementId, serviceId },
     });
@@ -442,12 +681,45 @@ export async function deleteRequirement(
         metadata: auditMetadata({ requirementId }),
       },
     });
+    return { staged: false };
   });
 }
 
 export async function addMediaReference(input: MediaInput, actorId: string) {
   return prisma.$transaction(async (transaction) => {
     const owner = mediaOwnerWhere(input);
+    if (input.serviceId) {
+      const stagedMedia = {
+        id: stagedId(),
+        assetPath: input.assetPath,
+        altText: input.altText,
+        caption: input.caption ?? null,
+        displayOrder: input.displayOrder,
+        isPrimary: input.isPrimary,
+      };
+      const staged = await mutatePublishedStage(
+        transaction,
+        input.serviceId,
+        actorId,
+        (snapshot) => addStagedMedia(snapshot, stagedMedia),
+      );
+      if (staged) {
+        await transaction.auditLog.create({
+          data: {
+            actorId,
+            action: "catalogue.media.change_staged",
+            targetType: "CatalogueService",
+            targetId: input.serviceId,
+            metadata: auditMetadata({
+              mediaId: stagedMedia.id,
+              isPrimary: stagedMedia.isPrimary,
+            }),
+          },
+        });
+        return { ...stagedMedia, staged: true };
+      }
+    }
+
     const media = await createOwnedMediaReference(input, {
       clearPrimary: async (where) => {
         await transaction.catalogueMediaReference.updateMany({
@@ -489,7 +761,7 @@ export async function addMediaReference(input: MediaInput, actorId: string) {
         }),
       },
     });
-    return media;
+    return { ...media, staged: false };
   });
 }
 
@@ -499,6 +771,30 @@ export async function deleteMediaReference(
   actorId: string,
 ) {
   return prisma.$transaction(async (transaction) => {
+    const staged = await mutatePublishedStage(
+      transaction,
+      serviceId,
+      actorId,
+      (snapshot) => {
+        if (!snapshot.mediaReferences.some((media) => media.id === mediaId)) {
+          throw new CatalogueConflictError("Media reference not found.");
+        }
+        return removeStagedMedia(snapshot, mediaId);
+      },
+    );
+    if (staged) {
+      await transaction.auditLog.create({
+        data: {
+          actorId,
+          action: "catalogue.media.change_staged",
+          targetType: "CatalogueService",
+          targetId: serviceId,
+          metadata: auditMetadata({ mediaId, removed: true }),
+        },
+      });
+      return { staged: true };
+    }
+
     const media = await transaction.catalogueMediaReference.findFirst({
       where: { id: mediaId, serviceId },
     });
@@ -523,5 +819,6 @@ export async function deleteMediaReference(
         metadata: auditMetadata({ mediaId }),
       },
     });
+    return { staged: false };
   });
 }

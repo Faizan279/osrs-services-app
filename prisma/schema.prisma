@@ -73,21 +73,22 @@ enum CatalogueRevisionEvent {
 }
 
 model User {
-  id                 String              @id @default(cuid()) @db.VarChar(30)
-  email              String              @unique @db.VarChar(191)
+  id                 String                  @id @default(cuid()) @db.VarChar(30)
+  email              String                  @unique @db.VarChar(191)
   emailVerified      DateTime?
-  name               String?             @db.VarChar(120)
-  image              String?             @db.VarChar(500)
-  passwordHash       String              @db.VarChar(255)
-  status             UserStatus          @default(ACTIVE)
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  name               String?                 @db.VarChar(120)
+  image              String?                 @db.VarChar(500)
+  passwordHash       String                  @db.VarChar(255)
+  status             UserStatus              @default(ACTIVE)
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
   roles              UserRole[]
   sessions           Session[]
-  auditLogs          AuditLog[]          @relation("AuditActor")
-  servicesCreated    CatalogueService[]  @relation("CatalogueServiceCreatedBy")
-  servicesUpdated    CatalogueService[]  @relation("CatalogueServiceUpdatedBy")
-  catalogueRevisions CatalogueRevision[] @relation("CatalogueRevisionActor")
+  auditLogs          AuditLog[]              @relation("AuditActor")
+  servicesCreated    CatalogueService[]      @relation("CatalogueServiceCreatedBy")
+  servicesUpdated    CatalogueService[]      @relation("CatalogueServiceUpdatedBy")
+  catalogueRevisions CatalogueRevision[]     @relation("CatalogueRevisionActor")
+  catalogueStages    CatalogueServiceStage[] @relation("CatalogueServiceStageUpdatedBy")
 
   @@index([status])
 }
@@ -233,6 +234,7 @@ model CatalogueService {
   requirements           CatalogueRequirement[]
   mediaReferences        CatalogueMediaReference[]
   revisions              CatalogueRevision[]
+  stage                  CatalogueServiceStage?
 
   @@unique([categoryId, slug])
   @@index([publicationStatus, publishAt, unpublishAt])
@@ -240,6 +242,21 @@ model CatalogueService {
   @@index([availabilityState])
   @@index([engineType])
   @@index([isFeatured])
+}
+
+model CatalogueServiceStage {
+  id          String           @id @default(cuid()) @db.VarChar(30)
+  serviceId   String           @unique @db.VarChar(30)
+  snapshot    Json
+  baseVersion Int
+  version     Int              @default(1)
+  updatedById String?          @db.VarChar(30)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  service     CatalogueService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  updatedBy   User?            @relation("CatalogueServiceStageUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([updatedById, updatedAt])
 }
 
 model CatalogueServiceGameMode {

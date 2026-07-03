@@ -5,6 +5,7 @@ import {
   matchesCatalogueSearch,
   publicServiceSelect,
 } from "@/lib/catalogue/public-select";
+import { stagedCatalogueAggregateSchema } from "@/lib/catalogue/staging";
 import { prisma } from "@/lib/db/prisma";
 
 export function publicCatalogueWhere(
@@ -206,7 +207,11 @@ export async function getAdminServices({
             : [{ updatedAt: "desc" }, { name: "asc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,
-      include: { category: true, gameModes: true },
+      include: {
+        category: true,
+        gameModes: true,
+        stage: { select: { id: true } },
+      },
     }),
     prisma.catalogueService.count({ where }),
   ]);
@@ -221,10 +226,11 @@ export async function getAdminServices({
 }
 
 export async function getAdminService(id: string) {
-  return prisma.catalogueService.findUnique({
+  const service = await prisma.catalogueService.findUnique({
     where: { id },
     include: {
       category: true,
+      stage: true,
       gameModes: { orderBy: { gameMode: "asc" } },
       requirements: { orderBy: [{ displayOrder: "asc" }, { title: "asc" }] },
       mediaReferences: {
@@ -238,4 +244,49 @@ export async function getAdminService(id: string) {
       updatedBy: { select: { name: true, email: true } },
     },
   });
+  if (!service) return null;
+  const hasPublicationHistory = service.revisions.some(
+    ({ event }) => event === "PUBLISHED" || event === "REPUBLISHED",
+  );
+  if (!service.stage) {
+    return {
+      ...service,
+      hasPendingChanges: false as const,
+      hasPublicationHistory,
+      publishedVersion: null,
+    };
+  }
+
+  const snapshot = stagedCatalogueAggregateSchema.parse(service.stage.snapshot);
+  const category =
+    snapshot.service.categoryId === service.categoryId
+      ? service.category
+      : await prisma.catalogueCategory.findUniqueOrThrow({
+          where: { id: snapshot.service.categoryId },
+        });
+  return {
+    ...service,
+    ...snapshot.service,
+    publishAt: snapshot.service.publishAt
+      ? new Date(snapshot.service.publishAt)
+      : null,
+    unpublishAt: snapshot.service.unpublishAt
+      ? new Date(snapshot.service.unpublishAt)
+      : null,
+    category,
+    gameModes: snapshot.gameModes.map((gameMode) => ({ gameMode })),
+    requirements: snapshot.requirements,
+    mediaReferences: snapshot.mediaReferences,
+    version: service.stage.version,
+    updatedAt: service.stage.updatedAt,
+    hasPendingChanges: true as const,
+    hasPublicationHistory,
+    publishedVersion: {
+      name: service.name,
+      category: service.category,
+      slug: service.slug,
+      version: service.version,
+      updatedAt: service.updatedAt,
+    },
+  };
 }

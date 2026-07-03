@@ -22,6 +22,7 @@ The Prisma schema now includes:
 - `CatalogueRequirement`
 - `CatalogueMediaReference`
 - `CatalogueRevision`
+- `CatalogueServiceStage`
 
 Typed enums cover service type, all eight planned engine selections, draft/published/archived state, three operational availability states (`AVAILABLE`, `PAUSED`, `UNAVAILABLE`), four supported game modes, requirement type and verification mode, and revision events. Quote-based pricing is represented only by `CatalogueService.isQuoteOnly`.
 
@@ -31,8 +32,9 @@ Migrations:
 
 - `20260701180000_task003_catalogue_foundation`
 - `20260703120000_task003_catalogue_integrity_corrections`
+- `20260703210000_task003_publication_staging`
 
-The reviewed migrations are additive and preserve Task 001 authentication, session, role, permission, feature-flag and audit structures. The correction normalizes legacy `QUOTE_ONLY` availability rows to `AVAILABLE`, narrows the enum without data loss, restricts revision deletion, makes media-owner foreign keys restrictive and adds a MySQL CHECK requiring exactly one category or service owner. Production rollback is deliberately manual; `prisma migrate reset` must not be used against shared data.
+The reviewed migrations are additive and preserve Task 001 authentication, session, role, permission, feature-flag and audit structures. The integrity correction normalizes legacy `QUOTE_ONLY` availability rows to `AVAILABLE`, narrows the enum without data loss, restricts revision deletion, makes media-owner foreign keys restrictive and adds a MySQL CHECK requiring exactly one category or service owner. The publication-staging migration adds one isolated aggregate snapshot table with optimistic versions and restrictive service ownership; it does not rewrite existing services or children. Production rollback is deliberately manual; `prisma migrate reset` must not be used against shared data.
 
 ## Seed behavior
 
@@ -66,13 +68,15 @@ Stable seed keys and empty update clauses make reruns additive. Existing categor
 
 The admin module provides catalogue-only totals and recent activity; searchable and active-state-filtered categories; server-backed service search, pagination, category/status/availability/engine/featured filters and sorting; structured editor sections; unsaved/saving/saved status; explicit preview, duplicate, publish, republish and archive controls; ordered requirement and safe media-reference management; SEO and request-time scheduling controls; and read-only revision history.
 
+Published service saves now persist a complete server-side staged aggregate. Public service fields, game modes, requirements and media remain on the last published version until an explicit republish succeeds. Admin preview reads the staged snapshot, the editor and list expose a pending state, and staff can discard the staged aggregate without touching the live service. Republish validates and applies the aggregate, replaces child records, writes exactly one immutable revision and audit record, clears staging and advances concurrency values in one transaction. A failed republish leaves both the published aggregate and the pending snapshot intact.
+
 All protected catalogue pages and draft previews enforce `products.view`. Every create, edit, duplicate, publish, archive, requirement and media mutation independently enforces `products.edit` server-side. Super Administrator and Editor retain their seeded catalogue permissions; Support Agent does not receive catalogue access.
 
-Inputs are explicit and Zod allow-listed. IDs and slugs are validated, slugs are normalized, URL conflicts are reported, only internal paths and HTTP(S) media references are accepted, and optimistic versions reject stale editor submissions. Media references must have exactly one owner in both Zod and MySQL; choosing a primary reference clears the prior primary for that same parent inside one transaction. Public content is rendered as plain text rather than untrusted HTML.
+Inputs are explicit and Zod allow-listed. IDs and slugs are validated, slugs are normalized, URL conflicts are reported, only internal paths and HTTP(S) media references are accepted, and optimistic versions reject stale editor submissions. Known validation, conflict, publication and transition failures are mapped to safe messages; unexpected errors are logged privately and return a generic message instead of leaking database details. Media references must have exactly one owner in both Zod and MySQL; choosing a primary reference clears the prior primary for that same parent inside one transaction. `CatalogueMediaReference.isPrimary` is authoritative, public metadata reads its asset and alt text directly, and the legacy path cache is transactionally derived rather than editable. Public content is rendered as plain text rather than untrusted HTML.
 
 ## Revision and audit behavior
 
-First publication, republication and archive events create immutable aggregate snapshots with revision number, actor, timestamp, publication state and summary. Draft saves do not create misleading published revisions.
+First publication, republication and archive events create immutable aggregate snapshots with revision number, actor, timestamp, publication state and summary. Publication event selection uses immutable history: only a service with no previous `PUBLISHED` or `REPUBLISHED` revision receives the first-publication event; restoring an archived service with publication history receives `REPUBLISHED`. Draft and staged saves do not create misleading published revisions, and duplicate archive attempts are rejected server-side.
 
 `CatalogueRevision.service` now uses restrictive deletion. Services with revision history cannot be permanently deleted, while previously published services remain archive-only.
 
@@ -97,31 +101,29 @@ Task 002 visuals were preserved. Browse Services, search, implemented category l
 ```text
 pnpm lint          PASS — zero warnings
 pnpm typecheck     PASS — strict TypeScript
-pnpm test          PASS — 9 files / 30 tests
-pnpm test:e2e      PASS — 36 passed / 4 expected device-specific skips
+pnpm test          PASS — 10 files / 37 tests
+pnpm test:e2e      PASS — 37 passed / 5 expected device-specific skips
 pnpm format:check  PASS — all matched files use Prettier style
 pnpm build         PASS — Next.js 16.2.9 optimized production build
 ```
 
-Focused coverage includes capability policy and route/mutation guards, slug/duplicate helpers, invalid publication, draft/archive/schedule visibility, quote and availability separation, public-field projection, exact-word search, media owner XOR validation, transactional one-primary behavior, restrictive revision deletion, additive seed preservation, public status and quote presentation, availability filters, responsive overflow, real revision creation and catalogue audit activity.
+Focused coverage includes capability policy and route/mutation guards, slug/duplicate helpers, private draft and archived visibility, staged published fields and child records, staged preview, atomic republish, rollback after failed validation, discard behavior, publication-history event semantics, invalid repeated transitions, safe error mapping, authoritative primary media and alt text, quote and availability separation, public-field projection, exact-word search, media owner XOR validation, transactional one-primary behavior, restrictive revision deletion, additive seed preservation, responsive overflow, real revision creation and catalogue audit activity.
 
 ## MySQL migration and seed validation
 
 Fresh MySQL database:
 
-- All three migrations applied in order without reset.
-- Seed counts remained stable across repeated runs: 1 user, 9 categories, 4 services and 4 requirements.
-- All four seeded services are `AVAILABLE` and have `isQuoteOnly = true`.
-- Orphan and dual-owner media inserts were rejected; a single-owner insert succeeded.
-- Deleting a service with a revision was rejected by the restrictive foreign key.
-- The administrator password hash was preserved across a repeated seed.
+- All four migrations applied in order without reset.
+- Seed counts remained stable across repeated runs: 1 user, 0 sessions, 15 permissions, 9 feature flags, 0 audit records, 9 categories, 4 services, 4 requirements, 0 media, 0 revisions and 0 staged aggregates.
+- The publication-staging table and both foreign keys were present after migration.
+- The administrator password hash was preserved across the repeated seed.
 
 Existing Task 001/002/003 database:
 
-- The integrity correction applied in place without a reset.
-- Counts were preserved at 9 categories, 4 services, 4 requirements and 4 revisions across repeated seeds.
-- Four legacy `QUOTE_ONLY` availability rows became `AVAILABLE`; all four quote flags remained true.
-- The media ownership CHECK and revision `ON DELETE RESTRICT` rules were verified from `information_schema` and with deliberate rejected writes.
+- The publication-staging migration applied in place without reset or content rewrites.
+- Repeated seed preserved users, sessions, permissions, feature flags, audit history, 9 categories, 4 services, 4 requirements, existing revisions and existing media.
+- The final E2E workflow restored seeded public content and child records and left 0 staged aggregates.
+- The media ownership CHECK, one-primary behavior, revision restriction and atomic publication workflow were exercised against MySQL.
 
 ## Responsive and accessibility validation
 
@@ -141,7 +143,7 @@ Accessibility includes semantic headings and tables, labelled search/filter/edit
 - `artifacts/task-003/public-services-mobile-390.png`
 - `artifacts/task-003/admin-services-mobile-390.png`
 
-Desktop captures use a 1440 × 1000 viewport; mobile captures use 390 × 844. The five correction-review screenshots listed in the review request were regenerated from the final implementation and visually inspected; the other four approved Task 003 captures remain unchanged. Screenshot styling contains no real credentials or customer data.
+Desktop captures use a 1440 × 1000 viewport; mobile captures use 390 × 844. The four publication-workflow screenshots requested for final review were regenerated from the final implementation and visually inspected; the other five approved Task 003 captures remain unchanged. The editor and mobile list captures show the pending state, while the public detail capture proves the last published copy remains visible. Screenshot styling contains no real credentials or customer data.
 
 ## Known limitations and deferred work
 

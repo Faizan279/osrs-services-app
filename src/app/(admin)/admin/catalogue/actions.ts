@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { z, ZodError } from "zod";
+import { z } from "zod";
 
 import { requireCapability } from "@/lib/auth/guards";
+import { catalogueActionErrorMessage } from "@/lib/catalogue/action-errors";
 import {
   addMediaReference,
   addRequirement,
@@ -13,6 +14,7 @@ import {
   createService,
   deleteMediaReference,
   deleteRequirement,
+  discardServiceStage,
   duplicateService,
   publishService,
   updateCategory,
@@ -76,7 +78,6 @@ function serviceInput(formData: FormData) {
     gameModes: values(formData, "gameModes"),
     internalNotes: formData.get("internalNotes"),
     publicPreparationNotes: formData.get("publicPreparationNotes"),
-    primaryMediaPath: formData.get("primaryMediaPath"),
     seoTitle: formData.get("seoTitle"),
     seoDescription: formData.get("seoDescription"),
     publishAt: formData.get("publishAt"),
@@ -86,25 +87,18 @@ function serviceInput(formData: FormData) {
   });
 }
 
-function errorMessage(error: unknown) {
-  if (error instanceof ZodError)
-    return error.issues[0]?.message ?? "Check the form.";
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "P2002"
-  ) {
-    return "That slug or canonical URL is already in use.";
-  }
-  if (error instanceof Error) return error.message;
-  return "The catalogue action could not be completed.";
-}
-
 function destination(path: string, state: "saved" | "error", message?: string) {
   const query = new URLSearchParams({ state });
   if (message) query.set("message", message.slice(0, 300));
   return `${path}?${query}`;
+}
+
+function revalidateServiceRoute(route: {
+  categorySlug: string;
+  serviceSlug: string;
+}) {
+  revalidatePath(`/services/${route.categorySlug}`);
+  revalidatePath(`/services/${route.categorySlug}/${route.serviceSlug}`);
 }
 
 export async function saveCategoryAction(formData: FormData) {
@@ -127,7 +121,7 @@ export async function saveCategoryAction(formData: FormData) {
           ? `/admin/catalogue/categories/${id}`
           : "/admin/catalogue/categories/new",
         "error",
-        errorMessage(error),
+        catalogueActionErrorMessage(error, "save-category"),
       ),
     );
   }
@@ -143,12 +137,15 @@ export async function saveServiceAction(formData: FormData) {
   );
   const rawId = String(formData.get("id") ?? "");
   const id = rawId ? catalogueIdSchema.parse(rawId) : "";
-  let serviceId: string;
+  let serviceResult: { id: string; staged: boolean };
   try {
     const service = id
       ? await updateService(id, serviceInput(formData), session.user.id)
-      : await createService(serviceInput(formData), session.user.id);
-    serviceId = service.id;
+      : {
+          ...(await createService(serviceInput(formData), session.user.id)),
+          staged: false,
+        };
+    serviceResult = { id: service.id, staged: service.staged };
   } catch (error) {
     redirect(
       destination(
@@ -156,13 +153,20 @@ export async function saveServiceAction(formData: FormData) {
           ? `/admin/catalogue/services/${id}`
           : "/admin/catalogue/services/new",
         "error",
-        errorMessage(error),
+        catalogueActionErrorMessage(error, "save-service"),
       ),
     );
   }
   revalidatePath("/admin/catalogue");
-  revalidatePath("/services");
-  redirect(destination(`/admin/catalogue/services/${serviceId}`, "saved"));
+  redirect(
+    destination(
+      `/admin/catalogue/services/${serviceResult.id}`,
+      "saved",
+      serviceResult.staged
+        ? "Unpublished changes saved for review."
+        : "Private draft saved.",
+    ),
+  );
 }
 
 export async function publishServiceAction(formData: FormData) {
@@ -171,23 +175,28 @@ export async function publishServiceAction(formData: FormData) {
     "products.edit",
     `/admin/catalogue/services/${id}`,
   );
+  let result: Awaited<ReturnType<typeof publishService>>;
   try {
-    await publishService(id, session.user.id);
+    result = await publishService(id, session.user.id);
   } catch (error) {
     redirect(
       destination(
         `/admin/catalogue/services/${id}`,
         "error",
-        errorMessage(error),
+        catalogueActionErrorMessage(error, "publish-service"),
       ),
     );
   }
   revalidatePath("/services");
+  revalidateServiceRoute(result.previousRoute);
+  revalidateServiceRoute(result.currentRoute);
   redirect(
     destination(
       `/admin/catalogue/services/${id}`,
       "saved",
-      "Service published.",
+      result.event === "PUBLISHED"
+        ? "Service published."
+        : "Service republished.",
     ),
   );
 }
@@ -198,8 +207,20 @@ export async function archiveServiceAction(formData: FormData) {
     "products.edit",
     `/admin/catalogue/services/${id}`,
   );
-  await archiveService(id, session.user.id);
+  let result: Awaited<ReturnType<typeof archiveService>>;
+  try {
+    result = await archiveService(id, session.user.id);
+  } catch (error) {
+    redirect(
+      destination(
+        `/admin/catalogue/services/${id}`,
+        "error",
+        catalogueActionErrorMessage(error, "archive-service"),
+      ),
+    );
+  }
   revalidatePath("/services");
+  revalidateServiceRoute(result.previousRoute);
   redirect(
     destination(
       `/admin/catalogue/services/${id}`,
@@ -215,7 +236,18 @@ export async function duplicateServiceAction(formData: FormData) {
     "products.edit",
     `/admin/catalogue/services/${id}`,
   );
-  const duplicate = await duplicateService(id, session.user.id);
+  let duplicate: Awaited<ReturnType<typeof duplicateService>>;
+  try {
+    duplicate = await duplicateService(id, session.user.id);
+  } catch (error) {
+    redirect(
+      destination(
+        `/admin/catalogue/services/${id}`,
+        "error",
+        catalogueActionErrorMessage(error, "duplicate-service"),
+      ),
+    );
+  }
   redirect(
     destination(
       `/admin/catalogue/services/${duplicate.id}`,
@@ -231,6 +263,7 @@ export async function addRequirementAction(formData: FormData) {
     "products.edit",
     `/admin/catalogue/services/${serviceId}`,
   );
+  let staged: boolean;
   try {
     const input = requirementInputSchema.parse({
       serviceId,
@@ -241,13 +274,14 @@ export async function addRequirementAction(formData: FormData) {
       displayOrder: formData.get("displayOrder"),
       verificationMode: formData.get("verificationMode"),
     });
-    await addRequirement(input, session.user.id);
+    const result = await addRequirement(input, session.user.id);
+    staged = result.staged;
   } catch (error) {
     redirect(
       destination(
         `/admin/catalogue/services/${serviceId}`,
         "error",
-        errorMessage(error),
+        catalogueActionErrorMessage(error, "add-requirement"),
       ),
     );
   }
@@ -255,7 +289,9 @@ export async function addRequirementAction(formData: FormData) {
     destination(
       `/admin/catalogue/services/${serviceId}`,
       "saved",
-      "Requirement added.",
+      staged
+        ? "Requirement change staged."
+        : "Requirement added to the private draft.",
     ),
   );
 }
@@ -266,16 +302,29 @@ export async function deleteRequirementAction(formData: FormData) {
     "products.edit",
     `/admin/catalogue/services/${serviceId}`,
   );
-  await deleteRequirement(
-    serviceId,
-    idValue(formData, "requirementId"),
-    session.user.id,
-  );
+  let result: Awaited<ReturnType<typeof deleteRequirement>>;
+  try {
+    result = await deleteRequirement(
+      serviceId,
+      idValue(formData, "requirementId"),
+      session.user.id,
+    );
+  } catch (error) {
+    redirect(
+      destination(
+        `/admin/catalogue/services/${serviceId}`,
+        "error",
+        catalogueActionErrorMessage(error, "delete-requirement"),
+      ),
+    );
+  }
   redirect(
     destination(
       `/admin/catalogue/services/${serviceId}`,
       "saved",
-      "Requirement removed.",
+      result.staged
+        ? "Requirement removal staged."
+        : "Requirement removed from the private draft.",
     ),
   );
 }
@@ -286,6 +335,7 @@ export async function addMediaAction(formData: FormData) {
     "products.edit",
     `/admin/catalogue/services/${serviceId}`,
   );
+  let staged: boolean;
   try {
     const input = mediaReferenceInputSchema.parse({
       categoryId: formData.get("categoryId"),
@@ -296,13 +346,14 @@ export async function addMediaAction(formData: FormData) {
       displayOrder: formData.get("displayOrder"),
       isPrimary: checked(formData, "isPrimary"),
     });
-    await addMediaReference(input, session.user.id);
+    const result = await addMediaReference(input, session.user.id);
+    staged = result.staged;
   } catch (error) {
     redirect(
       destination(
         `/admin/catalogue/services/${serviceId}`,
         "error",
-        errorMessage(error),
+        catalogueActionErrorMessage(error, "add-media"),
       ),
     );
   }
@@ -310,7 +361,7 @@ export async function addMediaAction(formData: FormData) {
     destination(
       `/admin/catalogue/services/${serviceId}`,
       "saved",
-      "Media reference added.",
+      staged ? "Media change staged." : "Media added to the private draft.",
     ),
   );
 }
@@ -321,16 +372,55 @@ export async function deleteMediaAction(formData: FormData) {
     "products.edit",
     `/admin/catalogue/services/${serviceId}`,
   );
-  await deleteMediaReference(
-    serviceId,
-    idValue(formData, "mediaId"),
-    session.user.id,
-  );
+  let result: Awaited<ReturnType<typeof deleteMediaReference>>;
+  try {
+    result = await deleteMediaReference(
+      serviceId,
+      idValue(formData, "mediaId"),
+      session.user.id,
+    );
+  } catch (error) {
+    redirect(
+      destination(
+        `/admin/catalogue/services/${serviceId}`,
+        "error",
+        catalogueActionErrorMessage(error, "delete-media"),
+      ),
+    );
+  }
   redirect(
     destination(
       `/admin/catalogue/services/${serviceId}`,
       "saved",
-      "Media reference removed.",
+      result.staged
+        ? "Media removal staged."
+        : "Media removed from the private draft.",
+    ),
+  );
+}
+
+export async function discardServiceStageAction(formData: FormData) {
+  const id = idValue(formData);
+  const session = await requireCapability(
+    "products.edit",
+    `/admin/catalogue/services/${id}`,
+  );
+  try {
+    await discardServiceStage(id, session.user.id);
+  } catch (error) {
+    redirect(
+      destination(
+        `/admin/catalogue/services/${id}`,
+        "error",
+        catalogueActionErrorMessage(error, "discard-service-stage"),
+      ),
+    );
+  }
+  redirect(
+    destination(
+      `/admin/catalogue/services/${id}`,
+      "saved",
+      "Pending changes discarded.",
     ),
   );
 }

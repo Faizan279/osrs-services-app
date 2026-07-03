@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getDiscordHref } from "@/config/public-navigation";
 import { formatEnumLabel, gameModeLabels } from "@/lib/catalogue/constants";
+import { publicPrimaryMedia } from "@/lib/catalogue/public-select";
 import { getPublicService } from "@/lib/catalogue/queries";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,7 @@ export async function generateMetadata({
   const { categorySlug, serviceSlug } = await params;
   const service = await getPublicService(categorySlug, serviceSlug);
   if (!service) return { title: "Service not found" };
+  const primaryMedia = publicPrimaryMedia(service);
   return {
     title: service.seoTitle ?? service.name,
     description: service.seoDescription ?? service.shortSummary,
@@ -27,6 +29,13 @@ export async function generateMetadata({
       title: service.seoTitle ?? service.name,
       description: service.seoDescription ?? service.shortSummary,
       url: `/services/${categorySlug}/${serviceSlug}`,
+      ...(primaryMedia
+        ? {
+            images: [
+              { url: primaryMedia.assetPath, alt: primaryMedia.altText },
+            ],
+          }
+        : {}),
     },
   };
 }

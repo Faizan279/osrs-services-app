@@ -100,10 +100,6 @@ export const serviceInputSchema = z
     gameModes: z.array(z.enum(catalogueGameModes)).min(1),
     internalNotes: optionalTrimmedString(20_000),
     publicPreparationNotes: optionalTrimmedString(20_000),
-    primaryMediaPath: optionalTrimmedString(500).refine(
-      (value) => !value || isSafeMediaReference(value),
-      "Use an internal path or an approved HTTP(S) URL.",
-    ),
     seoTitle: optionalTrimmedString(191),
     seoDescription: optionalTrimmedString(500),
     publishAt: optionalDate,

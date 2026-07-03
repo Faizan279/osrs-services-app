@@ -148,6 +148,7 @@ export function CategoryForm({ category }: { category?: CatalogueCategory }) {
 
 type EditableService = CatalogueService & {
   gameModes: { gameMode: (typeof catalogueGameModes)[number] }[];
+  hasPendingChanges?: boolean;
 };
 
 function localDate(value: Date | null | undefined) {
@@ -170,7 +171,9 @@ export function ServiceForm({
     <div className="grid gap-8">
       <div className="border-border bg-surface-2 flex items-center justify-between rounded-xl border px-4 py-3">
         <span className="text-text-secondary text-sm font-bold">
-          Editor state
+          {service?.hasPendingChanges
+            ? "Editing pending unpublished version"
+            : "Editor state"}
         </span>
         <FormStateIndicator />
       </div>
@@ -211,7 +214,7 @@ export function ServiceForm({
           </select>
         </label>
         <label className={labelClass}>
-          Category slug
+          Service slug
           <input
             className={fieldClass}
             name="slug"
@@ -360,21 +363,6 @@ export function ServiceForm({
           ))}
         </div>
       </fieldset>
-      <fieldset id="media" className="grid gap-5 border-0 p-0">
-        <legend className="display-type mb-5 text-2xl">Media</legend>
-        <label className={labelClass}>
-          Primary media path or approved URL
-          <input
-            className={fieldClass}
-            name="primaryMediaPath"
-            defaultValue={service?.primaryMediaPath ?? ""}
-          />
-        </label>
-        <p className="text-text-muted text-xs">
-          Managed uploads are intentionally deferred. References accept internal
-          paths or approved HTTP(S) URLs.
-        </p>
-      </fieldset>
       <fieldset id="seo" className="grid gap-5 border-0 p-0 lg:grid-cols-2">
         <legend className="display-type mb-5 text-2xl lg:col-span-2">
           SEO
@@ -422,12 +410,17 @@ export function ServiceForm({
           />
         </label>
         <p className="text-text-muted text-xs lg:col-span-2">
-          Saving does not publish. Use the explicit publish control after
-          previewing and resolving validation issues.
+          {service?.publicationStatus === "PUBLISHED"
+            ? "Saving stages an unpublished version. The current public service stays unchanged until Republish succeeds."
+            : "Saving remains private. Use the explicit publish control after previewing and resolving validation issues."}
         </p>
       </fieldset>
       <Button type="submit" className="w-fit">
-        {service ? "Save service" : "Create draft service"}
+        {service?.publicationStatus === "PUBLISHED"
+          ? "Save unpublished changes"
+          : service
+            ? "Save private draft"
+            : "Create draft service"}
       </Button>
     </div>
   );

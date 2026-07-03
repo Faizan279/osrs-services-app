@@ -191,6 +191,11 @@ export default async function ServicesPage({
                   <span className="text-text-muted mt-1 block">
                     /{service.category.slug}/{service.slug}
                   </span>
+                  {service.stage && (
+                    <span className="text-warning mt-2 block text-xs font-bold">
+                      Pending unpublished changes
+                    </span>
+                  )}
                 </td>
                 <td className="p-4">{service.category.name}</td>
                 <td className="p-4">
@@ -227,7 +232,8 @@ export default async function ServicesPage({
                         Duplicate
                       </ConfirmSubmitButton>
                     </form>
-                    {service.publicationStatus === "PUBLISHED" ? (
+                    {service.publicationStatus === "PUBLISHED" &&
+                    !service.stage ? (
                       <form action={archiveServiceAction}>
                         <input type="hidden" name="id" value={service.id} />
                         <ConfirmSubmitButton
@@ -238,7 +244,8 @@ export default async function ServicesPage({
                           Archive
                         </ConfirmSubmitButton>
                       </form>
-                    ) : (
+                    ) : service.publicationStatus !== "PUBLISHED" ||
+                      service.stage ? (
                       <form action={publishServiceAction}>
                         <input type="hidden" name="id" value={service.id} />
                         <ConfirmSubmitButton
@@ -246,10 +253,10 @@ export default async function ServicesPage({
                           variant="ghost"
                           confirmation="Publish this saved service?"
                         >
-                          Publish
+                          {service.stage ? "Republish" : "Publish"}
                         </ConfirmSubmitButton>
                       </form>
-                    )}
+                    ) : null}
                   </div>
                 </td>
               </tr>

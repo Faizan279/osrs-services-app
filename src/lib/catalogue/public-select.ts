@@ -16,7 +16,6 @@ export const publicServiceSelect = {
   isQuoteOnly: true,
   displayOrder: true,
   publicPreparationNotes: true,
-  primaryMediaPath: true,
   seoTitle: true,
   seoDescription: true,
   publishAt: true,
@@ -28,9 +27,17 @@ export const publicServiceSelect = {
     orderBy: [{ displayOrder: "asc" as const }, { title: "asc" as const }],
   },
   mediaReferences: {
-    orderBy: [{ isPrimary: "desc" as const }, { displayOrder: "asc" as const }],
+    where: { isPrimary: true },
+    take: 1,
+    select: { assetPath: true, altText: true },
   },
 } satisfies Prisma.CatalogueServiceSelect;
+
+export function publicPrimaryMedia(service: {
+  mediaReferences: { assetPath: string; altText: string }[];
+}) {
+  return service.mediaReferences[0] ?? null;
+}
 
 export function matchesCatalogueSearch(
   service: { name: string; shortSummary: string; content: string },
