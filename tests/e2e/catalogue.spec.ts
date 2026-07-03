@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 test("public catalogue supports search and category filtering", async ({
   page,
 }) => {
+  test.slow();
   await page.goto("/services");
   await expect(
     page.getByRole("heading", {
@@ -12,6 +13,8 @@ test("public catalogue supports search and category filtering", async ({
   await expect(
     page.getByRole("heading", { name: "Skill training request" }),
   ).toBeVisible();
+  await expect(page.getByText("Quote only", { exact: true })).toHaveCount(4);
+  await expect(page.getByText("Published", { exact: true })).toHaveCount(0);
   await page.getByLabel("Search catalogue").fill("quest");
   await page.getByRole("button", { name: "Search" }).click();
   await expect(page).toHaveURL(/\/services\?q=quest/);
@@ -37,6 +40,7 @@ test("category and service detail routes expose public catalogue content", async
   await expect(
     page.getByRole("heading", { name: "Quests", exact: true }),
   ).toBeVisible();
+  await expect(page.getByText("Published", { exact: true })).toHaveCount(0);
   await page.getByRole("link", { name: "View Quest progression" }).click();
   await expect(page).toHaveURL(/\/services\/quests\/quest-progression$/);
   await expect(
@@ -45,7 +49,11 @@ test("category and service detail routes expose public catalogue content", async
   await expect(
     page.getByRole("heading", { name: "Requirements" }),
   ).toBeVisible();
-  await expect(page.getByText(/Final scope by quote/)).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Request a tailored quote" }),
+  ).toBeVisible();
+  await expect(page.getByText("Quote only", { exact: true })).toHaveCount(1);
+  await expect(page.getByText("Published", { exact: true })).toHaveCount(0);
   await expect(page.getByText(/Internal notes/i)).toHaveCount(0);
 });
 
@@ -88,6 +96,13 @@ test("seeded Super Admin can open the catalogue editor", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "New service" }),
   ).toBeVisible();
+  await page.goto("/admin/catalogue/services");
+  await page.getByLabel("Availability").selectOption("AVAILABLE");
+  await page.getByRole("button", { name: "Apply filters" }).click();
+  await expect(page.getByText("4 matching services")).toBeVisible();
+  await page.getByLabel("Availability").selectOption("UNAVAILABLE");
+  await page.getByRole("button", { name: "Apply filters" }).click();
+  await expect(page.getByText("0 matching services")).toBeVisible();
 });
 
 test("publishing records a revision and catalogue audit activity", async ({

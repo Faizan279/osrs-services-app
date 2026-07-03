@@ -59,7 +59,7 @@ export default async function CategoryPage({
       </section>
       <section className="mx-auto max-w-7xl px-5 py-12 sm:px-8">
         <div className="flex items-center justify-between">
-          <h2 className="display-type text-2xl">Published services</h2>
+          <h2 className="display-type text-2xl">Services in this category</h2>
           <span className="text-text-muted text-sm">
             {category.services.length} result
             {category.services.length === 1 ? "" : "s"}
@@ -74,7 +74,7 @@ export default async function CategoryPage({
         ) : (
           <div className="border-border bg-surface-1 mt-6 rounded-2xl border p-8">
             <p className="text-text-secondary">
-              No services are currently published in this category.
+              No services are currently available in this category.
             </p>
           </div>
         )}

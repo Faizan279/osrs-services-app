@@ -41,7 +41,6 @@ enum CataloguePublicationStatus {
 enum CatalogueAvailabilityState {
   AVAILABLE
   PAUSED
-  QUOTE_ONLY
   UNAVAILABLE
 }
 
@@ -280,8 +279,8 @@ model CatalogueMediaReference {
   isPrimary    Boolean            @default(false)
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
-  category     CatalogueCategory? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  service      CatalogueService?  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  category     CatalogueCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  service      CatalogueService?  @relation(fields: [serviceId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([categoryId, displayOrder])
   @@index([serviceId, displayOrder])
@@ -297,7 +296,7 @@ model CatalogueRevision {
   snapshot          Json
   actorId           String?                    @db.VarChar(30)
   createdAt         DateTime                   @default(now())
-  service           CatalogueService           @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  service           CatalogueService           @relation(fields: [serviceId], references: [id], onDelete: Restrict)
   actor             User?                      @relation("CatalogueRevisionActor", fields: [actorId], references: [id], onDelete: SetNull)
 
   @@unique([serviceId, revisionNumber])

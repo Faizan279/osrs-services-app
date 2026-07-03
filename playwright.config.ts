@@ -7,6 +7,7 @@ const executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH;
 export default defineConfig({
   testDir: "./tests/e2e",
   outputDir: "test-results",
+  workers: 2,
   use: {
     baseURL: "http://127.0.0.1:3000",
     launchOptions: executablePath ? { executablePath } : undefined,

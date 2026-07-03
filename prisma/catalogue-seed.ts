@@ -32,7 +32,7 @@ export type CatalogueSeedClient = {
         serviceType: "SERVICE";
         engineType: "CATALOGUE_CARD" | "SKILLING_CALCULATOR" | "BOSSING_ENGINE";
         publicationStatus: "PUBLISHED";
-        availabilityState: "QUOTE_ONLY";
+        availabilityState: "AVAILABLE";
         isFeatured: boolean;
         isQuoteOnly: true;
         displayOrder: number;
@@ -210,7 +210,7 @@ export async function seedCatalogue(prisma: CatalogueSeedClient) {
         slug: key,
         shortDescription: `Explore ${name.toLowerCase()} service paths and requirements.`,
         description:
-          "This development-safe category is ready for client-reviewed catalogue content.",
+          "Explore service options, preparation details and account requirements for this category.",
         iconKey,
         displayOrder: (index + 1) * 10,
         isActive: true,
@@ -237,7 +237,7 @@ export async function seedCatalogue(prisma: CatalogueSeedClient) {
         serviceType: "SERVICE",
         engineType: definition.engineType,
         publicationStatus: "PUBLISHED",
-        availabilityState: "QUOTE_ONLY",
+        availabilityState: "AVAILABLE",
         isFeatured: definition.featured,
         isQuoteOnly: true,
         displayOrder: definition.order,

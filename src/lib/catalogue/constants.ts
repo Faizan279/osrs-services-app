@@ -18,7 +18,6 @@ export const cataloguePublicationStatuses = [
 export const catalogueAvailabilityStates = [
   "AVAILABLE",
   "PAUSED",
-  "QUOTE_ONLY",
   "UNAVAILABLE",
 ] as const;
 

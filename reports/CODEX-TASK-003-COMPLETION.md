@@ -6,8 +6,9 @@
 - Branch: `codex/task-003-catalogue-foundation`
 - Starting `main`: `d579ce08aaa5c5b019dc4c6b202b987ad3cbcf5d`
 - Starting merge: PR #3, including final Task 002 correction `661ef6de5766e0d54b11d6c941f1c000ee68b94e`
-- Final implementation commit: `7cf12d9ff86be1e1d7134931e1e33350f53d616c`
-- Date completed: 2026-07-01
+- Initial implementation commit: `7cf12d9ff86be1e1d7134931e1e33350f53d616c`
+- Initial review-pack commit: `3a731e9c409bee1f34304f8b170d506332d726f4`
+- Final correction completed: 2026-07-03
 
 The branch was created in a separate clean worktree from merged `main`; the Task 002 branch/worktree was not continued.
 
@@ -22,17 +23,20 @@ The Prisma schema now includes:
 - `CatalogueMediaReference`
 - `CatalogueRevision`
 
-Typed enums cover service type, all eight planned engine selections, draft/published/archived state, availability presentation, four supported game modes, requirement type and verification mode, and revision events.
+Typed enums cover service type, all eight planned engine selections, draft/published/archived state, three operational availability states (`AVAILABLE`, `PAUSED`, `UNAVAILABLE`), four supported game modes, requirement type and verification mode, and revision events. Quote-based pricing is represented only by `CatalogueService.isQuoteOnly`.
 
 Service URLs are protected by a unique category/slug pair plus a unique canonical-ready slug. Service records also include ordering, public and internal copy, SEO, schedules, actor relations, an optimistic concurrency version, optional legacy metadata and a client-review marker.
 
-Migration: `20260701180000_task003_catalogue_foundation`.
+Migrations:
 
-The reviewed migration is additive. It creates six catalogue tables, indexes and foreign keys without altering or deleting Task 001 authentication, session, role, permission, feature-flag or audit structures. Production rollback is deliberately manual: archive/unpublish records, export catalogue content if it must be retained, then remove foreign keys and catalogue tables in reverse dependency order. `prisma migrate reset` must not be used against shared data.
+- `20260701180000_task003_catalogue_foundation`
+- `20260703120000_task003_catalogue_integrity_corrections`
+
+The reviewed migrations are additive and preserve Task 001 authentication, session, role, permission, feature-flag and audit structures. The correction normalizes legacy `QUOTE_ONLY` availability rows to `AVAILABLE`, narrows the enum without data loss, restricts revision deletion, makes media-owner foreign keys restrictive and adds a MySQL CHECK requiring exactly one category or service owner. Production rollback is deliberately manual; `prisma migrate reset` must not be used against shared data.
 
 ## Seed behavior
 
-The seed adds nine development-safe categories:
+The seed adds nine customer-ready catalogue categories:
 
 - Power Levelling
 - Quests
@@ -44,7 +48,7 @@ The seed adds nine development-safe categories:
 - Ironman Gathering
 - Items and Miscellaneous
 
-Four quote-only public examples support the UI: Skill training request, Quest progression, PvM support and Diary progression. They contain no invented price, discount, demand, rating, guarantee or delivery-time claims.
+Four quote-only public examples support the UI: Skill training request, Quest progression, PvM support and Diary progression. Each remains operationally `AVAILABLE`; quote presentation comes exclusively from `isQuoteOnly`.
 
 Stable seed keys and empty update clauses make reruns additive. Existing category copy, service copy, active/publication/availability state, display order, requirements and media are preserved.
 
@@ -64,11 +68,13 @@ The admin module provides catalogue-only totals and recent activity; searchable 
 
 All protected catalogue pages and draft previews enforce `products.view`. Every create, edit, duplicate, publish, archive, requirement and media mutation independently enforces `products.edit` server-side. Super Administrator and Editor retain their seeded catalogue permissions; Support Agent does not receive catalogue access.
 
-Inputs are explicit and Zod allow-listed. IDs and slugs are validated, slugs are normalized, URL conflicts are reported, only internal paths and HTTP(S) media references are accepted, and optimistic versions reject stale editor submissions. Public content is rendered as plain text rather than untrusted HTML.
+Inputs are explicit and Zod allow-listed. IDs and slugs are validated, slugs are normalized, URL conflicts are reported, only internal paths and HTTP(S) media references are accepted, and optimistic versions reject stale editor submissions. Media references must have exactly one owner in both Zod and MySQL; choosing a primary reference clears the prior primary for that same parent inside one transaction. Public content is rendered as plain text rather than untrusted HTML.
 
 ## Revision and audit behavior
 
 First publication, republication and archive events create immutable aggregate snapshots with revision number, actor, timestamp, publication state and summary. Draft saves do not create misleading published revisions.
+
+`CatalogueRevision.service` now uses restrictive deletion. Services with revision history cannot be permanently deleted, while previously published services remain archive-only.
 
 Audit events cover category creation/update, service creation/update/duplicate/publish/republish/archive, availability changes, SEO changes, requirement changes and media changes. Metadata contains record identifiers and state changes only—no passwords, session tokens or secrets.
 
@@ -82,7 +88,7 @@ The E2E suite performs a real republish and confirms both the revision-history e
 
 Public queries return only published services in active categories whose request-time publication schedules are currently valid. An explicit public projection excludes internal notes, legacy metadata and actor relations. Category and detail pages generate title, description, canonical and Open Graph metadata.
 
-The directory provides exact-word basic search, category filtering, game-mode and availability indicators, quote-only wording and useful empty states. Category and detail pages include breadcrumbs, requirements, supported modes, safe descriptions, preparation notes and a support/request-quote CTA without creating an order.
+The directory provides exact-word basic search, category filtering, game-mode and operational availability indicators, one quote-only badge and useful empty states. Category and detail pages include breadcrumbs, requirements, supported modes, customer-facing descriptions, preparation notes and a support/request-quote CTA without creating an order. Internal `Published` terminology is not displayed on any public catalogue route.
 
 Task 002 visuals were preserved. Browse Services, search, implemented category links and four featured-service links now use real catalogue destinations. Gold, Accounts and Membership remain deferred anchors.
 
@@ -91,29 +97,31 @@ Task 002 visuals were preserved. Browse Services, search, implemented category l
 ```text
 pnpm lint          PASS — zero warnings
 pnpm typecheck     PASS — strict TypeScript
-pnpm test          PASS — 9 files / 25 tests
+pnpm test          PASS — 9 files / 30 tests
 pnpm test:e2e      PASS — 36 passed / 4 expected device-specific skips
 pnpm format:check  PASS — all matched files use Prettier style
 pnpm build         PASS — Next.js 16.2.9 optimized production build
 ```
 
-Focused coverage includes capability policy and route/mutation guards, slug/duplicate helpers, invalid publication, draft/archive/schedule visibility, public-field projection, exact-word search, unsafe media rejection, additive seed preservation, homepage destinations, public search/category filtering, public detail content, anonymous admin denial, Super Admin catalogue access, responsive overflow, real revision creation and catalogue audit activity.
+Focused coverage includes capability policy and route/mutation guards, slug/duplicate helpers, invalid publication, draft/archive/schedule visibility, quote and availability separation, public-field projection, exact-word search, media owner XOR validation, transactional one-primary behavior, restrictive revision deletion, additive seed preservation, public status and quote presentation, availability filters, responsive overflow, real revision creation and catalogue audit activity.
 
 ## MySQL migration and seed validation
 
 Fresh MySQL database:
 
-- Both migrations applied in order without reset.
-- Final counts: 2 migrations, 1 user, 3 roles, 15 permissions, 9 categories, 4 services, 13 service/game-mode links and 4 requirements.
-- A second seed completed without duplicate records.
-- The temporary validation database was removed afterward.
+- All three migrations applied in order without reset.
+- Seed counts remained stable across repeated runs: 1 user, 9 categories, 4 services and 4 requirements.
+- All four seeded services are `AVAILABLE` and have `isQuoteOnly = true`.
+- Orphan and dual-owner media inserts were rejected; a single-owner insert succeeded.
+- Deleting a service with a revision was rejected by the restrictive foreign key.
+- The administrator password hash was preserved across a repeated seed.
 
-Existing Task 001/002 database:
+Existing Task 001/002/003 database:
 
-- The Task 003 migration applied without destructive changes.
-- Foundation table counts, administrator password fingerprint and feature-flag state fingerprint were identical before and after seed reruns.
-- Three seed runs converged to 9 categories, 4 services, 13 game-mode links and 4 requirements.
-- Deliberate edits to a seeded category and service state survived a rerun; validation sentinels were then restored.
+- The integrity correction applied in place without a reset.
+- Counts were preserved at 9 categories, 4 services, 4 requirements and 4 revisions across repeated seeds.
+- Four legacy `QUOTE_ONLY` availability rows became `AVAILABLE`; all four quote flags remained true.
+- The media ownership CHECK and revision `ON DELETE RESTRICT` rules were verified from `information_schema` and with deliberate rejected writes.
 
 ## Responsive and accessibility validation
 
@@ -133,11 +141,11 @@ Accessibility includes semantic headings and tables, labelled search/filter/edit
 - `artifacts/task-003/public-services-mobile-390.png`
 - `artifacts/task-003/admin-services-mobile-390.png`
 
-Desktop captures use a 1440 × 1000 viewport; mobile captures use 390 × 844. Full-page capture is used where the complete directory or admin state is useful. All nine were regenerated from the final implementation and visually inspected. Screenshot styling hides the local administrator email and contains no real credentials or customer data.
+Desktop captures use a 1440 × 1000 viewport; mobile captures use 390 × 844. The five correction-review screenshots listed in the review request were regenerated from the final implementation and visually inspected; the other four approved Task 003 captures remain unchanged. Screenshot styling contains no real credentials or customer data.
 
 ## Known limitations and deferred work
 
-- Catalogue availability is presentational; it does not reserve stock or capacity.
+- Catalogue availability is operational presentation; it does not reserve stock or capacity.
 - `AUTOMATIC` is stored as a future verification mode but no RSN lookup or automatic eligibility checking runs.
 - Media supports metadata and safe references only. Production upload, transformation, storage and CDN policy are deferred.
 - Seeded services remain marked as needing client review and use quote-only language.
@@ -146,4 +154,4 @@ Desktop captures use a 1440 × 1000 viewport; mobile captures use 390 × 844. Fu
 
 ## Stop condition
 
-Task 003 is implemented, validated, documented and committed locally on its dedicated branch. No branch was pushed, no pull request was created, nothing was deployed or merged, and Task 004 was not started. Work stops for code and visual review.
+Task 003 and its focused correction are implemented, validated and documented locally on the dedicated branch. No branch was pushed, no pull request was created, nothing was deployed or merged, and Task 004 was not started. Work stops for final code and visual review.

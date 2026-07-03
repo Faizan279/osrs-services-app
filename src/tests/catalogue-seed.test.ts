@@ -9,7 +9,15 @@ import {
 function createFakeClient() {
   const state = {
     categories: new Map<string, { id: string; name: string }>(),
-    services: new Map<string, { id: string; name: string }>(),
+    services: new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        availabilityState: string;
+        isQuoteOnly: boolean;
+      }
+    >(),
     gameModes: new Set<string>(),
     requirements: new Set<string>(),
     categoryUpdates: [] as unknown[],
@@ -36,7 +44,11 @@ function createFakeClient() {
     catalogueService: {
       async upsert(args: {
         where: { seededKey: string };
-        create: { name: string };
+        create: {
+          name: string;
+          availabilityState: string;
+          isQuoteOnly: boolean;
+        };
         update: unknown;
       }) {
         state.serviceUpdates.push(args.update);
@@ -45,6 +57,8 @@ function createFakeClient() {
         const record = {
           id: `service:${args.where.seededKey}`,
           name: args.create.name,
+          availabilityState: args.create.availabilityState,
+          isQuoteOnly: args.create.isQuoteOnly,
         };
         state.services.set(args.where.seededKey, record);
         return { id: record.id };
@@ -71,12 +85,18 @@ function createFakeClient() {
 }
 
 describe("catalogue seed", () => {
-  it("creates the normalized development-safe taxonomy", async () => {
+  it("creates the normalized catalogue taxonomy", async () => {
     const { client, state } = createFakeClient();
     await seedCatalogue(client);
     expect(state.categories.size).toBe(catalogueCategorySeeds.length);
     expect(state.services.size).toBe(4);
     expect(state.requirements.size).toBe(4);
+    expect(
+      [...state.services.values()].every(
+        (service) =>
+          service.availabilityState === "AVAILABLE" && service.isQuoteOnly,
+      ),
+    ).toBe(true);
   });
 
   it("is additive and preserves admin-edited seeded records on rerun", async () => {

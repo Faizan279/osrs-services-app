@@ -22,13 +22,20 @@ export function ServiceCard({ service }: { service: PublicServiceCardData }) {
       <div className="flex flex-wrap items-center gap-2">
         <Badge
           variant={
-            service.availabilityState === "AVAILABLE" ? "success" : "warning"
+            service.availabilityState === "AVAILABLE"
+              ? "success"
+              : service.availabilityState === "PAUSED"
+                ? "warning"
+                : "danger"
           }
         >
           {service.availabilityState === "AVAILABLE"
             ? "Available"
-            : "Quote only"}
+            : service.availabilityState === "PAUSED"
+              ? "Paused"
+              : "Unavailable"}
         </Badge>
+        {service.isQuoteOnly && <Badge variant="warning">Quote only</Badge>}
         {service.isFeatured && (
           <Badge variant="warning">
             <Sparkles className="mr-1 size-3" aria-hidden="true" />
@@ -59,7 +66,7 @@ export function ServiceCard({ service }: { service: PublicServiceCardData }) {
       <div className="border-border mt-6 flex items-center justify-between gap-4 border-t pt-5">
         <span className="text-text-muted flex items-center gap-2 text-xs">
           <Clock3 className="size-3.5" aria-hidden="true" />
-          Final scope confirmed by quote
+          Requirements reviewed before confirmation
         </span>
         <Link
           aria-label={`View ${service.name}`}

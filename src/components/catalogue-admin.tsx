@@ -259,7 +259,7 @@ export function ServiceForm({
           <select
             className={fieldClass}
             name="availabilityState"
-            defaultValue={service?.availabilityState ?? "QUOTE_ONLY"}
+            defaultValue={service?.availabilityState ?? "AVAILABLE"}
           >
             {catalogueAvailabilityStates.map((value) => (
               <option key={value} value={value}>

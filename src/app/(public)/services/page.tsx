@@ -15,7 +15,7 @@ import {
 export const metadata: Metadata = {
   title: "OSRS service catalogue",
   description:
-    "Browse development-safe OSRS service listings by category and account mode.",
+    "Browse OSRS services by category and account mode, then request a tailored quote.",
 };
 export const dynamic = "force-dynamic";
 
@@ -44,9 +44,8 @@ export default async function ServicesDirectoryPage({
             Find a service path for your next milestone.
           </h1>
           <p className="text-text-secondary mt-5 max-w-2xl text-base leading-7">
-            Browse published services without invented pricing or delivery
-            claims. Requirements and supported account modes stay visible before
-            you request a quote.
+            Explore services by category and account mode. Review the
+            requirements up front, then request a tailored quote for your goals.
           </p>
         </div>
       </section>
@@ -127,7 +126,7 @@ export default async function ServicesDirectoryPage({
           <div className="border-border bg-surface-1 mt-6 rounded-2xl border p-10 text-center">
             <h2 className="display-type text-2xl">No matching services</h2>
             <p className="text-text-secondary mt-3">
-              Try a broader search or browse all published services.
+              Try a broader search or browse all available services.
             </p>
             <Button asChild className="mt-5">
               <Link href="/services">Clear filters</Link>

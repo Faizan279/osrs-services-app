@@ -1,6 +1,10 @@
 import "server-only";
 
 import type { Prisma } from "@/generated/prisma/client";
+import {
+  createOwnedMediaReference,
+  mediaOwnerWhere,
+} from "@/lib/catalogue/media";
 import { publicationIssues } from "@/lib/catalogue/rules";
 import {
   categoryInputSchema,
@@ -443,32 +447,45 @@ export async function deleteRequirement(
 
 export async function addMediaReference(input: MediaInput, actorId: string) {
   return prisma.$transaction(async (transaction) => {
-    if (input.isPrimary) {
-      await transaction.catalogueMediaReference.updateMany({
-        where: { serviceId: input.serviceId, isPrimary: true },
-        data: { isPrimary: false },
+    const owner = mediaOwnerWhere(input);
+    const media = await createOwnedMediaReference(input, {
+      clearPrimary: async (where) => {
+        await transaction.catalogueMediaReference.updateMany({
+          where,
+          data: { isPrimary: false },
+        });
+      },
+      create: (data) => transaction.catalogueMediaReference.create({ data }),
+    });
+    if (input.serviceId) {
+      await transaction.catalogueService.update({
+        where: { id: input.serviceId },
+        data: {
+          ...(input.isPrimary ? { primaryMediaPath: input.assetPath } : {}),
+          updatedById: actorId,
+          version: { increment: 1 },
+        },
+      });
+    } else if (input.categoryId && input.isPrimary) {
+      await transaction.catalogueCategory.update({
+        where: { id: input.categoryId },
+        data: { imagePath: input.assetPath },
       });
     }
-    const media = await transaction.catalogueMediaReference.create({
-      data: input,
-    });
-    await transaction.catalogueService.update({
-      where: { id: input.serviceId },
-      data: {
-        ...(input.isPrimary ? { primaryMediaPath: input.assetPath } : {}),
-        updatedById: actorId,
-        version: { increment: 1 },
-      },
-    });
+    const targetType = input.serviceId
+      ? "CatalogueService"
+      : "CatalogueCategory";
+    const targetId = input.serviceId ?? input.categoryId!;
     await transaction.auditLog.create({
       data: {
         actorId,
         action: "catalogue.media.created",
-        targetType: "CatalogueService",
-        targetId: input.serviceId,
+        targetType,
+        targetId,
         metadata: auditMetadata({
           mediaId: media.id,
           isPrimary: input.isPrimary,
+          owner,
         }),
       },
     });

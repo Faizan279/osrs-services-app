@@ -135,22 +135,38 @@ export const requirementInputSchema = z.object({
   verificationMode: z.enum(requirementVerificationModes),
 });
 
-export const mediaReferenceInputSchema = z.object({
-  serviceId: z.string().trim().min(1).max(30),
-  assetPath: z
-    .string()
-    .trim()
-    .min(1)
-    .max(500)
-    .refine(
-      isSafeMediaReference,
-      "Use an internal path or an approved HTTP(S) URL.",
-    ),
-  altText: z.string().trim().min(3).max(300),
-  caption: optionalTrimmedString(500),
-  displayOrder: z.coerce.number().int().min(0).max(100_000),
-  isPrimary: z.boolean(),
-});
+const optionalParentId = z.preprocess(
+  (value) => (value === "" || value === null ? undefined : value),
+  z.string().trim().min(1).max(30).optional(),
+);
+
+export const mediaReferenceInputSchema = z
+  .object({
+    categoryId: optionalParentId,
+    serviceId: optionalParentId,
+    assetPath: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .refine(
+        isSafeMediaReference,
+        "Use an internal path or an approved HTTP(S) URL.",
+      ),
+    altText: z.string().trim().min(3).max(300),
+    caption: optionalTrimmedString(500),
+    displayOrder: z.coerce.number().int().min(0).max(100_000),
+    isPrimary: z.boolean(),
+  })
+  .superRefine((value, context) => {
+    if (Boolean(value.categoryId) === Boolean(value.serviceId)) {
+      context.addIssue({
+        code: "custom",
+        path: ["serviceId"],
+        message: "A media reference must belong to exactly one parent.",
+      });
+    }
+  });
 
 export function nextDuplicateSlug(
   baseSlug: string,

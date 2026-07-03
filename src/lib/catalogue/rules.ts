@@ -63,3 +63,13 @@ export function isPubliclyVisible(
     (!service.unpublishAt || service.unpublishAt > now)
   );
 }
+
+export function canPermanentlyDeleteService({
+  publicationStatus,
+  revisionCount,
+}: {
+  publicationStatus: string;
+  revisionCount: number;
+}) {
+  return publicationStatus === "DRAFT" && revisionCount === 0;
+}

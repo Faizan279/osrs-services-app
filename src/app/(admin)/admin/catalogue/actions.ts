@@ -288,6 +288,7 @@ export async function addMediaAction(formData: FormData) {
   );
   try {
     const input = mediaReferenceInputSchema.parse({
+      categoryId: formData.get("categoryId"),
       serviceId,
       assetPath: formData.get("assetPath"),
       altText: formData.get("altText"),
