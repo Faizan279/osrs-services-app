@@ -8,6 +8,10 @@
 - Starting merge: PR #3, including final Task 002 correction `661ef6de5766e0d54b11d6c941f1c000ee68b94e`
 - Initial implementation commit: `7cf12d9ff86be1e1d7134931e1e33350f53d616c`
 - Initial review-pack commit: `3a731e9c409bee1f34304f8b170d506332d726f4`
+- Catalogue integrity correction: `b6dd97b7cff4042a5ccf82f997dd320efd3fc001`
+- Publication staging correction: `f251be0c6fa33d5ee84ff34d8a16dc9a11aa9998`
+- Optimistic-concurrency correction: `640d8223630686c0bd1dcd577d63c4958ab7d415`
+- Final approved Task 003 implementation head: `640d8223630686c0bd1dcd577d63c4958ab7d415`
 - Publication workflow correction completed: 2026-07-03
 - Optimistic-concurrency correction completed: 2026-07-04
 
@@ -159,6 +163,6 @@ Desktop captures use a 1440 × 1000 viewport; mobile captures use 390 × 844. Th
 - No final prices, calculators, pricing versions, delivery promises, inventory, cart, checkout, payment, order, review or live-chat functionality was introduced.
 - Full WooCommerce catalogue migration remains a later, separately approved task.
 
-## Stop condition
+## Repository handoff
 
-Task 003 and its focused correction are implemented, validated and documented locally on the dedicated branch. No branch was pushed, no pull request was created, nothing was deployed or merged, and Task 004 was not started. Work stops for final code and visual review.
+Task 003 and its focused corrections are implemented, validated and approved on the dedicated branch. Repository handoff is limited to this completion-report update, pushing the existing branch and opening a draft pull request targeting `main`. Nothing is deployed or merged, and Task 004 was not started.
