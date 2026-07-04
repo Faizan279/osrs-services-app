@@ -180,10 +180,10 @@ export function ServiceForm({
       {service && (
         <>
           <input type="hidden" name="id" value={service.id} />
-          <input type="hidden" name="version" value={service.version} />
+          <input type="hidden" name="expectedVersion" value={service.version} />
         </>
       )}
-      {!service && <input type="hidden" name="version" value="1" />}
+      {!service && <input type="hidden" name="expectedVersion" value="1" />}
       <fieldset id="general" className="grid gap-5 border-0 p-0 lg:grid-cols-2">
         <legend className="display-type mb-5 text-2xl">General</legend>
         <label className={labelClass}>

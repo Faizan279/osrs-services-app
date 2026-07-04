@@ -42,8 +42,14 @@ const catalogueIdSchema = z
   .max(30)
   .regex(/^[a-z0-9]+$/i, "Invalid catalogue identifier.");
 
+const catalogueVersionSchema = z.coerce.number().int().min(1);
+
 function idValue(formData: FormData, key = "id") {
   return catalogueIdSchema.parse(formData.get(key));
+}
+
+function expectedVersionValue(formData: FormData) {
+  return catalogueVersionSchema.parse(formData.get("expectedVersion"));
 }
 
 function categoryInput(formData: FormData) {
@@ -83,7 +89,7 @@ function serviceInput(formData: FormData) {
     publishAt: formData.get("publishAt"),
     unpublishAt: formData.get("unpublishAt"),
     needsClientReview: checked(formData, "needsClientReview"),
-    version: formData.get("version"),
+    version: formData.get("expectedVersion"),
   });
 }
 
@@ -177,7 +183,11 @@ export async function publishServiceAction(formData: FormData) {
   );
   let result: Awaited<ReturnType<typeof publishService>>;
   try {
-    result = await publishService(id, session.user.id);
+    result = await publishService(
+      id,
+      session.user.id,
+      expectedVersionValue(formData),
+    );
   } catch (error) {
     redirect(
       destination(
@@ -209,7 +219,11 @@ export async function archiveServiceAction(formData: FormData) {
   );
   let result: Awaited<ReturnType<typeof archiveService>>;
   try {
-    result = await archiveService(id, session.user.id);
+    result = await archiveService(
+      id,
+      session.user.id,
+      expectedVersionValue(formData),
+    );
   } catch (error) {
     redirect(
       destination(
@@ -274,7 +288,11 @@ export async function addRequirementAction(formData: FormData) {
       displayOrder: formData.get("displayOrder"),
       verificationMode: formData.get("verificationMode"),
     });
-    const result = await addRequirement(input, session.user.id);
+    const result = await addRequirement(
+      input,
+      session.user.id,
+      expectedVersionValue(formData),
+    );
     staged = result.staged;
   } catch (error) {
     redirect(
@@ -308,6 +326,7 @@ export async function deleteRequirementAction(formData: FormData) {
       serviceId,
       idValue(formData, "requirementId"),
       session.user.id,
+      expectedVersionValue(formData),
     );
   } catch (error) {
     redirect(
@@ -346,7 +365,11 @@ export async function addMediaAction(formData: FormData) {
       displayOrder: formData.get("displayOrder"),
       isPrimary: checked(formData, "isPrimary"),
     });
-    const result = await addMediaReference(input, session.user.id);
+    const result = await addMediaReference(
+      input,
+      session.user.id,
+      expectedVersionValue(formData),
+    );
     staged = result.staged;
   } catch (error) {
     redirect(
@@ -378,6 +401,7 @@ export async function deleteMediaAction(formData: FormData) {
       serviceId,
       idValue(formData, "mediaId"),
       session.user.id,
+      expectedVersionValue(formData),
     );
   } catch (error) {
     redirect(
@@ -406,7 +430,11 @@ export async function discardServiceStageAction(formData: FormData) {
     `/admin/catalogue/services/${id}`,
   );
   try {
-    await discardServiceStage(id, session.user.id);
+    await discardServiceStage(
+      id,
+      session.user.id,
+      expectedVersionValue(formData),
+    );
   } catch (error) {
     redirect(
       destination(

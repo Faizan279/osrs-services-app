@@ -62,13 +62,51 @@ export const stagedMediaSchema = z.object({
   isPrimary: z.boolean(),
 });
 
-export const stagedCatalogueAggregateSchema = z.object({
-  schemaVersion: z.literal(1),
-  service: stagedServiceFieldsSchema,
-  gameModes: z.array(z.enum(catalogueGameModes)).min(1),
-  requirements: z.array(stagedRequirementSchema),
-  mediaReferences: z.array(stagedMediaSchema),
-});
+export const stagedCatalogueAggregateSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    service: stagedServiceFieldsSchema,
+    gameModes: z.array(z.enum(catalogueGameModes)).min(1),
+    requirements: z.array(stagedRequirementSchema),
+    mediaReferences: z.array(stagedMediaSchema),
+  })
+  .superRefine((aggregate, context) => {
+    if (new Set(aggregate.gameModes).size !== aggregate.gameModes.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["gameModes"],
+        message: "Pending game modes must be unique.",
+      });
+    }
+
+    const requirementIds = aggregate.requirements.map(({ id }) => id);
+    if (new Set(requirementIds).size !== requirementIds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["requirements"],
+        message: "Pending requirement identifiers must be unique.",
+      });
+    }
+
+    const mediaIds = aggregate.mediaReferences.map(({ id }) => id);
+    if (new Set(mediaIds).size !== mediaIds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["mediaReferences"],
+        message: "Pending media identifiers must be unique.",
+      });
+    }
+
+    if (
+      aggregate.mediaReferences.filter(({ isPrimary }) => isPrimary).length > 1
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["mediaReferences"],
+        message: "Pending service media may contain only one primary item.",
+      });
+    }
+  });
 
 export type StagedCatalogueAggregate = z.infer<
   typeof stagedCatalogueAggregateSchema

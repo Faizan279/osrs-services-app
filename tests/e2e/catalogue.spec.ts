@@ -12,6 +12,8 @@ async function databaseRows<T extends Record<string, unknown>>(
     password: process.env.DATABASE_PASSWORD,
     database: process.env.DATABASE_NAME,
     bigIntAsNumber: true,
+    allowPublicKeyRetrieval:
+      process.env.DATABASE_ALLOW_PUBLIC_KEY_RETRIEVAL === "true",
   });
   try {
     return (await connection.query(sql, values)) as T[];
@@ -33,15 +35,28 @@ async function stageState(serviceId: string) {
       requirementCount: number | null;
       mediaCount: number | null;
       shortSummary: string | null;
+      version: number | null;
     }>(
       `SELECT COUNT(*) AS count,
         MAX(JSON_LENGTH(snapshot, '$.requirements')) AS requirementCount,
         MAX(JSON_LENGTH(snapshot, '$.mediaReferences')) AS mediaCount,
-        MAX(JSON_UNQUOTE(JSON_EXTRACT(snapshot, '$.service.shortSummary'))) AS shortSummary
+        MAX(JSON_UNQUOTE(JSON_EXTRACT(snapshot, '$.service.shortSummary'))) AS shortSummary,
+        MAX(version) AS version
        FROM CatalogueServiceStage WHERE serviceId = ?`,
       [serviceId],
     ),
   );
+}
+
+async function stageContains(serviceId: string, value: string) {
+  const { present } = requiredRow(
+    await databaseRows<{ present: number }>(
+      `SELECT JSON_SEARCH(snapshot, 'one', ?) IS NOT NULL AS present
+       FROM CatalogueServiceStage WHERE serviceId = ?`,
+      [value, serviceId],
+    ),
+  );
+  return present === 1;
 }
 
 async function signInToCatalogue(page: import("@playwright/test").Page) {
@@ -460,6 +475,304 @@ test("published edits, children and media stay staged until atomic republish", a
     }),
   );
   expect(events[1]?.event).toBe("ARCHIVED");
+});
+
+test("stale stage mutations, discard and republish preserve the newest snapshot", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(180_000);
+  test.skip(
+    testInfo.project.name !== "desktop-chromium",
+    "Run the database mutation once.",
+  );
+  test.skip(
+    !process.env.ADMIN_SEED_EMAIL || !process.env.ADMIN_SEED_PASSWORD,
+    "Seed credentials are required.",
+  );
+
+  const service = requiredRow(
+    await databaseRows<{
+      id: string;
+      shortSummary: string;
+      version: number;
+    }>(
+      "SELECT id, shortSummary, version FROM CatalogueService WHERE seededKey = ?",
+      ["pvm-support"],
+    ),
+  );
+  const { revisions: revisionsBefore } = requiredRow(
+    await databaseRows<{ revisions: number }>(
+      "SELECT COUNT(*) AS revisions FROM CatalogueRevision WHERE serviceId = ?",
+      [service.id],
+    ),
+  );
+  const editorPath = `/admin/catalogue/services/${service.id}`;
+  const conflictMessage =
+    "Pending changes were updated by another user. Reload before continuing.";
+  const acceptedRequirement = "Accepted concurrency requirement";
+  const staleRequirement = "Stale concurrency requirement";
+  const acceptedMediaPath = "/validation/concurrency-accepted.webp";
+  const staleMediaPath = "/validation/concurrency-stale.webp";
+  const initialPendingSummary =
+    "Initial pending summary for optimistic concurrency verification.";
+  const newestPendingSummary =
+    "Newest pending summary that stale actions must preserve safely.";
+  let currentVersion = service.version;
+
+  await signInToCatalogue(page);
+  await page.goto(editorPath);
+  await page.waitForLoadState("networkidle");
+  await page
+    .locator('textarea[name="shortSummary"]')
+    .fill(initialPendingSummary);
+  await page
+    .getByRole("button", { name: "Save unpublished changes" })
+    .click({ noWaitAfter: true });
+  currentVersion += 1;
+  await expect
+    .poll(async () => (await stageState(service.id)).version)
+    .toBe(currentVersion);
+  const initialStage = await stageState(service.id);
+  const initialRequirementCount = initialStage.requirementCount ?? 0;
+  const initialMediaCount = initialStage.mediaCount ?? 0;
+
+  async function openStaleEditor() {
+    await page.goto(editorPath);
+    await page.waitForLoadState("networkidle");
+    const stalePage = await page.context().newPage();
+    await stalePage.goto(editorPath);
+    await stalePage.waitForLoadState("networkidle");
+    // Server-action hydration can finish just after network idle in production.
+    await stalePage.waitForTimeout(500);
+    return stalePage;
+  }
+
+  async function submitAndExpectSafeConflict(
+    stalePage: import("@playwright/test").Page,
+    submit: () => Promise<void>,
+  ) {
+    const responsePromise = stalePage.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().includes(editorPath),
+      { timeout: 30_000 },
+    );
+    await submit();
+    const response = await responsePromise;
+    const decodedHeaders = Object.values(response.headers())
+      .map((value) => {
+        try {
+          return decodeURIComponent(value).replaceAll("+", " ");
+        } catch {
+          return value;
+        }
+      })
+      .join(" ");
+    let responseBody = "";
+    try {
+      responseBody = await response.text();
+    } catch {
+      // Redirect responses expose the safe message in their Location header.
+    }
+    const safeResponse = `${decodedHeaders} ${responseBody}`;
+    expect(safeResponse).toContain(conflictMessage);
+    expect(safeResponse).not.toMatch(/CatalogueServiceStage|SQL|Prisma|stack/i);
+  }
+
+  let stalePage = await openStaleEditor();
+  const acceptedRequirementForm = page.locator("form").filter({
+    has: page.getByRole("button", { name: "Add requirement" }),
+  });
+  await acceptedRequirementForm
+    .getByLabel("Title", { exact: true })
+    .fill(acceptedRequirement);
+  await acceptedRequirementForm
+    .getByLabel("Description", { exact: true })
+    .fill("An accepted requirement used to verify stage version conflicts.");
+  await acceptedRequirementForm
+    .getByRole("button", { name: "Add requirement" })
+    .click({ noWaitAfter: true });
+  currentVersion += 1;
+  await expect
+    .poll(async () => (await stageState(service.id)).version)
+    .toBe(currentVersion);
+
+  const staleRequirementForm = stalePage.locator("form").filter({
+    has: stalePage.getByRole("button", { name: "Add requirement" }),
+  });
+  await staleRequirementForm
+    .getByLabel("Title", { exact: true })
+    .fill(staleRequirement);
+  await staleRequirementForm
+    .getByLabel("Description", { exact: true })
+    .fill("This stale requirement must never replace the newest snapshot.");
+  await submitAndExpectSafeConflict(stalePage, () =>
+    staleRequirementForm
+      .getByRole("button", { name: "Add requirement" })
+      .click({ noWaitAfter: true }),
+  );
+  expect((await stageState(service.id)).version).toBe(currentVersion);
+  expect((await stageState(service.id)).requirementCount).toBe(
+    initialRequirementCount + 1,
+  );
+  expect(await stageContains(service.id, staleRequirement)).toBe(false);
+  await stalePage.close();
+
+  stalePage = await openStaleEditor();
+  await page
+    .locator('textarea[name="shortSummary"]')
+    .fill("A newer service edit protects the accepted requirement.");
+  await page
+    .getByRole("button", { name: "Save unpublished changes" })
+    .click({ noWaitAfter: true });
+  currentVersion += 1;
+  await expect
+    .poll(async () => (await stageState(service.id)).version)
+    .toBe(currentVersion);
+  const staleRequirementRow = stalePage
+    .getByRole("listitem")
+    .filter({ hasText: acceptedRequirement });
+  stalePage.once("dialog", (dialog) => dialog.accept());
+  await submitAndExpectSafeConflict(stalePage, () =>
+    staleRequirementRow
+      .getByRole("button", { name: "Remove" })
+      .click({ noWaitAfter: true }),
+  );
+  expect((await stageState(service.id)).version).toBe(currentVersion);
+  expect(await stageContains(service.id, acceptedRequirement)).toBe(true);
+  await stalePage.close();
+
+  stalePage = await openStaleEditor();
+  const acceptedMediaForm = page.locator("form").filter({
+    has: page.getByRole("button", { name: "Add media reference" }),
+  });
+  await acceptedMediaForm
+    .getByLabel("Asset path or URL", { exact: true })
+    .fill(acceptedMediaPath);
+  await acceptedMediaForm
+    .getByLabel("Alt text", { exact: true })
+    .fill("Accepted concurrency artwork");
+  await acceptedMediaForm
+    .getByRole("button", { name: "Add media reference" })
+    .click({ noWaitAfter: true });
+  currentVersion += 1;
+  await expect
+    .poll(async () => (await stageState(service.id)).version)
+    .toBe(currentVersion);
+
+  const staleMediaForm = stalePage.locator("form").filter({
+    has: stalePage.getByRole("button", { name: "Add media reference" }),
+  });
+  await staleMediaForm
+    .getByLabel("Asset path or URL", { exact: true })
+    .fill(staleMediaPath);
+  await staleMediaForm
+    .getByLabel("Alt text", { exact: true })
+    .fill("Stale concurrency artwork");
+  await submitAndExpectSafeConflict(stalePage, () =>
+    staleMediaForm
+      .getByRole("button", { name: "Add media reference" })
+      .click({ noWaitAfter: true }),
+  );
+  expect((await stageState(service.id)).version).toBe(currentVersion);
+  expect((await stageState(service.id)).mediaCount).toBe(initialMediaCount + 1);
+  expect(await stageContains(service.id, staleMediaPath)).toBe(false);
+  await stalePage.close();
+
+  stalePage = await openStaleEditor();
+  await page
+    .locator('textarea[name="shortSummary"]')
+    .fill("A newer service edit protects the accepted media reference.");
+  await page
+    .getByRole("button", { name: "Save unpublished changes" })
+    .click({ noWaitAfter: true });
+  currentVersion += 1;
+  await expect
+    .poll(async () => (await stageState(service.id)).version)
+    .toBe(currentVersion);
+  const staleMediaRow = stalePage
+    .getByRole("listitem")
+    .filter({ hasText: acceptedMediaPath });
+  stalePage.once("dialog", (dialog) => dialog.accept());
+  await submitAndExpectSafeConflict(stalePage, () =>
+    staleMediaRow
+      .getByRole("button", { name: "Remove" })
+      .click({ noWaitAfter: true }),
+  );
+  expect((await stageState(service.id)).version).toBe(currentVersion);
+  expect(await stageContains(service.id, acceptedMediaPath)).toBe(true);
+  await stalePage.close();
+
+  stalePage = await openStaleEditor();
+  await page
+    .locator('textarea[name="shortSummary"]')
+    .fill("A newer service edit protects the stage from stale discard.");
+  await page
+    .getByRole("button", { name: "Save unpublished changes" })
+    .click({ noWaitAfter: true });
+  currentVersion += 1;
+  await expect
+    .poll(async () => (await stageState(service.id)).version)
+    .toBe(currentVersion);
+  stalePage.once("dialog", (dialog) => dialog.accept());
+  await submitAndExpectSafeConflict(stalePage, () =>
+    stalePage
+      .getByRole("button", { name: "Discard pending changes" })
+      .click({ noWaitAfter: true }),
+  );
+  expect((await stageState(service.id)).version).toBe(currentVersion);
+  expect((await stageState(service.id)).count).toBe(1);
+  await stalePage.close();
+
+  stalePage = await openStaleEditor();
+  await page
+    .locator('textarea[name="shortSummary"]')
+    .fill(newestPendingSummary);
+  await page
+    .getByRole("button", { name: "Save unpublished changes" })
+    .click({ noWaitAfter: true });
+  currentVersion += 1;
+  await expect
+    .poll(async () => (await stageState(service.id)).version)
+    .toBe(currentVersion);
+  stalePage.once("dialog", (dialog) => dialog.accept());
+  await submitAndExpectSafeConflict(stalePage, () =>
+    stalePage
+      .getByRole("button", { name: "Republish pending changes" })
+      .click({ noWaitAfter: true }),
+  );
+  const newestStage = await stageState(service.id);
+  expect(newestStage.count).toBe(1);
+  expect(newestStage.version).toBe(currentVersion);
+  expect(newestStage.shortSummary).toBe(newestPendingSummary);
+  const unchangedLive = requiredRow(
+    await databaseRows<{ shortSummary: string; revisions: number }>(
+      `SELECT s.shortSummary,
+        (SELECT COUNT(*) FROM CatalogueRevision r WHERE r.serviceId = s.id) AS revisions
+       FROM CatalogueService s WHERE s.id = ?`,
+      [service.id],
+    ),
+  );
+  expect(unchangedLive.shortSummary).toBe(service.shortSummary);
+  expect(unchangedLive.revisions).toBe(revisionsBefore);
+  await stalePage.close();
+
+  await page.goto(editorPath);
+  page.once("dialog", (dialog) => dialog.accept());
+  await page
+    .getByRole("button", { name: "Discard pending changes" })
+    .click({ noWaitAfter: true });
+  await expect.poll(async () => (await stageState(service.id)).count).toBe(0);
+  const privateChildren = requiredRow(
+    await databaseRows<{ requirements: number; media: number }>(
+      `SELECT
+        (SELECT COUNT(*) FROM CatalogueRequirement r WHERE r.serviceId = s.id AND r.title = ?) AS requirements,
+        (SELECT COUNT(*) FROM CatalogueMediaReference m WHERE m.serviceId = s.id AND m.assetPath = ?) AS media
+       FROM CatalogueService s WHERE s.id = ?`,
+      [acceptedRequirement, acceptedMediaPath, service.id],
+    ),
+  );
+  expect(privateChildren).toEqual({ requirements: 0, media: 0 });
 });
 
 test("failed republish preserves public content and discard restores the editor", async ({

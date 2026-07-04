@@ -1,7 +1,10 @@
 import "server-only";
 
 import type { Prisma } from "@/generated/prisma/client";
-import { CatalogueConflictError } from "@/lib/catalogue/errors";
+import {
+  CatalogueConflictError,
+  pendingChangesConflictMessage,
+} from "@/lib/catalogue/errors";
 import {
   snapshotFromService,
   stagedCatalogueAggregateSchema,
@@ -53,13 +56,14 @@ export async function persistServiceStage({
   service: Awaited<ReturnType<typeof loadServiceAggregate>>;
   snapshot: StagedCatalogueAggregate;
   actorId: string;
-  expectedVersion?: number;
+  expectedVersion: number;
 }) {
   if (service.stage) {
     const result = await transaction.catalogueServiceStage.updateMany({
       where: {
         id: service.stage.id,
-        ...(expectedVersion === undefined ? {} : { version: expectedVersion }),
+        serviceId: service.id,
+        version: expectedVersion,
       },
       data: {
         snapshot: jsonSnapshot(snapshot),
@@ -68,34 +72,50 @@ export async function persistServiceStage({
       },
     });
     if (result.count !== 1) {
-      throw new CatalogueConflictError(
-        "Pending changes were updated elsewhere. Reload before saving.",
-      );
+      throw new CatalogueConflictError(pendingChangesConflictMessage);
     }
-    return { version: service.stage.version + 1, created: false };
+    return { version: expectedVersion + 1, created: false };
   }
 
-  if (expectedVersion !== undefined && expectedVersion !== service.version) {
-    throw new CatalogueConflictError(
-      "This service changed after the editor was opened. Reload before saving.",
-    );
-  }
-  const stage = await transaction.catalogueServiceStage.create({
+  const claimed = await transaction.catalogueService.updateMany({
+    where: {
+      id: service.id,
+      publicationStatus: "PUBLISHED",
+      version: expectedVersion,
+    },
     data: {
-      serviceId: service.id,
-      snapshot: jsonSnapshot(snapshot),
-      baseVersion: service.version,
-      version: service.version + 1,
       updatedById: actorId,
+      version: { increment: 1 },
     },
   });
-  return { version: stage.version, created: true };
+  if (claimed.count !== 1) {
+    throw new CatalogueConflictError(pendingChangesConflictMessage);
+  }
+
+  const version = expectedVersion + 1;
+  const created = await transaction.catalogueServiceStage.createMany({
+    data: [
+      {
+        serviceId: service.id,
+        snapshot: jsonSnapshot(snapshot),
+        baseVersion: version,
+        version,
+        updatedById: actorId,
+      },
+    ],
+    skipDuplicates: true,
+  });
+  if (created.count !== 1) {
+    throw new CatalogueConflictError(pendingChangesConflictMessage);
+  }
+  return { version, created: true };
 }
 
 export async function mutatePublishedStage(
   transaction: Prisma.TransactionClient,
   serviceId: string,
   actorId: string,
+  expectedVersion: number,
   mutate: (snapshot: StagedCatalogueAggregate) => StagedCatalogueAggregate,
 ) {
   const service = await loadServiceAggregate(transaction, serviceId);
@@ -106,6 +126,7 @@ export async function mutatePublishedStage(
     service,
     snapshot,
     actorId,
+    expectedVersion,
   });
   return { service, snapshot, ...persisted };
 }

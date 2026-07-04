@@ -8,7 +8,8 @@
 - Starting merge: PR #3, including final Task 002 correction `661ef6de5766e0d54b11d6c941f1c000ee68b94e`
 - Initial implementation commit: `7cf12d9ff86be1e1d7134931e1e33350f53d616c`
 - Initial review-pack commit: `3a731e9c409bee1f34304f8b170d506332d726f4`
-- Final correction completed: 2026-07-03
+- Publication workflow correction completed: 2026-07-03
+- Optimistic-concurrency correction completed: 2026-07-04
 
 The branch was created in a separate clean worktree from merged `main`; the Task 002 branch/worktree was not continued.
 
@@ -35,6 +36,8 @@ Migrations:
 - `20260703210000_task003_publication_staging`
 
 The reviewed migrations are additive and preserve Task 001 authentication, session, role, permission, feature-flag and audit structures. The integrity correction normalizes legacy `QUOTE_ONLY` availability rows to `AVAILABLE`, narrows the enum without data loss, restricts revision deletion, makes media-owner foreign keys restrictive and adds a MySQL CHECK requiring exactly one category or service owner. The publication-staging migration adds one isolated aggregate snapshot table with optimistic versions and restrictive service ownership; it does not rewrite existing services or children. Production rollback is deliberately manual; `prisma migrate reset` must not be used against shared data.
+
+The final concurrency correction requires no schema migration. It uses the existing service and stage version columns for conditional writes and transaction-held claims.
 
 ## Seed behavior
 
@@ -70,6 +73,8 @@ The admin module provides catalogue-only totals and recent activity; searchable 
 
 Published service saves now persist a complete server-side staged aggregate. Public service fields, game modes, requirements and media remain on the last published version until an explicit republish succeeds. Admin preview reads the staged snapshot, the editor and list expose a pending state, and staff can discard the staged aggregate without touching the live service. Republish validates and applies the aggregate, replaces child records, writes exactly one immutable revision and audit record, clears staging and advances concurrency values in one transaction. A failed republish leaves both the published aggregate and the pending snapshot intact.
 
+Every published-service field or child mutation submits the editor's current version. Existing-stage writes conditionally update the exact stage ID, service ID and version; initial staging conditionally advances the current service version before creating the stage. Republish claims the submitted stage version inside its transaction and deletes only that claimed row. Discard uses a conditional versioned delete. Stale editors therefore receive a safe reload message and cannot overwrite or remove newer pending work.
+
 All protected catalogue pages and draft previews enforce `products.view`. Every create, edit, duplicate, publish, archive, requirement and media mutation independently enforces `products.edit` server-side. Super Administrator and Editor retain their seeded catalogue permissions; Support Agent does not receive catalogue access.
 
 Inputs are explicit and Zod allow-listed. IDs and slugs are validated, slugs are normalized, URL conflicts are reported, only internal paths and HTTP(S) media references are accepted, and optimistic versions reject stale editor submissions. Known validation, conflict, publication and transition failures are mapped to safe messages; unexpected errors are logged privately and return a generic message instead of leaking database details. Media references must have exactly one owner in both Zod and MySQL; choosing a primary reference clears the prior primary for that same parent inside one transaction. `CatalogueMediaReference.isPrimary` is authoritative, public metadata reads its asset and alt text directly, and the legacy path cache is transactionally derived rather than editable. Public content is rendered as plain text rather than untrusted HTML.
@@ -101,13 +106,13 @@ Task 002 visuals were preserved. Browse Services, search, implemented category l
 ```text
 pnpm lint          PASS — zero warnings
 pnpm typecheck     PASS — strict TypeScript
-pnpm test          PASS — 10 files / 37 tests
-pnpm test:e2e      PASS — 37 passed / 5 expected device-specific skips
+pnpm test          PASS — 10 files / 39 tests
+pnpm test:e2e      PASS — 38 passed / 6 expected device-specific skips
 pnpm format:check  PASS — all matched files use Prettier style
 pnpm build         PASS — Next.js 16.2.9 optimized production build
 ```
 
-Focused coverage includes capability policy and route/mutation guards, slug/duplicate helpers, private draft and archived visibility, staged published fields and child records, staged preview, atomic republish, rollback after failed validation, discard behavior, publication-history event semantics, invalid repeated transitions, safe error mapping, authoritative primary media and alt text, quote and availability separation, public-field projection, exact-word search, media owner XOR validation, transactional one-primary behavior, restrictive revision deletion, additive seed preservation, responsive overflow, real revision creation and catalogue audit activity.
+Focused coverage includes capability policy and route/mutation guards, slug/duplicate helpers, private draft and archived visibility, staged published fields and child records, staged preview, atomic republish, rollback after failed validation, version increments, stale requirement and media add/delete rejection, version-safe discard and republish, newest-snapshot preservation, malformed aggregate rejection, publication-history event semantics, invalid repeated transitions, safe error mapping, authoritative primary media and alt text, quote and availability separation, public-field projection, exact-word search, media owner XOR validation, transactional one-primary behavior, restrictive revision deletion, additive seed preservation, responsive overflow, real revision creation and catalogue audit activity.
 
 ## MySQL migration and seed validation
 

@@ -236,6 +236,11 @@ export default async function ServicesPage({
                     !service.stage ? (
                       <form action={archiveServiceAction}>
                         <input type="hidden" name="id" value={service.id} />
+                        <input
+                          type="hidden"
+                          name="expectedVersion"
+                          value={service.version}
+                        />
                         <ConfirmSubmitButton
                           size="sm"
                           variant="ghost"
@@ -248,6 +253,11 @@ export default async function ServicesPage({
                       service.stage ? (
                       <form action={publishServiceAction}>
                         <input type="hidden" name="id" value={service.id} />
+                        <input
+                          type="hidden"
+                          name="expectedVersion"
+                          value={service.stage?.version ?? service.version}
+                        />
                         <ConfirmSubmitButton
                           size="sm"
                           variant="ghost"

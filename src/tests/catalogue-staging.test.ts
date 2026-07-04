@@ -14,6 +14,7 @@ import {
   primaryMedia,
   publicationEventFromHistory,
   snapshotFromService,
+  stagedCatalogueAggregateSchema,
 } from "@/lib/catalogue/staging";
 
 const now = new Date("2026-07-03T12:00:00.000Z");
@@ -198,5 +199,51 @@ describe("catalogue publication staging", () => {
     expect(migration).toContain("CREATE TABLE `CatalogueServiceStage`");
     expect(migration).toContain("`snapshot` JSON NOT NULL");
     expect(migration).not.toMatch(/DROP TABLE|TRUNCATE TABLE|DELETE FROM/);
+  });
+
+  it("rejects duplicate staged identifiers and game modes", () => {
+    const aggregate = snapshotFromService(liveService);
+    const requirement = aggregate.requirements[0];
+    const media = aggregate.mediaReferences[0];
+    if (!requirement || !media)
+      throw new Error("Expected seeded aggregate data.");
+    expect(
+      stagedCatalogueAggregateSchema.safeParse({
+        ...aggregate,
+        gameModes: ["NORMAL", "NORMAL"],
+      }).success,
+    ).toBe(false);
+    expect(
+      stagedCatalogueAggregateSchema.safeParse({
+        ...aggregate,
+        requirements: [requirement, requirement],
+      }).success,
+    ).toBe(false);
+    expect(
+      stagedCatalogueAggregateSchema.safeParse({
+        ...aggregate,
+        mediaReferences: [media, media],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects more than one staged primary media reference", () => {
+    const aggregate = snapshotFromService(liveService);
+    const firstPrimary = aggregate.mediaReferences[0];
+    if (!firstPrimary) throw new Error("Expected seeded media data.");
+    const secondPrimary = {
+      ...firstPrimary,
+      id: "media-2",
+      assetPath: "/media/second.webp",
+    };
+    const result = stagedCatalogueAggregateSchema.safeParse({
+      ...aggregate,
+      mediaReferences: [...aggregate.mediaReferences, secondPrimary],
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toMatch(/only one primary/i);
+    }
   });
 });

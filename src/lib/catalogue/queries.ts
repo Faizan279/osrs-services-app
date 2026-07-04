@@ -210,7 +210,7 @@ export async function getAdminServices({
       include: {
         category: true,
         gameModes: true,
-        stage: { select: { id: true } },
+        stage: { select: { id: true, version: true } },
       },
     }),
     prisma.catalogueService.count({ where }),

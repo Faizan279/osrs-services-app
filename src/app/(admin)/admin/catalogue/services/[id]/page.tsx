@@ -98,6 +98,11 @@ export default async function EditServicePage({
             !service.hasPendingChanges && (
               <form action={archiveServiceAction}>
                 <input type="hidden" name="id" value={id} />
+                <input
+                  type="hidden"
+                  name="expectedVersion"
+                  value={service.version}
+                />
                 <ConfirmSubmitButton
                   variant="danger"
                   confirmation="Archive this service and remove it from public discovery?"
@@ -109,6 +114,11 @@ export default async function EditServicePage({
           {service.hasPendingChanges && (
             <form action={discardServiceStageAction}>
               <input type="hidden" name="id" value={id} />
+              <input
+                type="hidden"
+                name="expectedVersion"
+                value={service.version}
+              />
               <ConfirmSubmitButton
                 variant="danger"
                 confirmation="Discard all pending unpublished changes and restore the editor to the published version?"
@@ -121,6 +131,11 @@ export default async function EditServicePage({
             service.hasPendingChanges) && (
             <form action={publishServiceAction}>
               <input type="hidden" name="id" value={id} />
+              <input
+                type="hidden"
+                name="expectedVersion"
+                value={service.version}
+              />
               <ConfirmSubmitButton confirmation="Publish this saved version to the public catalogue?">
                 {service.hasPendingChanges
                   ? "Republish pending changes"
@@ -218,6 +233,11 @@ export default async function EditServicePage({
                         <input type="hidden" name="serviceId" value={id} />
                         <input
                           type="hidden"
+                          name="expectedVersion"
+                          value={service.version}
+                        />
+                        <input
+                          type="hidden"
                           name="requirementId"
                           value={requirement.id}
                         />
@@ -238,6 +258,11 @@ export default async function EditServicePage({
                 className="bg-surface-2 grid gap-4 rounded-xl p-4 lg:grid-cols-2"
               >
                 <input type="hidden" name="serviceId" value={id} />
+                <input
+                  type="hidden"
+                  name="expectedVersion"
+                  value={service.version}
+                />
                 <label className={labelClass}>
                   Title
                   <input className={fieldClass} name="title" required />
@@ -319,6 +344,11 @@ export default async function EditServicePage({
                       </div>
                       <form action={deleteMediaAction}>
                         <input type="hidden" name="serviceId" value={id} />
+                        <input
+                          type="hidden"
+                          name="expectedVersion"
+                          value={service.version}
+                        />
                         <input type="hidden" name="mediaId" value={media.id} />
                         <ConfirmSubmitButton
                           size="sm"
@@ -337,6 +367,11 @@ export default async function EditServicePage({
                 className="bg-surface-2 grid gap-4 rounded-xl p-4 lg:grid-cols-2"
               >
                 <input type="hidden" name="serviceId" value={id} />
+                <input
+                  type="hidden"
+                  name="expectedVersion"
+                  value={service.version}
+                />
                 <label className={`${labelClass} lg:col-span-2`}>
                   Asset path or URL
                   <input className={fieldClass} name="assetPath" required />

@@ -7,6 +7,7 @@ import {
   CatalogueConflictError,
   CataloguePublicationError,
   CatalogueTransitionError,
+  pendingChangesConflictMessage,
 } from "@/lib/catalogue/errors";
 import {
   createOwnedMediaReference,
@@ -273,7 +274,11 @@ function serviceDataFromSnapshot(snapshot: StagedCatalogueAggregate) {
   };
 }
 
-export async function publishService(id: string, actorId: string) {
+export async function publishService(
+  id: string,
+  actorId: string,
+  expectedVersion: number,
+) {
   return prisma.$transaction(async (transaction) => {
     const service = await loadServiceAggregate(transaction, id);
     if (service.publicationStatus === "PUBLISHED" && !service.stage) {
@@ -285,6 +290,38 @@ export async function publishService(id: string, actorId: string) {
       throw new CatalogueConflictError(
         "The published version changed after these edits were staged. Discard or review the pending changes.",
       );
+    }
+
+    let claimedStageVersion: number | null = null;
+    let claimedServiceVersion: number;
+    if (service.stage) {
+      const claim = await transaction.catalogueServiceStage.updateMany({
+        where: {
+          id: service.stage.id,
+          serviceId: id,
+          version: expectedVersion,
+        },
+        data: {
+          updatedById: actorId,
+          version: { increment: 1 },
+        },
+      });
+      if (claim.count !== 1) {
+        throw new CatalogueConflictError(pendingChangesConflictMessage);
+      }
+      claimedStageVersion = expectedVersion + 1;
+      claimedServiceVersion = claimedStageVersion;
+    } else {
+      const claim = await transaction.catalogueService.updateMany({
+        where: { id, version: expectedVersion },
+        data: { updatedById: actorId, version: { increment: 1 } },
+      });
+      if (claim.count !== 1) {
+        throw new CatalogueConflictError(
+          "This service changed after the editor was opened. Reload before continuing.",
+        );
+      }
+      claimedServiceVersion = expectedVersion + 1;
     }
 
     const snapshot = service.stage
@@ -320,15 +357,25 @@ export async function publishService(id: string, actorId: string) {
       serviceSlug: service.slug,
     };
 
-    await transaction.catalogueService.update({
-      where: { id },
+    const serviceUpdate = await transaction.catalogueService.updateMany({
+      where: {
+        id,
+        version: service.stage ? service.version : claimedServiceVersion,
+      },
       data: {
         ...serviceDataFromSnapshot(snapshot),
         publicationStatus: "PUBLISHED",
         updatedById: actorId,
-        version: { increment: 1 },
+        ...(service.stage ? { version: claimedServiceVersion } : {}),
       },
     });
+    if (serviceUpdate.count !== 1) {
+      throw new CatalogueConflictError(
+        service.stage
+          ? pendingChangesConflictMessage
+          : "This service changed after the editor was opened. Reload before continuing.",
+      );
+    }
     await transaction.catalogueServiceGameMode.deleteMany({
       where: { serviceId: id },
     });
@@ -400,9 +447,16 @@ export async function publishService(id: string, actorId: string) {
       },
     });
     if (service.stage) {
-      await transaction.catalogueServiceStage.delete({
-        where: { id: service.stage.id },
+      const deleted = await transaction.catalogueServiceStage.deleteMany({
+        where: {
+          id: service.stage.id,
+          serviceId: id,
+          version: claimedStageVersion!,
+        },
       });
+      if (deleted.count !== 1) {
+        throw new CatalogueConflictError(pendingChangesConflictMessage);
+      }
     }
     return {
       published,
@@ -416,7 +470,11 @@ export async function publishService(id: string, actorId: string) {
   });
 }
 
-export async function archiveService(id: string, actorId: string) {
+export async function archiveService(
+  id: string,
+  actorId: string,
+  expectedVersion: number,
+) {
   return prisma.$transaction(async (transaction) => {
     const service = await loadServiceAggregate(transaction, id);
     assertArchiveTransition(service.publicationStatus, Boolean(service.stage));
@@ -424,13 +482,21 @@ export async function archiveService(id: string, actorId: string) {
       where: { serviceId: id },
       _max: { revisionNumber: true },
     });
-    const archived = await transaction.catalogueService.update({
-      where: { id },
+    const claim = await transaction.catalogueService.updateMany({
+      where: { id, version: expectedVersion, publicationStatus: "PUBLISHED" },
       data: {
         publicationStatus: "ARCHIVED",
         updatedById: actorId,
         version: { increment: 1 },
       },
+    });
+    if (claim.count !== 1) {
+      throw new CatalogueConflictError(
+        "This service changed after the editor was opened. Reload before continuing.",
+      );
+    }
+    const archived = await transaction.catalogueService.findUniqueOrThrow({
+      where: { id },
       include: {
         category: true,
         gameModes: true,
@@ -468,7 +534,11 @@ export async function archiveService(id: string, actorId: string) {
   });
 }
 
-export async function discardServiceStage(id: string, actorId: string) {
+export async function discardServiceStage(
+  id: string,
+  actorId: string,
+  expectedVersion: number,
+) {
   return prisma.$transaction(async (transaction) => {
     const service = await transaction.catalogueService.findUniqueOrThrow({
       where: { id },
@@ -479,16 +549,23 @@ export async function discardServiceStage(id: string, actorId: string) {
         "There are no pending changes to discard.",
       );
     }
-    await transaction.catalogueServiceStage.delete({
-      where: { id: service.stage.id },
+    const deleted = await transaction.catalogueServiceStage.deleteMany({
+      where: {
+        id: service.stage.id,
+        serviceId: id,
+        version: expectedVersion,
+      },
     });
+    if (deleted.count !== 1) {
+      throw new CatalogueConflictError(pendingChangesConflictMessage);
+    }
     await transaction.auditLog.create({
       data: {
         actorId,
         action: "catalogue.service.changes_discarded",
         targetType: "CatalogueService",
         targetId: id,
-        metadata: auditMetadata({ stageVersion: service.stage.version }),
+        metadata: auditMetadata({ stageVersion: expectedVersion }),
       },
     });
     return service;
@@ -578,7 +655,11 @@ function stagedId() {
   return `stg${randomUUID().replaceAll("-", "").slice(0, 27)}`;
 }
 
-export async function addRequirement(input: RequirementInput, actorId: string) {
+export async function addRequirement(
+  input: RequirementInput,
+  actorId: string,
+  expectedVersion: number,
+) {
   return prisma.$transaction(async (transaction) => {
     const stagedRequirement = {
       id: stagedId(),
@@ -594,6 +675,7 @@ export async function addRequirement(input: RequirementInput, actorId: string) {
       transaction,
       input.serviceId,
       actorId,
+      expectedVersion,
       (snapshot) => addStagedRequirement(snapshot, stagedRequirement),
     );
     if (staged) {
@@ -612,10 +694,15 @@ export async function addRequirement(input: RequirementInput, actorId: string) {
     const requirement = await transaction.catalogueRequirement.create({
       data: input,
     });
-    await transaction.catalogueService.update({
-      where: { id: input.serviceId },
+    const serviceUpdate = await transaction.catalogueService.updateMany({
+      where: { id: input.serviceId, version: expectedVersion },
       data: { updatedById: actorId, version: { increment: 1 } },
     });
+    if (serviceUpdate.count !== 1) {
+      throw new CatalogueConflictError(
+        "This service changed after the editor was opened. Reload before continuing.",
+      );
+    }
     await transaction.auditLog.create({
       data: {
         actorId,
@@ -633,12 +720,14 @@ export async function deleteRequirement(
   serviceId: string,
   requirementId: string,
   actorId: string,
+  expectedVersion: number,
 ) {
   return prisma.$transaction(async (transaction) => {
     const staged = await mutatePublishedStage(
       transaction,
       serviceId,
       actorId,
+      expectedVersion,
       (snapshot) => {
         if (
           !snapshot.requirements.some(
@@ -668,10 +757,15 @@ export async function deleteRequirement(
     });
     if (result.count !== 1)
       throw new CatalogueConflictError("Requirement not found.");
-    await transaction.catalogueService.update({
-      where: { id: serviceId },
+    const serviceUpdate = await transaction.catalogueService.updateMany({
+      where: { id: serviceId, version: expectedVersion },
       data: { updatedById: actorId, version: { increment: 1 } },
     });
+    if (serviceUpdate.count !== 1) {
+      throw new CatalogueConflictError(
+        "This service changed after the editor was opened. Reload before continuing.",
+      );
+    }
     await transaction.auditLog.create({
       data: {
         actorId,
@@ -685,7 +779,11 @@ export async function deleteRequirement(
   });
 }
 
-export async function addMediaReference(input: MediaInput, actorId: string) {
+export async function addMediaReference(
+  input: MediaInput,
+  actorId: string,
+  expectedVersion: number,
+) {
   return prisma.$transaction(async (transaction) => {
     const owner = mediaOwnerWhere(input);
     if (input.serviceId) {
@@ -701,6 +799,7 @@ export async function addMediaReference(input: MediaInput, actorId: string) {
         transaction,
         input.serviceId,
         actorId,
+        expectedVersion,
         (snapshot) => addStagedMedia(snapshot, stagedMedia),
       );
       if (staged) {
@@ -730,14 +829,19 @@ export async function addMediaReference(input: MediaInput, actorId: string) {
       create: (data) => transaction.catalogueMediaReference.create({ data }),
     });
     if (input.serviceId) {
-      await transaction.catalogueService.update({
-        where: { id: input.serviceId },
+      const serviceUpdate = await transaction.catalogueService.updateMany({
+        where: { id: input.serviceId, version: expectedVersion },
         data: {
           ...(input.isPrimary ? { primaryMediaPath: input.assetPath } : {}),
           updatedById: actorId,
           version: { increment: 1 },
         },
       });
+      if (serviceUpdate.count !== 1) {
+        throw new CatalogueConflictError(
+          "This service changed after the editor was opened. Reload before continuing.",
+        );
+      }
     } else if (input.categoryId && input.isPrimary) {
       await transaction.catalogueCategory.update({
         where: { id: input.categoryId },
@@ -769,12 +873,14 @@ export async function deleteMediaReference(
   serviceId: string,
   mediaId: string,
   actorId: string,
+  expectedVersion: number,
 ) {
   return prisma.$transaction(async (transaction) => {
     const staged = await mutatePublishedStage(
       transaction,
       serviceId,
       actorId,
+      expectedVersion,
       (snapshot) => {
         if (!snapshot.mediaReferences.some((media) => media.id === mediaId)) {
           throw new CatalogueConflictError("Media reference not found.");
@@ -802,14 +908,19 @@ export async function deleteMediaReference(
     await transaction.catalogueMediaReference.delete({
       where: { id: mediaId },
     });
-    await transaction.catalogueService.update({
-      where: { id: serviceId },
+    const serviceUpdate = await transaction.catalogueService.updateMany({
+      where: { id: serviceId, version: expectedVersion },
       data: {
         ...(media.isPrimary ? { primaryMediaPath: null } : {}),
         updatedById: actorId,
         version: { increment: 1 },
       },
     });
+    if (serviceUpdate.count !== 1) {
+      throw new CatalogueConflictError(
+        "This service changed after the editor was opened. Reload before continuing.",
+      );
+    }
     await transaction.auditLog.create({
       data: {
         actorId,
