@@ -49,7 +49,9 @@ export function AdminShell({
               <p className="truncate text-sm font-semibold">
                 {user.name ?? "Staff member"}
               </p>
-              <p className="text-text-muted truncate text-xs">{user.email}</p>
+              <p className="screenshot-sensitive text-text-muted truncate text-xs">
+                {user.email}
+              </p>
             </div>
           </div>
           <form action={logoutAction}>

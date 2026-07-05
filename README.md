@@ -38,6 +38,16 @@ The public route now contains the complete Task 002 homepage, responsive navigat
 
 The official transparent OSRS Services logo is stored at `public/branding/osrs-services-logo.png`. Set `NEXT_PUBLIC_DISCORD_URL` only when a verified support or invitation URL is available; otherwise Discord calls to action safely return to the homepage support section.
 
+## Task 003 catalogue foundation
+
+The application now includes a normalized MySQL-backed catalogue, capability-protected category and service management, immutable publication revisions, catalogue audit events, and public service discovery at `/services`.
+
+Admin catalogue routes require `products.view`; every create, update, duplicate, publish, archive, requirement and media mutation independently requires `products.edit` on the server. Drafts and archived or out-of-schedule services are excluded from public queries. Public projections explicitly omit internal notes, legacy metadata and actor relations.
+
+The additive migration is `20260701180000_task003_catalogue_foundation`. It creates catalogue tables and foreign keys without altering or deleting Task 001 authentication, role, session, feature-flag or audit data. Rollback is intentionally manual: archive or unpublish catalogue content first, retain an export if content must be preserved, then remove the catalogue foreign keys and tables in reverse dependency order. Do not use `prisma migrate reset` against a shared or production database.
+
+Catalogue seeds add missing taxonomy and four development-safe quote-only services. Existing seeded categories, public copy, requirements, publication states, availability and display order are not overwritten on rerun. Managed media upload/storage, pricing, service engines, cart and checkout remain deferred.
+
 ### Requirements
 
 - Node.js 24 LTS
@@ -86,11 +96,12 @@ pnpm exec playwright install chromium
 pnpm test:e2e
 pnpm screenshots:task001
 pnpm screenshots:task002
+pnpm screenshots:task003
 pnpm format:check
 pnpm build
 ```
 
-Task 002 screenshot capture expects the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
+Task 002 and Task 003 screenshot capture expect the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
 
 ### Database commands
 

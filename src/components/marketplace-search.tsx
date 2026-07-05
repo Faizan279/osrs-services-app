@@ -30,7 +30,11 @@ export function MarketplaceSearch() {
         className="border-primary/25 bg-background/85 focus-within:border-primary/55 focus-within:ring-primary/15 flex min-h-14 items-center gap-3 rounded-2xl border p-1.5 pl-4 shadow-[0_18px_50px_rgb(0_0_0_/_0.32)] transition focus-within:ring-4"
         onSubmit={(event) => {
           event.preventDefault();
-          router.push(matches[0]?.href ?? "/#service-categories");
+          router.push(
+            normalizedQuery
+              ? `/services?q=${encodeURIComponent(query.trim())}`
+              : "/services",
+          );
         }}
       >
         <Search aria-hidden="true" className="text-primary size-5 shrink-0" />

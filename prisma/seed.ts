@@ -3,6 +3,7 @@ import argon2 from "argon2";
 import { z } from "zod";
 
 import { PrismaClient } from "../src/generated/prisma/client";
+import { seedCatalogue, type CatalogueSeedClient } from "./catalogue-seed";
 import { seedDatabase, type SeedClient } from "./seed-core";
 
 const seedEnvironmentSchema = z
@@ -50,16 +51,21 @@ const adapter = new PrismaMariaDb({
 });
 const prisma = new PrismaClient({ adapter });
 
-seedDatabase(
-  prisma as unknown as SeedClient,
-  {
-    email: env.ADMIN_SEED_EMAIL || undefined,
-    password: env.ADMIN_SEED_PASSWORD || undefined,
-    name: env.ADMIN_SEED_NAME,
-    resetPassword: env.ADMIN_SEED_RESET_PASSWORD,
-  },
-  (password) => argon2.hash(password, { type: argon2.argon2id }),
-)
+async function main() {
+  await seedDatabase(
+    prisma as unknown as SeedClient,
+    {
+      email: env.ADMIN_SEED_EMAIL || undefined,
+      password: env.ADMIN_SEED_PASSWORD || undefined,
+      name: env.ADMIN_SEED_NAME,
+      resetPassword: env.ADMIN_SEED_RESET_PASSWORD,
+    },
+    (password) => argon2.hash(password, { type: argon2.argon2id }),
+  );
+  await seedCatalogue(prisma as unknown as CatalogueSeedClient);
+}
+
+main()
   .then(() => prisma.$disconnect())
   .catch(async (error: unknown) => {
     console.error(error);

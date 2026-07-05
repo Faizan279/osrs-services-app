@@ -1,6 +1,6 @@
 "use client";
 
-import { Blocks, LayoutDashboard } from "lucide-react";
+import { Blocks, LayoutDashboard, Library } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -8,6 +8,12 @@ import { cn } from "@/lib/utils";
 
 const navigation = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
+  {
+    href: "/admin/catalogue",
+    label: "Catalogue",
+    icon: Library,
+    exact: false,
+  },
   {
     href: "/admin/design-system",
     label: "Design system",

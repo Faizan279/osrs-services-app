@@ -1,0 +1,37 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+describe("catalogue route security", () => {
+  it("enforces products.edit inside every catalogue mutation action", () => {
+    const source = readFileSync(
+      path.join(process.cwd(), "src/app/(admin)/admin/catalogue/actions.ts"),
+      "utf8",
+    );
+    expect(
+      source.match(/requireCapability\(\s*"products\.edit"/g)?.length,
+    ).toBe(10);
+  });
+
+  it("enforces products.view on protected catalogue pages and preview", () => {
+    const routes = [
+      "page.tsx",
+      "categories/page.tsx",
+      "categories/new/page.tsx",
+      "categories/[id]/page.tsx",
+      "services/page.tsx",
+      "services/new/page.tsx",
+      "services/[id]/page.tsx",
+      "services/[id]/preview/page.tsx",
+      "services/[id]/revisions/page.tsx",
+    ];
+    for (const route of routes) {
+      const source = readFileSync(
+        path.join(process.cwd(), "src/app/(admin)/admin/catalogue", route),
+        "utf8",
+      );
+      expect(source, route).toMatch(/requireCapability\(\s*"products\.view"/);
+    }
+  });
+});

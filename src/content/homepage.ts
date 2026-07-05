@@ -23,7 +23,7 @@ export const homepageCategories = [
     title: "Power levelling",
     description:
       "Shape a skill-training request around your current level, target and preferred approach.",
-    href: "/#featured-services",
+    href: "/services/power-levelling",
     icon: "activity",
     treatment: "feature",
   },
@@ -32,7 +32,7 @@ export const homepageCategories = [
     title: "Questing",
     description:
       "Plan individual quests or a broader progression route with requirements reviewed first.",
-    href: "/#featured-services",
+    href: "/services/quests",
     icon: "scroll",
     treatment: "feature",
   },
@@ -41,7 +41,7 @@ export const homepageCategories = [
     title: "Achievement diaries",
     description:
       "Organise diary progress by region, tier and the prerequisites your account still needs.",
-    href: "/#featured-services",
+    href: "/services/achievement-diaries",
     icon: "map",
     treatment: "standard",
   },
@@ -50,7 +50,7 @@ export const homepageCategories = [
     title: "Minigames",
     description:
       "Request support for selected rewards, points and account unlocks.",
-    href: "/#featured-services",
+    href: "/services/minigames",
     icon: "flag",
     treatment: "compact",
   },
@@ -59,7 +59,7 @@ export const homepageCategories = [
     title: "Bossing and PvM",
     description:
       "Explore encounter support with account requirements and service scope made clear.",
-    href: "/#featured-services",
+    href: "/services/bossing-pvm",
     icon: "swords",
     treatment: "standard",
   },
@@ -111,7 +111,7 @@ export const featuredServices = [
       "Choose a skill goal and prepare the account details needed for a tailored service scope.",
     price: "Custom quote",
     delivery: "Schedule confirmed after review",
-    href: "/#support",
+    href: "/services/power-levelling/skill-training-request",
     label: "Plan a request",
     modes: ["Normal", "Ironman", "HCIM", "UIM"],
   },
@@ -122,7 +122,7 @@ export const featuredServices = [
       "Build a quest shortlist and review prerequisites before the order is configured.",
     price: "Estimate after configuration",
     delivery: "Requirements reviewed first",
-    href: "/#support",
+    href: "/services/quests/quest-progression",
     label: "Explore questing",
     modes: ["Normal", "Ironman"],
   },
@@ -133,7 +133,7 @@ export const featuredServices = [
       "Start with the encounter, account mode and relevant requirements for a clear quote.",
     price: "Custom quote",
     delivery: "Scope agreed before scheduling",
-    href: "/#support",
+    href: "/services/bossing-pvm/pvm-support",
     label: "Discuss PvM",
     modes: ["Normal", "Ironman", "HCIM"],
   },
@@ -144,7 +144,7 @@ export const featuredServices = [
       "Organise region and tier goals while keeping missing skills and quests visible.",
     price: "Estimate after configuration",
     delivery: "Plan confirmed after review",
-    href: "/#support",
+    href: "/services/achievement-diaries/diary-progression",
     label: "View diary options",
     modes: ["Normal", "Ironman"],
   },
@@ -206,19 +206,19 @@ export const marketplaceSearchItems = [
   {
     label: "Questing",
     description: "Individual quests and planned progression routes",
-    href: "/#questing",
+    href: "/services/quests",
     keywords: ["quests", "quest", "requirements"],
   },
   {
     label: "Power levelling",
     description: "Skill targets and training requests",
-    href: "/#power-levelling",
+    href: "/services/power-levelling",
     keywords: ["skills", "skilling", "levels", "xp"],
   },
   {
     label: "Raids and bossing",
     description: "PvM encounters and configurable support",
-    href: "/#bossing-pvm",
+    href: "/services/bossing-pvm",
     keywords: ["raids", "bosses", "pvm", "combat"],
   },
   {
@@ -230,7 +230,7 @@ export const marketplaceSearchItems = [
   {
     label: "Achievement diaries",
     description: "Region and tier progression planning",
-    href: "/#achievement-diaries",
+    href: "/services/achievement-diaries",
     keywords: ["diaries", "diary", "regions"],
   },
   {

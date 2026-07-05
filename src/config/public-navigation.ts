@@ -10,27 +10,27 @@ export type ServiceNavigationItem = PublicLink & {
 export const serviceNavigation = [
   {
     label: "Power levelling",
-    href: "/#power-levelling",
+    href: "/services/power-levelling",
     description: "Structured training paths for individual skills.",
   },
   {
     label: "Questing",
-    href: "/#questing",
+    href: "/services/quests",
     description: "Quest support planned around your account.",
   },
   {
     label: "Achievement diaries",
-    href: "/#achievement-diaries",
+    href: "/services/achievement-diaries",
     description: "Region-by-region diary progression support.",
   },
   {
     label: "Minigames",
-    href: "/#minigames",
+    href: "/services/minigames",
     description: "Focused help for rewards and unlocks.",
   },
   {
     label: "Bossing and PvM",
-    href: "/#bossing-pvm",
+    href: "/services/bossing-pvm",
     description: "Configurable PvM and encounter assistance.",
   },
   {
@@ -64,9 +64,10 @@ export const deferredPrimaryNavigation = [
 
 export const footerNavigation = {
   services: [
-    { label: "Power levelling", href: "/#power-levelling" },
-    { label: "Questing", href: "/#questing" },
-    { label: "Bossing and PvM", href: "/#bossing-pvm" },
+    { label: "All services", href: "/services" },
+    { label: "Power levelling", href: "/services/power-levelling" },
+    { label: "Questing", href: "/services/quests" },
+    { label: "Bossing and PvM", href: "/services/bossing-pvm" },
     { label: "Gold", href: "/#gold-service" },
   ],
   marketplace: [
@@ -91,10 +92,10 @@ export const footerNavigation = {
 } satisfies Record<string, readonly PublicLink[]>;
 
 export const publicCtaLinks = {
-  browseServices: "/#service-categories",
+  browseServices: "/services",
   account: "/account",
   getEstimate: "/#calculator-preview",
-  search: "/#marketplace-search",
+  search: "/services",
   support: "/#support",
 } as const;
 
