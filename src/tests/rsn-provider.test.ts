@@ -6,10 +6,13 @@ import {
   RsnProviderDataError,
 } from "@/lib/eligibility/provider-parser";
 import {
+  configuredRsnProvider,
+  DevelopmentFixtureProvider,
   OfficialOsrsHiscoresProvider,
   RsnNotFoundError,
   RsnProviderUnavailableError,
 } from "@/lib/eligibility/provider";
+import { env, environmentSchema } from "@/lib/env";
 
 function validFixture(extra: string[] = []) {
   return [
@@ -19,7 +22,11 @@ function validFixture(extra: string[] = []) {
   ].join("\n");
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  env.NODE_ENV = "test";
+  env.RSN_DEVELOPMENT_FIXTURE = false;
+});
 
 describe("official hiscores parser", () => {
   it("normalizes a valid deterministic response", () => {
@@ -50,10 +57,45 @@ describe("official hiscores parser", () => {
     );
   });
 
+  it("rejects unsafe integer content before profile evaluation", () => {
+    const fixture = validFixture().replace(
+      "1,1610,42000000",
+      "1,1610,9007199254740992",
+    );
+    expect(() => parseOfficialHiscores(fixture, "Sample User")).toThrow(
+      RsnProviderDataError,
+    );
+  });
+
   it("accepts validated additional activity lines", () => {
     expect(
       parseOfficialHiscores(validFixture(["2,150"]), "Sample User").totalXp,
     ).toBe(42_000_000);
+  });
+});
+
+describe("RSN provider environment safety", () => {
+  it("rejects the development fixture flag for production startup", () => {
+    const result = environmentSchema.safeParse({
+      ...process.env,
+      NODE_ENV: "production",
+      RSN_DEVELOPMENT_FIXTURE: "true",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.path).toEqual(["RSN_DEVELOPMENT_FIXTURE"]);
+    }
+  });
+
+  it("defensively refuses the development fixture in production", () => {
+    env.NODE_ENV = "production";
+    env.RSN_DEVELOPMENT_FIXTURE = true;
+    expect(configuredRsnProvider()).toBeInstanceOf(
+      OfficialOsrsHiscoresProvider,
+    );
+
+    env.NODE_ENV = "test";
+    expect(configuredRsnProvider()).toBeInstanceOf(DevelopmentFixtureProvider);
   });
 });
 

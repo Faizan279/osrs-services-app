@@ -15,7 +15,15 @@ function numericFields(line: string, minimum: number) {
       "Public statistics returned an unexpected format.",
     );
   }
-  return values.map(Number);
+  return values.map((value) => {
+    const parsed = Number(value);
+    if (!Number.isSafeInteger(parsed)) {
+      throw new RsnProviderDataError(
+        "Public statistics returned an unsafe numeric value.",
+      );
+    }
+    return parsed;
+  });
 }
 
 export function parseOfficialHiscores(

@@ -93,7 +93,7 @@ export class DevelopmentFixtureProvider implements RsnStatsProvider {
 }
 
 export function configuredRsnProvider(): RsnStatsProvider {
-  if (env.RSN_DEVELOPMENT_FIXTURE) {
+  if (env.NODE_ENV !== "production" && env.RSN_DEVELOPMENT_FIXTURE) {
     return new DevelopmentFixtureProvider();
   }
   return new OfficialOsrsHiscoresProvider();

@@ -1,6 +1,7 @@
 import "server-only";
 
-import { createHmac } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
+import { isIP } from "node:net";
 import type { NextRequest } from "next/server";
 
 import { prisma } from "@/lib/db/prisma";
@@ -11,15 +12,65 @@ type RateLimitStore = Pick<
   "upsert" | "deleteMany"
 >;
 
-export function requestIdentity(request: NextRequest) {
-  const trustedIp = env.RSN_TRUST_PROXY_IP_HEADER
-    ? request.headers.get("x-real-ip")?.slice(0, 64)
-    : null;
-  return trustedIp
-    ? `ip:${trustedIp}`
-    : `client:${request.headers.get("user-agent")?.slice(0, 300) ?? "unknown"}:${
-        request.headers.get("accept-language")?.slice(0, 80) ?? "unknown"
-      }`;
+export const PUBLIC_CLIENT_COOKIE = "osrs_public_client";
+export const PUBLIC_CLIENT_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+
+const publicClientTokenPattern = /^[A-Za-z0-9_-]{43}$/;
+
+export type PublicClientCookie = {
+  name: typeof PUBLIC_CLIENT_COOKIE;
+  value: string;
+  options: {
+    httpOnly: true;
+    sameSite: "lax";
+    secure: boolean;
+    path: "/";
+    maxAge: number;
+  };
+};
+
+export function isValidPublicClientToken(value: string | undefined | null) {
+  return Boolean(value && publicClientTokenPattern.test(value));
+}
+
+export function createPublicClientToken() {
+  return randomBytes(32).toString("base64url");
+}
+
+function publicClientCookie(value: string): PublicClientCookie {
+  return {
+    name: PUBLIC_CLIENT_COOKIE,
+    value,
+    options: {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: env.NODE_ENV === "production",
+      path: "/",
+      maxAge: PUBLIC_CLIENT_COOKIE_MAX_AGE_SECONDS,
+    },
+  };
+}
+
+export function trustedIpIdentity(request: NextRequest) {
+  if (!env.RSN_TRUST_PROXY_IP_HEADER) return null;
+  const value = request.headers.get("x-real-ip")?.trim();
+  if (!value || value.length > 64 || !isIP(value)) return null;
+  return value;
+}
+
+export function requestIdentity(request: NextRequest): {
+  identity: string;
+  setCookie: PublicClientCookie | null;
+} {
+  const existingToken = request.cookies.get(PUBLIC_CLIENT_COOKIE)?.value;
+  const token = isValidPublicClientToken(existingToken)
+    ? existingToken!
+    : createPublicClientToken();
+  const trustedIp = trustedIpIdentity(request);
+  return {
+    identity: trustedIp ? `client:${token}:ip:${trustedIp}` : `client:${token}`,
+    setCookie: token === existingToken ? null : publicClientCookie(token),
+  };
 }
 
 export function privateIdentityKey(identity: string) {

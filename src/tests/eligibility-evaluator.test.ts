@@ -81,7 +81,7 @@ describe("eligibility evaluator", () => {
       {
         ...automatic,
         comparisonOperator: "GREATER_THAN_OR_EQUAL",
-        requiredValue: 80,
+        requiredValue: 80n,
         recommendedService: {
           name: "Skill training request",
           slug: "skill-training-request",
@@ -94,5 +94,52 @@ describe("eligibility evaluator", () => {
       "/services/power-levelling/skill-training-request",
     );
     expect(result.summary.NOT_MET).toBe(1);
+  });
+
+  it("suppresses prerequisite links that are not publicly reachable", () => {
+    const result = evaluateRequirements(profile, [
+      {
+        ...automatic,
+        id: "inactive-category",
+        comparisonOperator: "GREATER_THAN_OR_EQUAL",
+        requiredValue: 80,
+        recommendedService: {
+          name: "Inactive category service",
+          slug: "inactive-category-service",
+          publicationStatus: "PUBLISHED",
+          category: { slug: "hidden", isActive: false },
+        },
+      },
+      {
+        ...automatic,
+        id: "future-publish",
+        comparisonOperator: "GREATER_THAN_OR_EQUAL",
+        requiredValue: 80,
+        recommendedService: {
+          name: "Future service",
+          slug: "future-service",
+          publicationStatus: "PUBLISHED",
+          publishAt: "2099-01-01T00:00:00.000Z",
+          category: { slug: "hidden", isActive: true },
+        },
+      },
+      {
+        ...automatic,
+        id: "archived",
+        comparisonOperator: "GREATER_THAN_OR_EQUAL",
+        requiredValue: 80,
+        recommendedService: {
+          name: "Archived service",
+          slug: "archived-service",
+          publicationStatus: "ARCHIVED",
+          category: { slug: "hidden", isActive: true },
+        },
+      },
+    ]);
+    expect(result.results.map((item) => item.recommendation)).toEqual([
+      null,
+      null,
+      null,
+    ]);
   });
 });

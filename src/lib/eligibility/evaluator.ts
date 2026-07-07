@@ -1,4 +1,5 @@
 import type { CatalogueComparisonOperator } from "@/generated/prisma/client";
+import { safeRequirementNumber } from "@/lib/catalogue/numeric";
 import { metricValue } from "@/lib/eligibility/metrics";
 import type { PublicStatsProfile } from "@/lib/eligibility/profile";
 
@@ -20,12 +21,14 @@ export type EvaluatedRequirementInput = {
   customerGuidance?: string | null;
   metricKey?: string | null;
   comparisonOperator?: CatalogueComparisonOperator | null;
-  requiredValue?: number | null;
+  requiredValue?: number | bigint | null;
   recommendedService?: {
     name: string;
-    category: { slug: string };
+    category: { slug: string; isActive?: boolean | null };
     slug: string;
     publicationStatus: string;
+    publishAt?: Date | string | null;
+    unpublishAt?: Date | string | null;
   } | null;
 };
 
@@ -48,6 +51,25 @@ function compare(
   }
 }
 
+function dateValue(value: Date | string | null | undefined) {
+  if (!value) return null;
+  return value instanceof Date ? value : new Date(value);
+}
+
+function isPubliclyReachableRecommendation(
+  service: NonNullable<EvaluatedRequirementInput["recommendedService"]>,
+  now = new Date(),
+) {
+  const publishAt = dateValue(service.publishAt);
+  const unpublishAt = dateValue(service.unpublishAt);
+  return (
+    service.publicationStatus === "PUBLISHED" &&
+    service.category.isActive !== false &&
+    (!publishAt || publishAt <= now) &&
+    (!unpublishAt || unpublishAt > now)
+  );
+}
+
 export function evaluateRequirements(
   profile: PublicStatsProfile,
   requirements: readonly EvaluatedRequirementInput[],
@@ -63,26 +85,24 @@ export function evaluateRequirements(
       const actual = requirement.metricKey
         ? metricValue(profile, requirement.metricKey)
         : undefined;
+      const requiredValue = safeRequirementNumber(requirement.requiredValue);
       if (
         actual === undefined ||
-        requirement.requiredValue == null ||
+        requiredValue == null ||
         !requirement.comparisonOperator
       ) {
         status = "SUPPORT_VERIFICATION_REQUIRED";
       } else {
         actualValue = actual;
-        status = compare(
-          actual,
-          requirement.requiredValue,
-          requirement.comparisonOperator,
-        )
+        status = compare(actual, requiredValue, requirement.comparisonOperator)
           ? "MET"
           : "NOT_MET";
       }
     }
     const recommendation =
       status === "NOT_MET" &&
-      requirement.recommendedService?.publicationStatus === "PUBLISHED"
+      requirement.recommendedService &&
+      isPubliclyReachableRecommendation(requirement.recommendedService)
         ? {
             name: requirement.recommendedService.name,
             href: `/services/${requirement.recommendedService.category.slug}/${requirement.recommendedService.slug}`,
@@ -95,7 +115,7 @@ export function evaluateRequirements(
       isRequired: requirement.isRequired,
       status,
       actualValue,
-      requiredValue: requirement.requiredValue ?? null,
+      requiredValue: safeRequirementNumber(requirement.requiredValue),
       metricKey: requirement.metricKey ?? null,
       customerGuidance: requirement.customerGuidance ?? null,
       recommendation,

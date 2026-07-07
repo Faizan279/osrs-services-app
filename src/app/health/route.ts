@@ -1,12 +1,6 @@
 import { NextResponse } from "next/server";
 
-export function createHealthPayload(now = new Date()) {
-  return {
-    status: "ok" as const,
-    service: "osrs-services-app",
-    timestamp: now.toISOString(),
-  };
-}
+import { createHealthPayload } from "@/lib/health";
 
 export function GET() {
   return NextResponse.json(createHealthPayload(), {

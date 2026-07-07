@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { createHealthPayload, GET } from "@/app/health/route";
+import { GET } from "@/app/health/route";
+import { createHealthPayload } from "@/lib/health";
 
 describe("health endpoint", () => {
   it("returns a stable healthy payload", async () => {

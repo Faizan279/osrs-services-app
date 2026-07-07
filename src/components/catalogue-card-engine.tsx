@@ -33,7 +33,9 @@ type Requirement = {
     name: string;
     slug: string;
     publicationStatus: string;
-    category: { slug: string };
+    publishAt?: Date | string | null;
+    unpublishAt?: Date | string | null;
+    category: { slug: string; isActive?: boolean | null };
   } | null;
 };
 
@@ -74,6 +76,25 @@ type EligibilityResponse = {
     recommendation: { name: string; href: string } | null;
   }>;
 };
+
+function dateValue(value: Date | string | null | undefined) {
+  if (!value) return null;
+  return value instanceof Date ? value : new Date(value);
+}
+
+function isReachableRecommendation(
+  service: NonNullable<Requirement["recommendedService"]>,
+) {
+  const now = new Date();
+  const publishAt = dateValue(service.publishAt);
+  const unpublishAt = dateValue(service.unpublishAt);
+  return (
+    service.publicationStatus === "PUBLISHED" &&
+    service.category.isActive !== false &&
+    (!publishAt || publishAt <= now) &&
+    (!unpublishAt || unpublishAt > now)
+  );
+}
 
 export function CatalogueCardEngine({
   service,
@@ -382,14 +403,15 @@ function RequirementGroup({
                   {item.customerGuidance}
                 </p>
               )}
-              {item.recommendedService?.publicationStatus === "PUBLISHED" && (
-                <a
-                  className="text-primary mt-3 inline-block text-xs font-bold"
-                  href={`/services/${item.recommendedService.category.slug}/${item.recommendedService.slug}`}
-                >
-                  Recommended: {item.recommendedService.name}
-                </a>
-              )}
+              {item.recommendedService &&
+                isReachableRecommendation(item.recommendedService) && (
+                  <a
+                    className="text-primary mt-3 inline-block text-xs font-bold"
+                    href={`/services/${item.recommendedService.category.slug}/${item.recommendedService.slug}`}
+                  >
+                    Recommended: {item.recommendedService.name}
+                  </a>
+                )}
             </li>
           ))}
         </ul>

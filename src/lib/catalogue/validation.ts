@@ -8,6 +8,7 @@ import {
   catalogueRequirementTypes,
   requirementVerificationModes,
 } from "@/lib/catalogue/constants";
+import { MAX_SAFE_REQUIREMENT_VALUE } from "@/lib/catalogue/numeric";
 import { isAllowedMetricKey } from "@/lib/eligibility/metrics";
 
 const reservedOfferingSlugs = new Set([
@@ -47,6 +48,16 @@ const optionalTrimmedString = (maximum: number) =>
     .max(maximum)
     .optional()
     .transform((value) => value || undefined);
+
+function coerceSafeRequirementValue(value: unknown) {
+  if (value === "" || value == null) return undefined;
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return /^\d+$/.test(trimmed) ? Number(trimmed) : Number.NaN;
+  }
+  return value;
+}
 
 const optionalDate = z
   .string()
@@ -145,8 +156,8 @@ const requirementFields = {
     z.enum(catalogueComparisonOperators).optional(),
   ),
   requiredValue: z.preprocess(
-    (value) => (value === "" || value == null ? undefined : value),
-    z.coerce.number().int().min(0).max(2_147_483_647).optional(),
+    coerceSafeRequirementValue,
+    z.coerce.number().int().min(0).max(MAX_SAFE_REQUIREMENT_VALUE).optional(),
   ),
   recommendedServiceId: optionalTrimmedString(30),
 };

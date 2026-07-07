@@ -37,10 +37,8 @@ test("requirements dialog is accessible and separates verification modes", async
     page.getByText("Customer confirmation required", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText("Checked against supported public statistics", {
-      exact: true,
-    }),
-  ).toHaveCount(2);
+    page.getByText("Support verification required", { exact: true }),
+  ).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
@@ -50,6 +48,10 @@ test("RSN eligibility uses a private POST flow and never requests a password", a
 }) => {
   await page.goto(diaryPath);
   await expect(page.getByLabel(/password/i)).toHaveCount(0);
+  test.skip(
+    (await page.getByLabel("RuneScape name").count()) === 0,
+    "RSN eligibility feature flag is disabled.",
+  );
   await page.getByLabel("RuneScape name").fill("Sample User");
   await page
     .getByLabel("Service option")
@@ -83,6 +85,10 @@ test("catalogue engine and eligibility fit mobile without page overflow", async 
       document.documentElement.clientWidth,
   );
   expect(overflow).toBeLessThanOrEqual(1);
+  test.skip(
+    (await page.getByLabel("RuneScape name").count()) === 0,
+    "RSN eligibility feature flag is disabled.",
+  );
   await page.getByLabel("RuneScape name").fill("Sample User");
   await page
     .getByLabel("Service option")

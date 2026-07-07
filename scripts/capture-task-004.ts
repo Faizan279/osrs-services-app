@@ -82,7 +82,8 @@ async function main() {
       fullPage: true,
     });
     await page.getByRole("button", { name: "View requirements" }).click();
-    await page.getByRole("dialog").screenshot({
+    await page.getByRole("dialog").waitFor();
+    await page.screenshot({
       path: path.join(outputDirectory, "public-requirement-dialog-1440.png"),
     });
     await page.keyboard.press("Escape");

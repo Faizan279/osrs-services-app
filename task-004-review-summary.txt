@@ -1,80 +1,77 @@
-Task 004 review summary
+Task 004 final correction review summary
 
 Branch:
 codex/task-004-catalogue-engine-eligibility
 
-Starting main SHA:
-67347c9d84d19b8ee796ef362aa96f05e5b9db65
+Reviewed starting SHA:
+617e9566b476eef637ac18edad310be3babaf1b1
 
-Final head SHA:
+Correction commit:
 Recorded in the final handoff after the local commit is created.
 
-Migration:
-20260706150000_task004_catalogue_engine_eligibility
+Scope completed:
+- Replaced UA/language public rate-limit identity fallback with an opaque random HttpOnly SameSite=Lax cookie named osrs_public_client.
+- Kept only HMAC-derived identity keys in PublicRateLimitBucket; raw cookie tokens and raw IP addresses are not stored.
+- Added opt-in x-real-ip participation only when RSN_TRUST_PROXY_IP_HEADER=true and the value passes node:net isIP validation.
+- Extended RSN eligibility route error handling across feature flag lookup, rate limiting, catalogue lookup, provider lookup and evaluation. Unexpected failures return a no-store sanitized UNAVAILABLE response and log only the error name.
+- Added production startup validation that rejects RSN_DEVELOPMENT_FIXTURE=true and kept a defensive provider-side production guard.
+- Enforced offering/service ownership before draft offering requirement add/delete mutations can claim a version, write requirements or create audit rows. Published services validate against the editable aggregate snapshot.
+- Added publish/republish-time recommendation graph validation using a Serializable Prisma transaction and deterministic CatalogueService row locking. The validator excludes the current service's old live edges, checks all candidate staged aggregate edges, rejects missing targets and direct/transitive cycles, then applies the aggregate only after validation.
+- Suppressed public recommendation links unless the target service is currently publicly reachable: PUBLISHED, active category, publishAt passed/null and unpublishAt future/null.
+- Migrated CatalogueRequirement.requiredValue and CatalogueOfferingRequirement.requiredValue from Int to BigInt while keeping API/JSON/client values bounded to Number.MAX_SAFE_INTEGER.
+- Hardened requirement value parsing for digit-only safe integer form inputs; negative, decimal and unsafe values are rejected before Prisma writes.
+- Hardened staged aggregate validation for service and offering requirement rules, normalized slugs/facets, disabled quantity limits and malformed recommendation IDs.
+- Fixed unsupported public game-mode filters so invalid/unsupported mode queries return zero offerings instead of inheriting mode-less offerings.
+- Validated offering game modes against the staged parent service modes for published services.
+- Kept the approved visual design intact. Only screenshot capture behavior changed so the requirement-dialog artifact captures the full 1440x1000 page/viewport with the dialog open.
+- Moved createHealthPayload out of the /health route module so Next 16 route export validation passes.
+- Made the build script explicit with next build --webpack to avoid the known Windows/pnpm/Turbopack symlink resolver failure in this workspace.
 
-New database models:
-CatalogueOffering
-CatalogueOfferingFacet
-CatalogueOfferingGameMode
-CatalogueOfferingRequirement
-RsnLookupCache
-PublicRateLimitBucket
+Migrations:
+- Existing Task 004 migration retained:
+  - prisma/migrations/20260706150000_task004_catalogue_engine_eligibility/migration.sql
+- New additive correction migration:
+  - prisma/migrations/20260707170000_task004_security_integrity_corrections/migration.sql
+  - Alters CatalogueRequirement.requiredValue to BIGINT NULL.
+  - Alters CatalogueOfferingRequirement.requiredValue to BIGINT NULL.
+  - No DROP/TRUNCATE/DELETE/reset operations.
 
-New enum:
-CatalogueComparisonOperator
+Database validation:
+- Existing DB task004_existing:
+  - prisma migrate deploy applied 20260707170000_task004_security_integrity_corrections without reset.
+  - INFORMATION_SCHEMA confirmed both requiredValue columns are bigint.
+  - Existing requirement rows remained present: CatalogueRequirement=6, CatalogueOfferingRequirement=8.
+  - Repeated prisma db seed twice successfully against the existing DB.
+  - Stage count after seed check: 0 in this validation DB.
+  - Feature flag preservation check: catalogue_card_engine_enabled=1, rsn_eligibility_enabled=0.
+  - Admin preservation check: task004-validator@example.test remained ACTIVE.
+- Fresh DB task004_fresh_validation:
+  - Created with local MySQL root and granted to the app user.
+  - Full prisma migrate deploy applied all 6 migrations successfully.
+  - prisma db seed completed successfully.
+  - INFORMATION_SCHEMA confirmed both requiredValue columns are bigint.
+  - Fresh seed service count: 6.
 
-Extended models:
-CatalogueRequirement gained customerGuidance, metricKey, comparisonOperator, requiredValue and recommendedServiceId.
-CatalogueService gained offering and recommendation relations.
+Screenshot artifact:
+- Regenerated artifacts/task-004/public-requirement-dialog-1440.png.
+- Verified dimensions: 1440 x 1000.
+- Visual check: full page/viewport with Kandarin Hard Diary requirements dialog open.
 
-Routes:
-Public catalogue-card engine: /services/[categorySlug]/[serviceSlug]
-Public eligibility route: POST /api/catalogue/eligibility
-Admin offerings list: /admin/catalogue/services/[id]/offerings
-Admin new offering: /admin/catalogue/services/[id]/offerings/new
-Admin offering editor: /admin/catalogue/services/[id]/offerings/[offeringId]
-Admin preview extended: /admin/catalogue/services/[id]/preview
+Validation commands and results:
+- pnpm db:generate: passed.
+- pnpm typecheck: passed.
+- pnpm test: passed, 15 files, 84 tests.
+- pnpm lint: passed.
+- pnpm build with RSN_DEVELOPMENT_FIXTURE=false: passed using next build --webpack.
+- pnpm test:e2e against the built local server: passed, 44 passed, 12 skipped.
+  - Skips include RSN UI browser flows while the preserved rsn_eligibility_enabled feature flag is off by default.
+  - Eligibility route behavior is covered by Vitest tests for feature-flag DB failures, rate-limit DB failures, catalogue lookup DB failures, typed provider failures, safe response bodies and no-store headers.
+- Focused recommendation graph E2E:
+  - tests/e2e/catalogue.spec.ts "republish rejects reciprocal staged recommendation graph cycles": passed.
+  - Creates temporary real MySQL services A/B, publishes A->B, rejects B->A during republish and verifies B stage/revision/live edges remain unchanged.
 
-Provider details:
-Server-only RSN provider abstraction.
-Production provider uses the official public OSRS Hiscores host with fixed allow-listing, timeout, response-size cap and parser validation.
-Development fixture provider is available only through RSN_DEVELOPMENT_FIXTURE=true.
-Normal automated tests and screenshots do not call the live provider.
-
-Feature flags:
-catalogue_card_engine_enabled defaults on.
-rsn_eligibility_enabled defaults off.
-Seed reruns preserve existing administrator flag values.
-
-Cache TTL:
-Positive lookup TTL default: RSN_CACHE_TTL_SECONDS=300.
-Negative lookup TTL default: RSN_NEGATIVE_CACHE_TTL_SECONDS=60.
-Cache keys use server-side HMAC.
-
-Rate-limit configuration:
-Window default: RSN_RATE_LIMIT_WINDOW_SECONDS=60.
-Count default: RSN_RATE_LIMIT_COUNT=8.
-Rate-limit identity keys use server-side HMAC.
-Raw IP addresses are not stored.
-Trusted proxy header use is opt-in with RSN_TRUST_PROXY_IP_HEADER=true.
-
-Permissions:
-products.view protects offering admin pages, eligibility views and preview.
-products.edit protects all catalogue/offering mutations, requirement rules, republish and discard.
-Public eligibility is guest-accessible only when enabled and rate-limited.
-
-Test totals:
-pnpm test: 14 files passed, 68 tests passed.
-pnpm test:seed: 1 file passed, 2 tests passed.
-pnpm test:e2e: 47 passed, 7 skipped, 54 total.
-pnpm lint, pnpm typecheck, pnpm format:check and pnpm build passed.
-
-MySQL validation:
-Fresh Task 004 database applied 5 migrations and seeded to 6 services, 8 offerings, 16 facets, 8 offering requirements, 6 service requirements and 11 feature flags.
-Existing Task 003 database applied Task 004 without reset and preserved user, session, feature flag, audit, revision, staged aggregate and administrator password-hash fixtures during validation.
-
-Known limitations:
-Live OSRS Hiscores smoke was not run and remains optional/disabled by default.
-Automatic metric registry currently includes total and skill level/XP metrics; boss/activity metrics can be added when provider mappings are approved.
-RSN eligibility remains off by default behind a feature flag.
-Pricing, calculators, cart, checkout, order creation, deployment and Task 005 were not started.
+Notes:
+- The first Vitest attempt was blocked by C: being at 0 bytes free. Removed disposable workspace/cache artifacts and reran successfully.
+- The initial default next build path exposed the existing Windows/pnpm/Turbopack symlink resolver problem. The project build script now uses the official webpack builder flag and passes.
+- RSN_DEVELOPMENT_FIXTURE=true was intentionally proven to fail production build/page-data collection; the successful production build was run with RSN_DEVELOPMENT_FIXTURE=false.
+- No push, PR, merge, deployment or Task 005 work was performed.

@@ -7,6 +7,71 @@
 - Starting main commit: `67347c9d84d19b8ee796ef362aa96f05e5b9db65`
 - Final local commit: recorded in the final handoff after this report is committed
 - Migration: `20260706150000_task004_catalogue_engine_eligibility`
+- Final correction migration: `20260707170000_task004_security_integrity_corrections`
+
+## Final correction pass
+
+The final review corrections were applied on top of reviewed head
+`617e9566b476eef637ac18edad310be3babaf1b1`.
+
+Security and integrity updates:
+
+- Public RSN rate limiting now uses an opaque random HttpOnly cookie
+  (`osrs_public_client`) instead of user-agent/language fallback identity.
+- Public rate-limit buckets store only HMAC-derived identity keys; raw cookie
+  tokens and raw IP addresses are never persisted.
+- `x-real-ip` contributes to rate-limit identity only when
+  `RSN_TRUST_PROXY_IP_HEADER=true` and the value passes real IP parsing.
+- `RSN_DEVELOPMENT_FIXTURE=true` is rejected for production startup, and the
+  provider factory defensively refuses fixture use in production.
+- Offering requirement add/delete now verifies offering ownership before draft
+  version claims, requirement writes or audit rows.
+- Publish/republish now rebuilds and validates the recommendation graph under a
+  Serializable Prisma transaction with deterministic CatalogueService row
+  locking. It rejects missing targets and direct/transitive cycles before live
+  aggregate replacement.
+- Public recommendation links render only for currently reachable public
+  targets: published service, active category, publishAt passed/null and
+  unpublishAt future/null.
+- Requirement `requiredValue` fields are now BIGINT in MySQL and are converted
+  through safe Number/BigInt boundaries for JSON, snapshots and API responses.
+- Staged aggregate validation now reuses requirement-rule constraints and
+  rejects malformed staged requirement, offering, facet, slug and quantity data.
+- Unsupported public game-mode filters now return zero offerings instead of
+  leaking inherited mode-less offerings.
+- The eligibility API route now sanitizes unexpected workflow failures across
+  feature flag, rate-limit, catalogue lookup, provider lookup and evaluation
+  stages with no-store responses.
+
+Validation updates:
+
+- `pnpm db:generate`: passed.
+- `pnpm typecheck`: passed.
+- `pnpm test`: passed, 15 files and 84 tests.
+- `pnpm lint`: passed.
+- `pnpm build` with `RSN_DEVELOPMENT_FIXTURE=false`: passed. The build script
+  now uses `next build --webpack` to avoid the known Windows/pnpm/Turbopack
+  symlink resolver issue in this workspace.
+- Existing MySQL database `task004_existing`: `prisma migrate deploy` applied
+  `20260707170000_task004_security_integrity_corrections` without reset, both
+  requirement `requiredValue` columns verified as `bigint`, repeated seed ran
+  twice successfully, and existing feature/admin settings were preserved.
+- Fresh MySQL database `task004_fresh_validation`: full 6-migration chain
+  applied, seed completed, service count verified as 6, and both requirement
+  `requiredValue` columns verified as `bigint`.
+- `pnpm test:e2e` against the built local server: passed, 44 passed and 12
+  skipped. RSN UI browser flows skip while the preserved
+  `rsn_eligibility_enabled` feature flag is off by default; the eligibility
+  route security/error boundary is covered by Vitest.
+- Focused real-MySQL recommendation graph E2E passed: temporary services A/B
+  publish A->B, reject B->A, and preserve B stage/revision/live edge state.
+
+Screenshot update:
+
+- Regenerated `artifacts/task-004/public-requirement-dialog-1440.png`.
+- Verified dimensions: 1440 x 1000.
+- The screenshot is now the full page/viewport with the requirements dialog
+  open, not a cropped dialog-element capture.
 
 ## Scope completed
 

@@ -1,6 +1,11 @@
 import "server-only";
 
 import type { Prisma } from "@/generated/prisma/client";
+import { catalogueGameModes } from "@/lib/catalogue/constants";
+import {
+  safeRequirementNumber,
+  type RequirementNumericValue,
+} from "@/lib/catalogue/numeric";
 import {
   matchesCatalogueSearch,
   publicOfferingSelect,
@@ -8,6 +13,33 @@ import {
 } from "@/lib/catalogue/public-select";
 import { stagedCatalogueAggregateSchema } from "@/lib/catalogue/staging";
 import { prisma } from "@/lib/db/prisma";
+
+function serializeRequirementValue<
+  T extends { requiredValue: RequirementNumericValue },
+>(requirement: T) {
+  return {
+    ...requirement,
+    requiredValue: safeRequirementNumber(requirement.requiredValue),
+  };
+}
+
+function serializePublicService<
+  T extends { requirements: Array<{ requiredValue: RequirementNumericValue }> },
+>(service: T) {
+  return {
+    ...service,
+    requirements: service.requirements.map(serializeRequirementValue),
+  };
+}
+
+function serializePublicOffering<
+  T extends { requirements: Array<{ requiredValue: RequirementNumericValue }> },
+>(offering: T) {
+  return {
+    ...offering,
+    requirements: offering.requirements.map(serializeRequirementValue),
+  };
+}
 
 export function publicCatalogueWhere(
   now = new Date(),
@@ -63,12 +95,14 @@ export async function getPublicServices({
     select: publicServiceSelect,
   });
 
-  if (!search) return services;
-  return services.filter((service) => matchesCatalogueSearch(service, search));
+  const visibleServices = search
+    ? services.filter((service) => matchesCatalogueSearch(service, search))
+    : services;
+  return visibleServices.map(serializePublicService);
 }
 
 export async function getPublicCategory(slug: string, now = new Date()) {
-  return prisma.catalogueCategory.findFirst({
+  const category = await prisma.catalogueCategory.findFirst({
     where: { slug, isActive: true },
     include: {
       services: {
@@ -82,6 +116,11 @@ export async function getPublicCategory(slug: string, now = new Date()) {
       },
     },
   });
+  if (!category) return null;
+  return {
+    ...category,
+    services: category.services.map(serializePublicService),
+  };
 }
 
 export async function getPublicService(
@@ -89,7 +128,7 @@ export async function getPublicService(
   serviceSlug: string,
   now = new Date(),
 ) {
-  return prisma.catalogueService.findFirst({
+  const service = await prisma.catalogueService.findFirst({
     where: {
       ...publicCatalogueWhere(now),
       slug: serviceSlug,
@@ -97,6 +136,7 @@ export async function getPublicService(
     },
     select: publicServiceSelect,
   });
+  return service ? serializePublicService(service) : null;
 }
 
 export async function getPublicCatalogueCardService({
@@ -122,6 +162,13 @@ export async function getPublicCatalogueCardService({
 }) {
   const service = await getPublicService(categorySlug, serviceSlug, now);
   if (!service || service.engineType !== "CATALOGUE_CARD") return null;
+  const requestedGameMode = gameMode?.toUpperCase();
+  const supportedGameMode =
+    requestedGameMode &&
+    catalogueGameModes.includes(requestedGameMode as never) &&
+    service.gameModes.some(({ gameMode }) => gameMode === requestedGameMode)
+      ? requestedGameMode
+      : null;
   const boundedPage = Math.max(1, page);
   const boundedPageSize = Math.min(24, Math.max(1, pageSize));
   const where: Prisma.CatalogueOfferingWhereInput = {
@@ -136,11 +183,11 @@ export async function getPublicCatalogueCardService({
           ],
         }
       : {}),
-    ...(gameMode
+    ...(supportedGameMode
       ? {
           OR: [
             { gameModes: { none: {} } },
-            { gameModes: { some: { gameMode: gameMode as never } } },
+            { gameModes: { some: { gameMode: supportedGameMode as never } } },
           ],
         }
       : {}),
@@ -159,14 +206,18 @@ export async function getPublicCatalogueCardService({
         ? [{ displayOrder: "asc" }, { name: "asc" }]
         : [{ isFeatured: "desc" }, { displayOrder: "asc" }, { name: "asc" }];
   const [offerings, total, facetRows] = await Promise.all([
-    prisma.catalogueOffering.findMany({
-      where,
-      orderBy,
-      skip: (boundedPage - 1) * boundedPageSize,
-      take: boundedPageSize,
-      select: publicOfferingSelect,
-    }),
-    prisma.catalogueOffering.count({ where }),
+    supportedGameMode || !gameMode
+      ? prisma.catalogueOffering.findMany({
+          where,
+          orderBy,
+          skip: (boundedPage - 1) * boundedPageSize,
+          take: boundedPageSize,
+          select: publicOfferingSelect,
+        })
+      : Promise.resolve([]),
+    supportedGameMode || !gameMode
+      ? prisma.catalogueOffering.count({ where })
+      : Promise.resolve(0),
     prisma.catalogueOfferingFacet.findMany({
       where: { offering: { serviceId: service.id, isActive: true } },
       orderBy: [{ facetKey: "asc" }, { displayOrder: "asc" }, { label: "asc" }],
@@ -177,7 +228,7 @@ export async function getPublicCatalogueCardService({
   return {
     service,
     offerings: offerings.map((offering) => ({
-      ...offering,
+      ...serializePublicOffering(offering),
       effectiveGameModes:
         offering.gameModes.length > 0 ? offering.gameModes : service.gameModes,
     })),

@@ -17,8 +17,23 @@ import {
   requirementVerificationModes,
 } from "@/lib/catalogue/constants";
 import { CatalogueTransitionError } from "@/lib/catalogue/errors";
+import {
+  MAX_SAFE_REQUIREMENT_VALUE,
+  safeRequirementNumber,
+} from "@/lib/catalogue/numeric";
+import { isAllowedMetricKey } from "@/lib/eligibility/metrics";
 
 const nullableString = (maximum: number) => z.string().max(maximum).nullable();
+const identifierPattern = /^[a-z0-9]+$/i;
+const normalizedSlugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const facetKeyValuePattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const reservedOfferingSlugs = new Set([
+  "new",
+  "edit",
+  "admin",
+  "api",
+  "requirements",
+]);
 
 export const stagedServiceFieldsSchema = z.object({
   categoryId: z.string().min(1).max(30),
@@ -61,7 +76,12 @@ export const stagedRequirementSchema = z.object({
       "LESS_THAN",
     ])
     .nullable(),
-  requiredValue: z.number().int().min(0).max(2_147_483_647).nullable(),
+  requiredValue: z
+    .number()
+    .int()
+    .min(0)
+    .max(MAX_SAFE_REQUIREMENT_VALUE)
+    .nullable(),
   recommendedServiceId: z.string().max(30).nullable(),
   seededKey: z.string().max(120).nullable(),
 });
@@ -130,6 +150,57 @@ function upgradeLegacyAggregate(value: unknown) {
   };
 }
 
+function validateStagedRequirementRule(
+  requirement: StagedRequirement | StagedOfferingRequirement,
+  context: z.RefinementCtx,
+  path: (string | number)[],
+) {
+  const automatic = requirement.verificationMode === "AUTOMATIC";
+  if (
+    requirement.recommendedServiceId &&
+    !identifierPattern.test(requirement.recommendedServiceId)
+  ) {
+    context.addIssue({
+      code: "custom",
+      path: [...path, "recommendedServiceId"],
+      message: "Recommended service identifier is invalid.",
+    });
+  }
+  if (automatic && !isAllowedMetricKey(requirement.metricKey)) {
+    context.addIssue({
+      code: "custom",
+      path: [...path, "metricKey"],
+      message: "Choose a supported public statistic.",
+    });
+  }
+  if (automatic && !requirement.comparisonOperator) {
+    context.addIssue({
+      code: "custom",
+      path: [...path, "comparisonOperator"],
+      message: "Automatic requirements need a comparison operator.",
+    });
+  }
+  if (automatic && requirement.requiredValue == null) {
+    context.addIssue({
+      code: "custom",
+      path: [...path, "requiredValue"],
+      message: "Automatic requirements need a required value.",
+    });
+  }
+  if (
+    !automatic &&
+    (requirement.metricKey ||
+      requirement.comparisonOperator ||
+      requirement.requiredValue != null)
+  ) {
+    context.addIssue({
+      code: "custom",
+      path: [...path, "verificationMode"],
+      message: "Only automatic requirements can contain public-stat rules.",
+    });
+  }
+}
+
 const stagedCatalogueAggregateV2Schema = z
   .object({
     schemaVersion: z.literal(2),
@@ -156,6 +227,12 @@ const stagedCatalogueAggregateV2Schema = z
         message: "Pending requirement identifiers must be unique.",
       });
     }
+    aggregate.requirements.forEach((requirement, index) =>
+      validateStagedRequirementRule(requirement, context, [
+        "requirements",
+        index,
+      ]),
+    );
 
     const mediaIds = aggregate.mediaReferences.map(({ id }) => id);
     if (new Set(mediaIds).size !== mediaIds.length) {
@@ -194,6 +271,33 @@ const stagedCatalogueAggregateV2Schema = z
     }
     for (const [index, offering] of aggregate.offerings.entries()) {
       if (
+        !normalizedSlugPattern.test(offering.slug) ||
+        reservedOfferingSlugs.has(offering.slug)
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["offerings", index, "slug"],
+          message: "Offering slug is invalid or reserved.",
+        });
+      }
+      if (offering.quantityEnabled && !offering.quantityUnit) {
+        context.addIssue({
+          code: "custom",
+          path: ["offerings", index, "quantityUnit"],
+          message: "Quantity-enabled offerings need a unit.",
+        });
+      }
+      if (
+        !offering.quantityEnabled &&
+        (offering.minimumQuantity != null || offering.maximumQuantity != null)
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["offerings", index, "minimumQuantity"],
+          message: "Quantity limits must be empty when quantity is disabled.",
+        });
+      }
+      if (
         offering.quantityEnabled &&
         offering.minimumQuantity != null &&
         offering.maximumQuantity != null &&
@@ -208,6 +312,26 @@ const stagedCatalogueAggregateV2Schema = z
       const facetPairs = offering.facets.map(
         ({ facetKey, facetValue }) => `${facetKey}:${facetValue}`,
       );
+      const facetIds = offering.facets.map(({ id }) => id);
+      if (new Set(facetIds).size !== facetIds.length) {
+        context.addIssue({
+          code: "custom",
+          path: ["offerings", index, "facets"],
+          message: "Offering facet identifiers must be unique.",
+        });
+      }
+      offering.facets.forEach((facet, facetIndex) => {
+        if (
+          !facetKeyValuePattern.test(facet.facetKey) ||
+          !facetKeyValuePattern.test(facet.facetValue)
+        ) {
+          context.addIssue({
+            code: "custom",
+            path: ["offerings", index, "facets", facetIndex],
+            message: "Offering facet keys and values must be normalized.",
+          });
+        }
+      });
       if (new Set(facetPairs).size !== facetPairs.length) {
         context.addIssue({
           code: "custom",
@@ -232,6 +356,24 @@ const stagedCatalogueAggregateV2Schema = z
             "Offering game modes must be supported by the parent service.",
         });
       }
+      const offeringRequirementIds = offering.requirements.map(({ id }) => id);
+      if (
+        new Set(offeringRequirementIds).size !== offeringRequirementIds.length
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["offerings", index, "requirements"],
+          message: "Offering requirement identifiers must be unique.",
+        });
+      }
+      offering.requirements.forEach((requirement, requirementIndex) =>
+        validateStagedRequirementRule(requirement, context, [
+          "offerings",
+          index,
+          "requirements",
+          requirementIndex,
+        ]),
+      );
     }
   });
 
@@ -269,7 +411,7 @@ type AggregateSource = CatalogueService & {
       | "LESS_THAN_OR_EQUAL"
       | "LESS_THAN"
       | null;
-    requiredValue?: number | null;
+    requiredValue?: number | bigint | null;
     recommendedServiceId?: string | null;
     seededKey: string | null;
   }>;
@@ -323,7 +465,7 @@ type AggregateSource = CatalogueService & {
         | "LESS_THAN_OR_EQUAL"
         | "LESS_THAN"
         | null;
-      requiredValue: number | null;
+      requiredValue: number | bigint | null;
       recommendedServiceId: string | null;
       seededKey: string | null;
     }>;
@@ -395,7 +537,7 @@ export function snapshotFromService(
       customerGuidance: requirement.customerGuidance ?? null,
       metricKey: requirement.metricKey ?? null,
       comparisonOperator: requirement.comparisonOperator ?? null,
-      requiredValue: requirement.requiredValue ?? null,
+      requiredValue: safeRequirementNumber(requirement.requiredValue),
       recommendedServiceId: requirement.recommendedServiceId ?? null,
       seededKey: requirement.seededKey,
     })),
@@ -492,7 +634,7 @@ export function addStagedRequirement(
         customerGuidance: requirement.customerGuidance ?? null,
         metricKey: requirement.metricKey ?? null,
         comparisonOperator: requirement.comparisonOperator ?? null,
-        requiredValue: requirement.requiredValue ?? null,
+        requiredValue: safeRequirementNumber(requirement.requiredValue),
         recommendedServiceId: requirement.recommendedServiceId ?? null,
       },
     ],

@@ -246,4 +246,69 @@ describe("catalogue publication staging", () => {
       expect(result.error.issues[0]?.message).toMatch(/only one primary/i);
     }
   });
+
+  it("rejects malformed staged requirement and offering aggregate data", () => {
+    const aggregate = snapshotFromService(liveService);
+    const requirement = aggregate.requirements[0];
+    if (!requirement) throw new Error("Expected seeded requirement data.");
+    expect(
+      stagedCatalogueAggregateSchema.safeParse({
+        ...aggregate,
+        requirements: [
+          {
+            ...requirement,
+            verificationMode: "AUTOMATIC",
+            metricKey: "profile.secret",
+            comparisonOperator: "GREATER_THAN_OR_EQUAL",
+            requiredValue: 70,
+          },
+        ],
+      }).success,
+    ).toBe(false);
+
+    const offering = {
+      id: "offering-1",
+      seededKey: null,
+      slug: "starter",
+      name: "Starter",
+      shortSummary: "Starter offering summary.",
+      description: null,
+      displayOrder: 10,
+      isActive: true,
+      isFeatured: false,
+      needsClientReview: true,
+      groupLabel: null,
+      tierLabel: null,
+      quantityEnabled: false,
+      quantityUnit: null,
+      minimumQuantity: 1,
+      maximumQuantity: null,
+      gameModes: ["NORMAL"],
+      facets: [
+        {
+          id: "facet-1",
+          facetKey: "Tier",
+          facetValue: "starter",
+          label: "Starter",
+          displayOrder: 10,
+        },
+      ],
+      requirements: [
+        {
+          ...requirement,
+          id: "offering-requirement-1",
+          verificationMode: "CUSTOMER_CONFIRMED",
+          metricKey: "skill.attack.level",
+          comparisonOperator: "GREATER_THAN_OR_EQUAL",
+          requiredValue: 70,
+        },
+      ],
+    };
+    expect(
+      stagedCatalogueAggregateSchema.safeParse({
+        ...aggregate,
+        offerings: [offering],
+      }).success,
+    ).toBe(false);
+  });
 });

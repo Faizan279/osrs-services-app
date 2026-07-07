@@ -1,9 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
+import { CatalogueConflictError } from "@/lib/catalogue/errors";
+import { assertOfferingBelongsToService } from "@/lib/catalogue/mutations";
 import { publicOfferingSelect } from "@/lib/catalogue/public-select";
+import {
+  MAX_SAFE_REQUIREMENT_VALUE,
+  prismaRequirementBigInt,
+} from "@/lib/catalogue/numeric";
 import { wouldCreateRecommendationCycle } from "@/lib/catalogue/recommendations";
 import {
   offeringInputSchema,
@@ -81,6 +87,40 @@ describe("catalogue offering rules", () => {
         requiredValue: 70,
       }).success,
     ).toBe(true);
+    expect(
+      requirementInputSchema.safeParse({
+        ...base,
+        metricKey: "skill.attack.level",
+        comparisonOperator: "GREATER_THAN_OR_EQUAL",
+        requiredValue: String(MAX_SAFE_REQUIREMENT_VALUE),
+      }).success,
+    ).toBe(true);
+    expect(
+      requirementInputSchema.safeParse({
+        ...base,
+        metricKey: "skill.attack.level",
+        comparisonOperator: "GREATER_THAN_OR_EQUAL",
+        requiredValue: String(MAX_SAFE_REQUIREMENT_VALUE + 1),
+      }).success,
+    ).toBe(false);
+    expect(
+      requirementInputSchema.safeParse({
+        ...base,
+        metricKey: "skill.attack.level",
+        comparisonOperator: "GREATER_THAN_OR_EQUAL",
+        requiredValue: "75.5",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("converts requirement values to BigInt only within the JSON-safe range", () => {
+    expect(prismaRequirementBigInt(MAX_SAFE_REQUIREMENT_VALUE)).toBe(
+      9007199254740991n,
+    );
+    expect(() => prismaRequirementBigInt(-1)).toThrow();
+    expect(() =>
+      prismaRequirementBigInt(MAX_SAFE_REQUIREMENT_VALUE + 1),
+    ).toThrow();
   });
 
   it("detects direct and transitive recommendation cycles", () => {
@@ -94,6 +134,26 @@ describe("catalogue offering rules", () => {
     expect(
       wouldCreateRecommendationCycle(edges, "service-a", "service-c"),
     ).toBe(false);
+  });
+
+  it("fails safely when an offering belongs to a different service", async () => {
+    const transaction = {
+      catalogueOffering: {
+        findUnique: vi.fn().mockResolvedValue({ serviceId: "service-2" }),
+      },
+    };
+
+    await expect(
+      assertOfferingBelongsToService(
+        transaction as never,
+        "service-1",
+        "offering-1",
+      ),
+    ).rejects.toBeInstanceOf(CatalogueConflictError);
+    expect(transaction.catalogueOffering.findUnique).toHaveBeenCalledWith({
+      where: { id: "offering-1" },
+      select: { serviceId: true },
+    });
   });
 
   it("keeps seeded and client-review fields out of the public offering projection", () => {

@@ -291,7 +291,7 @@ model CatalogueRequirement {
   customerGuidance     String?                      @db.Text
   metricKey            String?                      @db.VarChar(120)
   comparisonOperator   CatalogueComparisonOperator?
-  requiredValue        Int?
+  requiredValue        BigInt?
   recommendedServiceId String?                      @db.VarChar(30)
   seededKey            String?                      @unique @db.VarChar(120)
   createdAt            DateTime                     @default(now())
@@ -369,7 +369,7 @@ model CatalogueOfferingRequirement {
   customerGuidance     String?                      @db.Text
   metricKey            String?                      @db.VarChar(120)
   comparisonOperator   CatalogueComparisonOperator?
-  requiredValue        Int?
+  requiredValue        BigInt?
   recommendedServiceId String?                      @db.VarChar(30)
   seededKey            String?                      @unique @db.VarChar(160)
   createdAt            DateTime                     @default(now())

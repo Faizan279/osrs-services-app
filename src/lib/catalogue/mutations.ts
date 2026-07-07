@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
-import type { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import {
   CatalogueConflictError,
   CataloguePublicationError,
@@ -13,6 +13,7 @@ import {
   createOwnedMediaReference,
   mediaOwnerWhere,
 } from "@/lib/catalogue/media";
+import { prismaRequirementBigInt } from "@/lib/catalogue/numeric";
 import { publicationIssues } from "@/lib/catalogue/rules";
 import { wouldCreateRecommendationCycle } from "@/lib/catalogue/recommendations";
 import {
@@ -288,257 +289,276 @@ export async function publishService(
   actorId: string,
   expectedVersion: number,
 ) {
-  return prisma.$transaction(async (transaction) => {
-    const service = await loadServiceAggregate(transaction, id);
-    if (service.publicationStatus === "PUBLISHED" && !service.stage) {
-      throw new CatalogueTransitionError(
-        "There are no pending changes to republish.",
-      );
-    }
-    if (service.stage && service.stage.baseVersion !== service.version) {
-      throw new CatalogueConflictError(
-        "The published version changed after these edits were staged. Discard or review the pending changes.",
-      );
-    }
-
-    let claimedStageVersion: number | null = null;
-    let claimedServiceVersion: number;
-    if (service.stage) {
-      const claim = await transaction.catalogueServiceStage.updateMany({
-        where: {
-          id: service.stage.id,
-          serviceId: id,
-          version: expectedVersion,
-        },
-        data: {
-          updatedById: actorId,
-          version: { increment: 1 },
-        },
-      });
-      if (claim.count !== 1) {
-        throw new CatalogueConflictError(pendingChangesConflictMessage);
-      }
-      claimedStageVersion = expectedVersion + 1;
-      claimedServiceVersion = claimedStageVersion;
-    } else {
-      const claim = await transaction.catalogueService.updateMany({
-        where: { id, version: expectedVersion },
-        data: { updatedById: actorId, version: { increment: 1 } },
-      });
-      if (claim.count !== 1) {
-        throw new CatalogueConflictError(
-          "This service changed after the editor was opened. Reload before continuing.",
+  return prisma.$transaction(
+    async (transaction) => {
+      const service = await loadServiceAggregate(transaction, id);
+      if (service.publicationStatus === "PUBLISHED" && !service.stage) {
+        throw new CatalogueTransitionError(
+          "There are no pending changes to republish.",
         );
       }
-      claimedServiceVersion = expectedVersion + 1;
-    }
+      if (service.stage && service.stage.baseVersion !== service.version) {
+        throw new CatalogueConflictError(
+          "The published version changed after these edits were staged. Discard or review the pending changes.",
+        );
+      }
 
-    const snapshot = service.stage
-      ? editableSnapshot(service)
-      : snapshotFromService(service);
-    const category = await transaction.catalogueCategory.findUniqueOrThrow({
-      where: { id: snapshot.service.categoryId },
-    });
-    const candidate = {
-      ...snapshot.service,
-      publishAt: snapshot.service.publishAt
-        ? new Date(snapshot.service.publishAt)
-        : null,
-      unpublishAt: snapshot.service.unpublishAt
-        ? new Date(snapshot.service.unpublishAt)
-        : null,
-      category,
-      gameModes: snapshot.gameModes,
-    };
-    const issues = publicationIssues(candidate);
-    if (issues.length) throw new CataloguePublicationError(issues);
+      let claimedStageVersion: number | null = null;
+      let claimedServiceVersion: number;
+      if (service.stage) {
+        const claim = await transaction.catalogueServiceStage.updateMany({
+          where: {
+            id: service.stage.id,
+            serviceId: id,
+            version: expectedVersion,
+          },
+          data: {
+            updatedById: actorId,
+            version: { increment: 1 },
+          },
+        });
+        if (claim.count !== 1) {
+          throw new CatalogueConflictError(pendingChangesConflictMessage);
+        }
+        claimedStageVersion = expectedVersion + 1;
+        claimedServiceVersion = claimedStageVersion;
+      } else {
+        const claim = await transaction.catalogueService.updateMany({
+          where: { id, version: expectedVersion },
+          data: { updatedById: actorId, version: { increment: 1 } },
+        });
+        if (claim.count !== 1) {
+          throw new CatalogueConflictError(
+            "This service changed after the editor was opened. Reload before continuing.",
+          );
+        }
+        claimedServiceVersion = expectedVersion + 1;
+      }
 
-    const revisions = await transaction.catalogueRevision.findMany({
-      where: { serviceId: id },
-      select: { event: true, revisionNumber: true },
-      orderBy: { revisionNumber: "desc" },
-    });
-    const event = publicationEventFromHistory(
-      revisions.map(({ event: revisionEvent }) => revisionEvent),
-    );
-    const previousRoute = {
-      categorySlug: service.category.slug,
-      serviceSlug: service.slug,
-    };
+      const snapshot = service.stage
+        ? editableSnapshot(service)
+        : snapshotFromService(service);
+      const category = await transaction.catalogueCategory.findUniqueOrThrow({
+        where: { id: snapshot.service.categoryId },
+      });
+      const candidate = {
+        ...snapshot.service,
+        publishAt: snapshot.service.publishAt
+          ? new Date(snapshot.service.publishAt)
+          : null,
+        unpublishAt: snapshot.service.unpublishAt
+          ? new Date(snapshot.service.unpublishAt)
+          : null,
+        category,
+        gameModes: snapshot.gameModes,
+      };
+      const issues = publicationIssues(candidate);
+      if (issues.length) throw new CataloguePublicationError(issues);
 
-    const serviceUpdate = await transaction.catalogueService.updateMany({
-      where: {
-        id,
-        version: service.stage ? service.version : claimedServiceVersion,
-      },
-      data: {
-        ...serviceDataFromSnapshot(snapshot),
-        publicationStatus: "PUBLISHED",
-        updatedById: actorId,
-        ...(service.stage ? { version: claimedServiceVersion } : {}),
-      },
-    });
-    if (serviceUpdate.count !== 1) {
-      throw new CatalogueConflictError(
-        service.stage
-          ? pendingChangesConflictMessage
-          : "This service changed after the editor was opened. Reload before continuing.",
+      await lockRecommendationGraph(transaction);
+      await validatePublicationRecommendationGraph(transaction, id, snapshot);
+
+      const revisions = await transaction.catalogueRevision.findMany({
+        where: { serviceId: id },
+        select: { event: true, revisionNumber: true },
+        orderBy: { revisionNumber: "desc" },
+      });
+      const event = publicationEventFromHistory(
+        revisions.map(({ event: revisionEvent }) => revisionEvent),
       );
-    }
-    await transaction.catalogueServiceGameMode.deleteMany({
-      where: { serviceId: id },
-    });
-    await transaction.catalogueServiceGameMode.createMany({
-      data: snapshot.gameModes.map((gameMode) => ({ serviceId: id, gameMode })),
-    });
-    await transaction.catalogueRequirement.deleteMany({
-      where: { serviceId: id },
-    });
-    if (snapshot.requirements.length) {
-      await transaction.catalogueRequirement.createMany({
-        data: snapshot.requirements.map((requirement) => ({
-          ...requirement,
-          serviceId: id,
-        })),
-      });
-    }
-    await transaction.catalogueOffering.deleteMany({
-      where: { serviceId: id },
-    });
-    for (const offering of snapshot.offerings) {
-      await transaction.catalogueOffering.create({
-        data: {
-          id: offering.id,
-          serviceId: id,
-          seededKey: offering.seededKey,
-          slug: offering.slug,
-          name: offering.name,
-          shortSummary: offering.shortSummary,
-          description: offering.description,
-          displayOrder: offering.displayOrder,
-          isActive: offering.isActive,
-          isFeatured: offering.isFeatured,
-          needsClientReview: offering.needsClientReview,
-          groupLabel: offering.groupLabel,
-          tierLabel: offering.tierLabel,
-          quantityEnabled: offering.quantityEnabled,
-          quantityUnit: offering.quantityEnabled ? offering.quantityUnit : null,
-          minimumQuantity: offering.quantityEnabled
-            ? offering.minimumQuantity
-            : null,
-          maximumQuantity: offering.quantityEnabled
-            ? offering.maximumQuantity
-            : null,
-          gameModes: {
-            create: offering.gameModes.map((gameMode) => ({ gameMode })),
-          },
-          facets: {
-            create: offering.facets.map(({ id: facetId, ...facet }) => ({
-              id: facetId,
-              ...facet,
-            })),
-          },
-          requirements: {
-            create: offering.requirements.map(
-              ({ id: requirementId, ...requirement }) => ({
-                id: requirementId,
-                ...requirement,
-              }),
-            ),
-          },
-        },
-      });
-    }
-    await transaction.catalogueMediaReference.deleteMany({
-      where: { serviceId: id },
-    });
-    if (snapshot.mediaReferences.length) {
-      await transaction.catalogueMediaReference.createMany({
-        data: snapshot.mediaReferences.map((media) => ({
-          ...media,
-          serviceId: id,
-        })),
-      });
-    }
+      const previousRoute = {
+        categorySlug: service.category.slug,
+        serviceSlug: service.slug,
+      };
 
-    const published = await transaction.catalogueService.findUniqueOrThrow({
-      where: { id },
-      include: {
-        category: true,
-        gameModes: { orderBy: { gameMode: "asc" } },
-        requirements: { orderBy: { displayOrder: "asc" } },
-        mediaReferences: {
-          orderBy: [{ isPrimary: "desc" }, { displayOrder: "asc" }],
+      const serviceUpdate = await transaction.catalogueService.updateMany({
+        where: {
+          id,
+          version: service.stage ? service.version : claimedServiceVersion,
         },
-        offerings: {
-          orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
-          include: { gameModes: true, facets: true, requirements: true },
+        data: {
+          ...serviceDataFromSnapshot(snapshot),
+          publicationStatus: "PUBLISHED",
+          updatedById: actorId,
+          ...(service.stage ? { version: claimedServiceVersion } : {}),
         },
-      },
-    });
-    await transaction.catalogueRevision.create({
-      data: {
-        serviceId: id,
-        revisionNumber: (revisions[0]?.revisionNumber ?? 0) + 1,
-        event,
-        publicationStatus: "PUBLISHED",
-        summary:
-          event === "PUBLISHED"
-            ? "Service published for the first time."
-            : "Published service content updated.",
-        snapshot: revisionSnapshot(published),
-        actorId,
-      },
-    });
-    await transaction.auditLog.create({
-      data: {
-        actorId,
-        action:
-          event === "PUBLISHED"
-            ? "catalogue.service.published"
-            : "catalogue.service.republished",
-        targetType: "CatalogueService",
-        targetId: id,
-        metadata: auditMetadata({
-          slug: published.slug,
-          categoryId: published.categoryId,
-          staged: Boolean(service.stage),
-        }),
-      },
-    });
-    if (event === "REPUBLISHED" && snapshot.offerings.length > 0) {
+      });
+      if (serviceUpdate.count !== 1) {
+        throw new CatalogueConflictError(
+          service.stage
+            ? pendingChangesConflictMessage
+            : "This service changed after the editor was opened. Reload before continuing.",
+        );
+      }
+      await transaction.catalogueServiceGameMode.deleteMany({
+        where: { serviceId: id },
+      });
+      await transaction.catalogueServiceGameMode.createMany({
+        data: snapshot.gameModes.map((gameMode) => ({
+          serviceId: id,
+          gameMode,
+        })),
+      });
+      await transaction.catalogueRequirement.deleteMany({
+        where: { serviceId: id },
+      });
+      if (snapshot.requirements.length) {
+        await transaction.catalogueRequirement.createMany({
+          data: snapshot.requirements.map((requirement) => ({
+            ...requirement,
+            serviceId: id,
+            requiredValue: prismaRequirementBigInt(requirement.requiredValue),
+          })),
+        });
+      }
+      await transaction.catalogueOffering.deleteMany({
+        where: { serviceId: id },
+      });
+      for (const offering of snapshot.offerings) {
+        await transaction.catalogueOffering.create({
+          data: {
+            id: offering.id,
+            serviceId: id,
+            seededKey: offering.seededKey,
+            slug: offering.slug,
+            name: offering.name,
+            shortSummary: offering.shortSummary,
+            description: offering.description,
+            displayOrder: offering.displayOrder,
+            isActive: offering.isActive,
+            isFeatured: offering.isFeatured,
+            needsClientReview: offering.needsClientReview,
+            groupLabel: offering.groupLabel,
+            tierLabel: offering.tierLabel,
+            quantityEnabled: offering.quantityEnabled,
+            quantityUnit: offering.quantityEnabled
+              ? offering.quantityUnit
+              : null,
+            minimumQuantity: offering.quantityEnabled
+              ? offering.minimumQuantity
+              : null,
+            maximumQuantity: offering.quantityEnabled
+              ? offering.maximumQuantity
+              : null,
+            gameModes: {
+              create: offering.gameModes.map((gameMode) => ({ gameMode })),
+            },
+            facets: {
+              create: offering.facets.map(({ id: facetId, ...facet }) => ({
+                id: facetId,
+                ...facet,
+              })),
+            },
+            requirements: {
+              create: offering.requirements.map(
+                ({ id: requirementId, ...requirement }) => ({
+                  id: requirementId,
+                  ...requirement,
+                  requiredValue: prismaRequirementBigInt(
+                    requirement.requiredValue,
+                  ),
+                }),
+              ),
+            },
+          },
+        });
+      }
+      await transaction.catalogueMediaReference.deleteMany({
+        where: { serviceId: id },
+      });
+      if (snapshot.mediaReferences.length) {
+        await transaction.catalogueMediaReference.createMany({
+          data: snapshot.mediaReferences.map((media) => ({
+            ...media,
+            serviceId: id,
+          })),
+        });
+      }
+
+      const published = await transaction.catalogueService.findUniqueOrThrow({
+        where: { id },
+        include: {
+          category: true,
+          gameModes: { orderBy: { gameMode: "asc" } },
+          requirements: { orderBy: { displayOrder: "asc" } },
+          mediaReferences: {
+            orderBy: [{ isPrimary: "desc" }, { displayOrder: "asc" }],
+          },
+          offerings: {
+            orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+            include: { gameModes: true, facets: true, requirements: true },
+          },
+        },
+      });
+      await transaction.catalogueRevision.create({
+        data: {
+          serviceId: id,
+          revisionNumber: (revisions[0]?.revisionNumber ?? 0) + 1,
+          event,
+          publicationStatus: "PUBLISHED",
+          summary:
+            event === "PUBLISHED"
+              ? "Service published for the first time."
+              : "Published service content updated.",
+          snapshot: revisionSnapshot(published),
+          actorId,
+        },
+      });
       await transaction.auditLog.create({
         data: {
           actorId,
-          action: "catalogue.offering.aggregate_republished",
+          action:
+            event === "PUBLISHED"
+              ? "catalogue.service.published"
+              : "catalogue.service.republished",
           targetType: "CatalogueService",
           targetId: id,
-          metadata: auditMetadata({ offeringCount: snapshot.offerings.length }),
+          metadata: auditMetadata({
+            slug: published.slug,
+            categoryId: published.categoryId,
+            staged: Boolean(service.stage),
+          }),
         },
       });
-    }
-    if (service.stage) {
-      const deleted = await transaction.catalogueServiceStage.deleteMany({
-        where: {
-          id: service.stage.id,
-          serviceId: id,
-          version: claimedStageVersion!,
-        },
-      });
-      if (deleted.count !== 1) {
-        throw new CatalogueConflictError(pendingChangesConflictMessage);
+      if (event === "REPUBLISHED" && snapshot.offerings.length > 0) {
+        await transaction.auditLog.create({
+          data: {
+            actorId,
+            action: "catalogue.offering.aggregate_republished",
+            targetType: "CatalogueService",
+            targetId: id,
+            metadata: auditMetadata({
+              offeringCount: snapshot.offerings.length,
+            }),
+          },
+        });
       }
-    }
-    return {
-      published,
-      event,
-      previousRoute,
-      currentRoute: {
-        categorySlug: published.category.slug,
-        serviceSlug: published.slug,
-      },
-    };
-  });
+      if (service.stage) {
+        const deleted = await transaction.catalogueServiceStage.deleteMany({
+          where: {
+            id: service.stage.id,
+            serviceId: id,
+            version: claimedStageVersion!,
+          },
+        });
+        if (deleted.count !== 1) {
+          throw new CatalogueConflictError(pendingChangesConflictMessage);
+        }
+      }
+      return {
+        published,
+        event,
+        previousRoute,
+        currentRoute: {
+          categorySlug: published.category.slug,
+          serviceSlug: published.slug,
+        },
+      };
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    },
+  );
 }
 
 export async function archiveService(
@@ -715,7 +735,7 @@ export async function duplicateService(id: string, actorId: string) {
             customerGuidance: requirement.customerGuidance,
             metricKey: requirement.metricKey,
             comparisonOperator: requirement.comparisonOperator,
-            requiredValue: requirement.requiredValue,
+            requiredValue: prismaRequirementBigInt(requirement.requiredValue),
             recommendedServiceId: requirement.recommendedServiceId,
           })),
         },
@@ -766,7 +786,9 @@ export async function duplicateService(id: string, actorId: string) {
                 customerGuidance: requirement.customerGuidance,
                 metricKey: requirement.metricKey,
                 comparisonOperator: requirement.comparisonOperator,
-                requiredValue: requirement.requiredValue,
+                requiredValue: prismaRequirementBigInt(
+                  requirement.requiredValue,
+                ),
                 recommendedServiceId: requirement.recommendedServiceId,
               })),
             },
@@ -838,6 +860,92 @@ async function assertRecommendationIsAcyclic(
   }
 }
 
+async function lockRecommendationGraph(transaction: Prisma.TransactionClient) {
+  await transaction.$queryRaw<Array<{ id: string }>>`
+    SELECT \`id\`
+    FROM \`CatalogueService\`
+    ORDER BY \`id\`
+    FOR UPDATE
+  `;
+}
+
+function addRecommendationEdge(
+  edges: Map<string, string[]>,
+  from: string,
+  to: string | null | undefined,
+) {
+  if (!to) return;
+  edges.set(from, [...(edges.get(from) ?? []), to]);
+}
+
+function candidateRecommendationTargets(snapshot: StagedCatalogueAggregate) {
+  return [
+    ...snapshot.requirements.map(
+      (requirement) => requirement.recommendedServiceId,
+    ),
+    ...snapshot.offerings.flatMap((offering) =>
+      offering.requirements.map(
+        (requirement) => requirement.recommendedServiceId,
+      ),
+    ),
+  ].filter((value): value is string => Boolean(value));
+}
+
+async function validatePublicationRecommendationGraph(
+  transaction: Prisma.TransactionClient,
+  ownerServiceId: string,
+  snapshot: StagedCatalogueAggregate,
+) {
+  const [services, serviceRequirements, offeringRequirements] =
+    await Promise.all([
+      transaction.catalogueService.findMany({ select: { id: true } }),
+      transaction.catalogueRequirement.findMany({
+        where: { recommendedServiceId: { not: null } },
+        select: { serviceId: true, recommendedServiceId: true },
+      }),
+      transaction.catalogueOfferingRequirement.findMany({
+        where: { recommendedServiceId: { not: null } },
+        select: {
+          recommendedServiceId: true,
+          offering: { select: { serviceId: true } },
+        },
+      }),
+    ]);
+  const serviceIds = new Set(services.map(({ id }) => id));
+  const edges = new Map<string, string[]>();
+  serviceRequirements.forEach((requirement) => {
+    if (requirement.serviceId !== ownerServiceId) {
+      addRecommendationEdge(
+        edges,
+        requirement.serviceId,
+        requirement.recommendedServiceId,
+      );
+    }
+  });
+  offeringRequirements.forEach((requirement) => {
+    const serviceId = requirement.offering.serviceId;
+    if (serviceId !== ownerServiceId) {
+      addRecommendationEdge(edges, serviceId, requirement.recommendedServiceId);
+    }
+  });
+
+  for (const targetServiceId of candidateRecommendationTargets(snapshot)) {
+    if (!serviceIds.has(targetServiceId)) {
+      throw new CatalogueTransitionError(
+        "A prerequisite recommendation target no longer exists.",
+      );
+    }
+    if (
+      wouldCreateRecommendationCycle(edges, ownerServiceId, targetServiceId)
+    ) {
+      throw new CatalogueTransitionError(
+        "Publishing these prerequisite recommendations would create a circular chain.",
+      );
+    }
+    addRecommendationEdge(edges, ownerServiceId, targetServiceId);
+  }
+}
+
 export async function addRequirement(
   input: RequirementInput,
   actorId: string,
@@ -887,7 +995,10 @@ export async function addRequirement(
     }
 
     const requirement = await transaction.catalogueRequirement.create({
-      data: input,
+      data: {
+        ...input,
+        requiredValue: prismaRequirementBigInt(input.requiredValue),
+      },
     });
     const serviceUpdate = await transaction.catalogueService.updateMany({
       where: { id: input.serviceId, version: expectedVersion },
@@ -1221,6 +1332,29 @@ async function claimDraftService(
   }
 }
 
+export async function assertOfferingBelongsToService(
+  transaction: Prisma.TransactionClient,
+  serviceId: string,
+  offeringId: string,
+) {
+  const offering = await transaction.catalogueOffering.findUnique({
+    where: { id: offeringId },
+    select: { serviceId: true },
+  });
+  if (!offering || offering.serviceId !== serviceId) {
+    throw new CatalogueConflictError("Offering not found.");
+  }
+}
+
+function stagedOfferingForService(
+  snapshot: StagedCatalogueAggregate,
+  offeringId: string,
+) {
+  const offering = snapshot.offerings.find(({ id }) => id === offeringId);
+  if (!offering) throw new CatalogueConflictError("Offering not found.");
+  return offering;
+}
+
 export async function saveOffering(
   input: OfferingInput,
   actorId: string,
@@ -1229,19 +1363,21 @@ export async function saveOffering(
 ) {
   return prisma.$transaction(async (transaction) => {
     const service = await loadServiceAggregate(transaction, input.serviceId);
-    if (
-      input.gameModes.some(
-        (mode) => !service.gameModes.some((item) => item.gameMode === mode),
-      )
-    ) {
+    const editable =
+      service.publicationStatus === "PUBLISHED"
+        ? editableSnapshot(service)
+        : null;
+    const parentGameModes =
+      editable?.gameModes ?? service.gameModes.map((item) => item.gameMode);
+    if (input.gameModes.some((mode) => !parentGameModes.includes(mode))) {
       throw new CatalogueTransitionError(
         "Offering game modes must be supported by the parent service.",
       );
     }
     const id = offeringId ?? stagedId();
     if (service.publicationStatus === "PUBLISHED") {
-      const editable = editableSnapshot(service);
-      const existing = editable.offerings.find(
+      const snapshot = editable ?? editableSnapshot(service);
+      const existing = snapshot.offerings.find(
         (offering) => offering.id === id,
       );
       if (offeringId && !existing)
@@ -1250,7 +1386,7 @@ export async function saveOffering(
       const result = await persistServiceStage({
         transaction,
         service,
-        snapshot: upsertStagedOffering(editable, offering),
+        snapshot: upsertStagedOffering(snapshot, offering),
         actorId,
         expectedVersion,
       });
@@ -1437,7 +1573,12 @@ export async function duplicateOffering(
             create: duplicate.gameModes.map((gameMode) => ({ gameMode })),
           },
           facets: { create: duplicate.facets },
-          requirements: { create: duplicate.requirements },
+          requirements: {
+            create: duplicate.requirements.map((requirement) => ({
+              ...requirement,
+              requiredValue: prismaRequirementBigInt(requirement.requiredValue),
+            })),
+          },
         },
       });
     }
@@ -1461,11 +1602,23 @@ export async function addOfferingRequirement(
 ) {
   return prisma.$transaction(async (transaction) => {
     const service = await loadServiceAggregate(transaction, input.serviceId);
+    const snapshot = editableSnapshot(service);
+    const targetOffering =
+      service.publicationStatus === "PUBLISHED"
+        ? stagedOfferingForService(snapshot, input.offeringId)
+        : null;
+    if (service.publicationStatus !== "PUBLISHED") {
+      await assertOfferingBelongsToService(
+        transaction,
+        input.serviceId,
+        input.offeringId,
+      );
+    }
     await assertRecommendationIsAcyclic(
       transaction,
       input.serviceId,
       input.recommendedServiceId,
-      editableSnapshot(service),
+      snapshot,
     );
     const requirement = {
       id: stagedId(),
@@ -1483,17 +1636,12 @@ export async function addOfferingRequirement(
       seededKey: null,
     };
     if (service.publicationStatus === "PUBLISHED") {
-      const snapshot = editableSnapshot(service);
-      const offering = snapshot.offerings.find(
-        ({ id }) => id === input.offeringId,
-      );
-      if (!offering) throw new CatalogueConflictError("Offering not found.");
       await persistServiceStage({
         transaction,
         service,
         snapshot: upsertStagedOffering(snapshot, {
-          ...offering,
-          requirements: [...offering.requirements, requirement],
+          ...targetOffering!,
+          requirements: [...targetOffering!.requirements, requirement],
         }),
         actorId,
         expectedVersion,
@@ -1506,7 +1654,11 @@ export async function addOfferingRequirement(
         expectedVersion,
       );
       await transaction.catalogueOfferingRequirement.create({
-        data: { ...requirement, offeringId: input.offeringId },
+        data: {
+          ...requirement,
+          offeringId: input.offeringId,
+          requiredValue: prismaRequirementBigInt(requirement.requiredValue),
+        },
       });
     }
     await transaction.auditLog.create({
@@ -1545,7 +1697,7 @@ export async function deleteOfferingRequirement(
     const service = await loadServiceAggregate(transaction, serviceId);
     if (service.publicationStatus === "PUBLISHED") {
       const snapshot = editableSnapshot(service);
-      const offering = snapshot.offerings.find(({ id }) => id === offeringId);
+      const offering = stagedOfferingForService(snapshot, offeringId);
       if (!offering?.requirements.some(({ id }) => id === requirementId)) {
         throw new CatalogueConflictError("Offering requirement not found.");
       }
@@ -1562,6 +1714,7 @@ export async function deleteOfferingRequirement(
         expectedVersion,
       });
     } else {
+      await assertOfferingBelongsToService(transaction, serviceId, offeringId);
       await claimDraftService(transaction, serviceId, actorId, expectedVersion);
       const deleted = await transaction.catalogueOfferingRequirement.deleteMany(
         {
