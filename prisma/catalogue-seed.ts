@@ -71,6 +71,69 @@ export type CatalogueSeedClient = {
       skipDuplicates: true;
     }): Promise<unknown>;
   };
+  catalogueOffering: {
+    upsert(args: {
+      where: { seededKey: string };
+      create: {
+        seededKey: string;
+        serviceId: string;
+        slug: string;
+        name: string;
+        shortSummary: string;
+        description: string;
+        displayOrder: number;
+        isActive: true;
+        isFeatured: boolean;
+        needsClientReview: true;
+        groupLabel?: string;
+        tierLabel?: string;
+        quantityEnabled: boolean;
+        quantityUnit?: string;
+        minimumQuantity?: number;
+        maximumQuantity?: number;
+      };
+      update: Record<string, never>;
+      select: { id: true };
+    }): Promise<{ id: string }>;
+  };
+  catalogueOfferingFacet: {
+    createMany(args: {
+      data: Array<{
+        offeringId: string;
+        facetKey: string;
+        facetValue: string;
+        label: string;
+        displayOrder: number;
+      }>;
+      skipDuplicates: true;
+    }): Promise<unknown>;
+  };
+  catalogueOfferingGameMode: {
+    createMany(args: {
+      data: Array<{
+        offeringId: string;
+        gameMode:
+          "NORMAL" | "IRONMAN" | "HARDCORE_IRONMAN" | "ULTIMATE_IRONMAN";
+      }>;
+      skipDuplicates: true;
+    }): Promise<unknown>;
+  };
+  catalogueOfferingRequirement: {
+    createMany(args: {
+      data: Array<{
+        seededKey: string;
+        offeringId: string;
+        title: string;
+        description: string;
+        type: "SKILL" | "QUEST" | "ITEM" | "ACTIVITY" | "ACCOUNT" | "OTHER";
+        isRequired: boolean;
+        displayOrder: number;
+        verificationMode: "CUSTOMER_CONFIRMED" | "SUPPORT_VERIFIED";
+        customerGuidance: string;
+      }>;
+      skipDuplicates: true;
+    }): Promise<unknown>;
+  };
 };
 
 export const catalogueCategorySeeds = [
@@ -193,10 +256,270 @@ const catalogueServiceSeeds = [
       },
     ],
   },
+  {
+    key: "combat-achievement-packages",
+    categoryKey: "combat-achievements",
+    name: "Combat achievement packages",
+    slug: "combat-achievement-packages",
+    summary:
+      "Review a combat-achievement tier or selected task list with account preparation kept visible.",
+    content:
+      "Choose a package and share the relevant combat context. Public statistics can support part of the review, while unlocks and gear remain support-verified.",
+    engineType: "CATALOGUE_CARD" as const,
+    featured: false,
+    order: 50,
+    modes: ["NORMAL", "IRONMAN", "HARDCORE_IRONMAN"] as const,
+    requirements: [
+      {
+        key: "combat-context",
+        title: "Combat preparation",
+        description:
+          "Share relevant unlocks, gear constraints and selected tasks for review.",
+        type: "ACTIVITY" as const,
+        required: true,
+        verification: "SUPPORT_VERIFIED" as const,
+      },
+    ],
+  },
+  {
+    key: "minigame-support",
+    categoryKey: "minigames",
+    name: "Minigame support",
+    slug: "minigame-support",
+    summary:
+      "Browse selected minigame packages with role, account-mode and quantity details made clear.",
+    content:
+      "Select a supported minigame package and review its preparation notes. The final scope is confirmed by support before any order step.",
+    engineType: "CATALOGUE_CARD" as const,
+    featured: false,
+    order: 60,
+    modes: [
+      "NORMAL",
+      "IRONMAN",
+      "HARDCORE_IRONMAN",
+      "ULTIMATE_IRONMAN",
+    ] as const,
+    requirements: [
+      {
+        key: "minigame-access",
+        title: "Minigame access",
+        description:
+          "Confirm access, relevant unlocks and account restrictions.",
+        type: "ACTIVITY" as const,
+        required: true,
+        verification: "CUSTOMER_CONFIRMED" as const,
+      },
+    ],
+  },
+] as const;
+
+const catalogueOfferingSeeds = [
+  {
+    key: "quest:rfd",
+    serviceKey: "quest-progression",
+    slug: "recipe-for-disaster",
+    name: "Recipe for Disaster",
+    summary:
+      "A long-form quest package with prerequisite progress reviewed before support begins.",
+    description:
+      "Review the requested subquests and remaining prerequisite progress with support.",
+    order: 10,
+    featured: true,
+    group: "Quest package",
+    tier: "Long-form",
+    modes: ["NORMAL", "IRONMAN"] as const,
+    facets: [
+      ["difficulty", "advanced", "Advanced"],
+      ["package-type", "multi-part", "Multi-part"],
+    ] as const,
+    requirement: [
+      "Quest progress",
+      "Confirm completed subquests and prerequisite quests.",
+      "QUEST",
+      "CUSTOMER_CONFIRMED",
+    ] as const,
+  },
+  {
+    key: "quest:dragon-slayer-ii",
+    serviceKey: "quest-progression",
+    slug: "dragon-slayer-ii",
+    name: "Dragon Slayer II",
+    summary:
+      "A grandmaster quest request with account requirements reviewed in one place.",
+    description:
+      "Public skill statistics may be checked separately; quest unlocks remain customer-confirmed.",
+    order: 20,
+    featured: false,
+    group: "Individual quest",
+    tier: "Grandmaster",
+    modes: ["NORMAL", "IRONMAN"] as const,
+    facets: [
+      ["difficulty", "grandmaster", "Grandmaster"],
+      ["package-type", "single-quest", "Single quest"],
+    ] as const,
+    requirement: [
+      "Quest prerequisites",
+      "Confirm prerequisite quest completion before review.",
+      "QUEST",
+      "CUSTOMER_CONFIRMED",
+    ] as const,
+  },
+  {
+    key: "diary:ardougne-easy",
+    serviceKey: "diary-progression",
+    slug: "ardougne-easy",
+    name: "Ardougne Easy Diary",
+    summary:
+      "An entry-tier regional diary package with missing tasks reviewed clearly.",
+    description:
+      "Diary completion cannot be inferred from public statistics and must be confirmed.",
+    order: 10,
+    featured: false,
+    group: "Ardougne",
+    tier: "Easy",
+    modes: [] as const,
+    facets: [
+      ["region", "ardougne", "Ardougne"],
+      ["tier", "easy", "Easy"],
+    ] as const,
+    requirement: [
+      "Diary progress",
+      "Confirm which Ardougne Easy tasks remain.",
+      "ACCOUNT",
+      "CUSTOMER_CONFIRMED",
+    ] as const,
+  },
+  {
+    key: "diary:kandarin-hard",
+    serviceKey: "diary-progression",
+    slug: "kandarin-hard",
+    name: "Kandarin Hard Diary",
+    summary:
+      "A hard-tier regional package with skills, quests and item context reviewed together.",
+    description:
+      "Support verifies non-public unlock and item requirements before confirming scope.",
+    order: 20,
+    featured: true,
+    group: "Kandarin",
+    tier: "Hard",
+    modes: [] as const,
+    facets: [
+      ["region", "kandarin", "Kandarin"],
+      ["tier", "hard", "Hard"],
+    ] as const,
+    requirement: [
+      "Unlock review",
+      "Share relevant unlocks and untradeable item context.",
+      "ITEM",
+      "SUPPORT_VERIFIED",
+    ] as const,
+  },
+  {
+    key: "combat:easy-tier",
+    serviceKey: "combat-achievement-packages",
+    slug: "easy-tier-package",
+    name: "Easy tier package",
+    summary:
+      "A selected Easy combat-achievement task package for support review.",
+    description:
+      "Choose the task scope and share any restrictions that affect the account.",
+    order: 10,
+    featured: true,
+    group: "Tier package",
+    tier: "Easy",
+    modes: ["NORMAL", "IRONMAN"] as const,
+    facets: [
+      ["tier", "easy", "Easy"],
+      ["package-type", "tier-package", "Tier package"],
+    ] as const,
+    requirement: [
+      "Task scope",
+      "Confirm the selected combat-achievement tasks.",
+      "ACTIVITY",
+      "SUPPORT_VERIFIED",
+    ] as const,
+  },
+  {
+    key: "combat:medium-tier",
+    serviceKey: "combat-achievement-packages",
+    slug: "medium-tier-package",
+    name: "Medium tier package",
+    summary:
+      "A selected Medium combat-achievement task package with preparation review.",
+    description:
+      "Support reviews gear and unlock constraints without claiming public verification.",
+    order: 20,
+    featured: false,
+    group: "Tier package",
+    tier: "Medium",
+    modes: ["NORMAL", "IRONMAN", "HARDCORE_IRONMAN"] as const,
+    facets: [
+      ["tier", "medium", "Medium"],
+      ["package-type", "tier-package", "Tier package"],
+    ] as const,
+    requirement: [
+      "Preparation review",
+      "Share gear and unlock constraints with support.",
+      "ITEM",
+      "SUPPORT_VERIFIED",
+    ] as const,
+  },
+  {
+    key: "minigame:barbarian-assault",
+    serviceKey: "minigame-support",
+    slug: "barbarian-assault-role-support",
+    name: "Barbarian Assault role support",
+    summary:
+      "Select a role-focused Barbarian Assault package and review access requirements.",
+    description:
+      "Role progress and account access are confirmed by the customer and support.",
+    order: 10,
+    featured: true,
+    group: "Team minigame",
+    tier: "Role package",
+    modes: [] as const,
+    facets: [
+      ["activity-type", "team", "Team activity"],
+      ["package-type", "role-support", "Role support"],
+    ] as const,
+    requirement: [
+      "Role progress",
+      "Confirm the requested role and current progress.",
+      "ACTIVITY",
+      "CUSTOMER_CONFIRMED",
+    ] as const,
+  },
+  {
+    key: "minigame:pest-control",
+    serviceKey: "minigame-support",
+    slug: "pest-control-points",
+    name: "Pest Control points",
+    summary:
+      "Configure a points target within the supported range for manual review.",
+    description:
+      "Quantity config records the requested point target only; it does not calculate price.",
+    order: 20,
+    featured: false,
+    group: "Combat minigame",
+    tier: "Points package",
+    modes: ["NORMAL", "IRONMAN"] as const,
+    facets: [
+      ["activity-type", "combat", "Combat"],
+      ["package-type", "points", "Points"],
+    ] as const,
+    quantity: { unit: "points", minimum: 100, maximum: 4_000 },
+    requirement: [
+      "Boat access",
+      "Confirm the account can access the intended Pest Control boat.",
+      "ACTIVITY",
+      "CUSTOMER_CONFIRMED",
+    ] as const,
+  },
 ] as const;
 
 export async function seedCatalogue(prisma: CatalogueSeedClient) {
   const categoryIds = new Map<string, string>();
+  const serviceIds = new Map<string, string>();
 
   for (const [
     index,
@@ -250,6 +573,7 @@ export async function seedCatalogue(prisma: CatalogueSeedClient) {
       update: {},
       select: { id: true },
     });
+    serviceIds.set(definition.key, service.id);
 
     await prisma.catalogueServiceGameMode.createMany({
       data: definition.modes.map((gameMode) => ({
@@ -270,6 +594,72 @@ export async function seedCatalogue(prisma: CatalogueSeedClient) {
         displayOrder: (index + 1) * 10,
         verificationMode: requirement.verification,
       })),
+      skipDuplicates: true,
+    });
+  }
+
+  for (const definition of catalogueOfferingSeeds) {
+    const quantity = "quantity" in definition ? definition.quantity : undefined;
+    const offering = await prisma.catalogueOffering.upsert({
+      where: { seededKey: definition.key },
+      create: {
+        seededKey: definition.key,
+        serviceId: serviceIds.get(definition.serviceKey)!,
+        slug: definition.slug,
+        name: definition.name,
+        shortSummary: definition.summary,
+        description: definition.description,
+        displayOrder: definition.order,
+        isActive: true,
+        isFeatured: definition.featured,
+        needsClientReview: true,
+        groupLabel: definition.group,
+        tierLabel: definition.tier,
+        quantityEnabled: Boolean(quantity),
+        ...(quantity
+          ? {
+              quantityUnit: quantity.unit,
+              minimumQuantity: quantity.minimum,
+              maximumQuantity: quantity.maximum,
+            }
+          : {}),
+      },
+      update: {},
+      select: { id: true },
+    });
+    await prisma.catalogueOfferingFacet.createMany({
+      data: definition.facets.map(([facetKey, facetValue, label], index) => ({
+        offeringId: offering.id,
+        facetKey,
+        facetValue,
+        label,
+        displayOrder: (index + 1) * 10,
+      })),
+      skipDuplicates: true,
+    });
+    await prisma.catalogueOfferingGameMode.createMany({
+      data: definition.modes.map((gameMode) => ({
+        offeringId: offering.id,
+        gameMode,
+      })),
+      skipDuplicates: true,
+    });
+    const [title, description, type, verificationMode] = definition.requirement;
+    await prisma.catalogueOfferingRequirement.createMany({
+      data: [
+        {
+          seededKey: `${definition.key}:requirement`,
+          offeringId: offering.id,
+          title,
+          description,
+          type,
+          isRequired: true,
+          displayOrder: 10,
+          verificationMode,
+          customerGuidance:
+            "Review this requirement before requesting support.",
+        },
+      ],
       skipDuplicates: true,
     });
   }

@@ -20,6 +20,10 @@ function createFakeClient() {
     >(),
     gameModes: new Set<string>(),
     requirements: new Set<string>(),
+    offerings: new Map<string, { id: string; name: string }>(),
+    offeringFacets: new Set<string>(),
+    offeringModes: new Set<string>(),
+    offeringRequirements: new Set<string>(),
     categoryUpdates: [] as unknown[],
     serviceUpdates: [] as unknown[],
   };
@@ -80,6 +84,55 @@ function createFakeClient() {
         return { count: args.data.length };
       },
     },
+    catalogueOffering: {
+      async upsert(args: {
+        where: { seededKey: string };
+        create: { name: string };
+      }) {
+        const existing = state.offerings.get(args.where.seededKey);
+        if (existing) return { id: existing.id };
+        const record = {
+          id: `offering:${args.where.seededKey}`,
+          name: args.create.name,
+        };
+        state.offerings.set(args.where.seededKey, record);
+        return { id: record.id };
+      },
+    },
+    catalogueOfferingFacet: {
+      async createMany(args: {
+        data: Array<{
+          offeringId: string;
+          facetKey: string;
+          facetValue: string;
+        }>;
+      }) {
+        args.data.forEach((item) =>
+          state.offeringFacets.add(
+            `${item.offeringId}:${item.facetKey}:${item.facetValue}`,
+          ),
+        );
+        return { count: args.data.length };
+      },
+    },
+    catalogueOfferingGameMode: {
+      async createMany(args: {
+        data: Array<{ offeringId: string; gameMode: string }>;
+      }) {
+        args.data.forEach((item) =>
+          state.offeringModes.add(`${item.offeringId}:${item.gameMode}`),
+        );
+        return { count: args.data.length };
+      },
+    },
+    catalogueOfferingRequirement: {
+      async createMany(args: { data: Array<{ seededKey: string }> }) {
+        args.data.forEach((item) =>
+          state.offeringRequirements.add(item.seededKey),
+        );
+        return { count: args.data.length };
+      },
+    },
   } as unknown as CatalogueSeedClient;
   return { client, state };
 }
@@ -89,8 +142,10 @@ describe("catalogue seed", () => {
     const { client, state } = createFakeClient();
     await seedCatalogue(client);
     expect(state.categories.size).toBe(catalogueCategorySeeds.length);
-    expect(state.services.size).toBe(4);
-    expect(state.requirements.size).toBe(4);
+    expect(state.services.size).toBe(6);
+    expect(state.requirements.size).toBe(6);
+    expect(state.offerings.size).toBe(8);
+    expect(state.offeringRequirements.size).toBe(8);
     expect(
       [...state.services.values()].every(
         (service) =>
@@ -109,6 +164,9 @@ describe("catalogue seed", () => {
       state.services.size,
       state.gameModes.size,
       state.requirements.size,
+      state.offerings.size,
+      state.offeringFacets.size,
+      state.offeringRequirements.size,
     ];
     await seedCatalogue(client);
     expect([
@@ -116,6 +174,9 @@ describe("catalogue seed", () => {
       state.services.size,
       state.gameModes.size,
       state.requirements.size,
+      state.offerings.size,
+      state.offeringFacets.size,
+      state.offeringRequirements.size,
     ]).toEqual(counts);
     expect(state.categories.get("quests")?.name).toBe("Client quest taxonomy");
     expect(state.services.get("quest-progression")?.name).toBe(

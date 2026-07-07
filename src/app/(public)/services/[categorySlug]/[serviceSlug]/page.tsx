@@ -3,12 +3,21 @@ import { CheckCircle2, CircleAlert, Clock3, Gamepad2 } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { CatalogueBreadcrumbs } from "@/components/catalogue-public";
+import { CatalogueCardEngine } from "@/components/catalogue-card-engine";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getDiscordHref } from "@/config/public-navigation";
-import { formatEnumLabel, gameModeLabels } from "@/lib/catalogue/constants";
+import {
+  catalogueGameModes,
+  formatEnumLabel,
+  gameModeLabels,
+} from "@/lib/catalogue/constants";
 import { publicPrimaryMedia } from "@/lib/catalogue/public-select";
-import { getPublicService } from "@/lib/catalogue/queries";
+import {
+  getCatalogueFeatureFlags,
+  getPublicCatalogueCardService,
+  getPublicService,
+} from "@/lib/catalogue/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -42,13 +51,111 @@ export async function generateMetadata({
 
 export default async function ServiceDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ categorySlug: string; serviceSlug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { categorySlug, serviceSlug } = await params;
+  const query = await searchParams;
   const service = await getPublicService(categorySlug, serviceSlug);
   if (!service) notFound();
   const discordHref = getDiscordHref();
+  if (service.engineType === "CATALOGUE_CARD") {
+    const search = typeof query.q === "string" ? query.q.slice(0, 80) : "";
+    const mode =
+      typeof query.mode === "string" &&
+      catalogueGameModes.includes(
+        query.mode as (typeof catalogueGameModes)[number],
+      )
+        ? query.mode
+        : "";
+    const sort =
+      query.sort === "name" || query.sort === "order" ? query.sort : "featured";
+    const page = Math.max(
+      1,
+      Number(typeof query.page === "string" ? query.page : 1) || 1,
+    );
+    const facets = Object.entries(query)
+      .filter(
+        ([key, value]) => key.startsWith("f_") && typeof value === "string",
+      )
+      .map(([key, value]) => ({
+        key: key.slice(2, 82),
+        value: String(value).slice(0, 120),
+      }))
+      .filter(
+        ({ key, value }) =>
+          /^[a-z0-9-]+$/.test(key) && /^[a-z0-9-]+$/.test(value),
+      );
+    const [engine, flags] = await Promise.all([
+      getPublicCatalogueCardService({
+        categorySlug,
+        serviceSlug,
+        search,
+        gameMode: mode || undefined,
+        facets,
+        sort,
+        page,
+      }),
+      getCatalogueFeatureFlags(),
+    ]);
+    if (engine && flags.catalogue_card_engine_enabled) {
+      const facetRecord = Object.fromEntries(
+        facets.map((facet) => [facet.key, facet.value]),
+      );
+      return (
+        <main id="main-content" className="min-h-[70vh]">
+          <section className="border-border bg-surface-1 border-b py-14 sm:py-20">
+            <div className="mx-auto max-w-7xl px-5 sm:px-8">
+              <CatalogueBreadcrumbs
+                items={[
+                  { label: "Home", href: "/" },
+                  { label: "Services", href: "/services" },
+                  {
+                    label: service.category.name,
+                    href: `/services/${service.category.slug}`,
+                  },
+                  { label: service.name },
+                ]}
+              />
+              {service.isQuoteOnly && (
+                <Badge className="mt-8" variant="warning">
+                  Quote only
+                </Badge>
+              )}
+              <p className="text-gold kicker-type mt-8">
+                {service.category.name}
+              </p>
+              <h1 className="display-type mt-4 max-w-4xl text-4xl sm:text-6xl">
+                {service.name}
+              </h1>
+              <p className="text-text-secondary mt-5 max-w-3xl text-lg leading-8">
+                {service.shortSummary}
+              </p>
+            </div>
+          </section>
+          <CatalogueCardEngine
+            service={{
+              id: engine.service.id,
+              name: engine.service.name,
+              content: engine.service.content,
+              requirements: engine.service.requirements,
+              gameModes: engine.service.gameModes,
+            }}
+            offerings={engine.offerings}
+            availableFacets={engine.availableFacets}
+            total={engine.total}
+            page={engine.page}
+            pages={engine.pages}
+            filters={{ search, gameMode: mode, sort, facets: facetRecord }}
+            eligibilityEnabled={Boolean(flags.rsn_eligibility_enabled)}
+            requestHref={discordHref}
+          />
+        </main>
+      );
+    }
+  }
   return (
     <main id="main-content" className="min-h-[70vh]">
       <section className="border-border bg-surface-1 border-b py-14 sm:py-20">

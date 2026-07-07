@@ -8,6 +8,7 @@ import { requireCapability } from "@/lib/auth/guards";
 import { formatEnumLabel, gameModeLabels } from "@/lib/catalogue/constants";
 import { getAdminService } from "@/lib/catalogue/queries";
 import { publicationIssues } from "@/lib/catalogue/rules";
+import { env } from "@/lib/env";
 
 export const metadata = { title: "Catalogue service preview" };
 export const dynamic = "force-dynamic";
@@ -118,6 +119,61 @@ export default async function ServicePreviewPage({
           )}
         </aside>
       </div>
+      {service.engineType === "CATALOGUE_CARD" && (
+        <section className="mt-8">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-primary kicker-type">Catalogue card preview</p>
+              <h2 className="display-type mt-3 text-3xl">Staged offerings</h2>
+            </div>
+            <Badge variant="info">{service.offerings.length} total</Badge>
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {service.offerings.map((offering) => (
+              <article
+                className="border-border bg-surface-1 rounded-2xl border p-5"
+                key={offering.id}
+              >
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <span className="text-gold">{offering.groupLabel}</span>
+                  <span className="text-text-muted">{offering.tierLabel}</span>
+                  {!offering.isActive && (
+                    <span className="text-warning">Inactive</span>
+                  )}
+                </div>
+                <h3 className="mt-3 text-lg font-bold">{offering.name}</h3>
+                <p className="text-text-secondary mt-2 text-sm leading-6">
+                  {offering.shortSummary}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {offering.facets.map((facet) => (
+                    <span
+                      className="border-border rounded-full border px-2 py-1 text-xs"
+                      key={facet.id}
+                    >
+                      {facet.label}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-text-muted mt-4 text-xs">
+                  {offering.requirements.length} offering requirement
+                  {offering.requirements.length === 1 ? "" : "s"}
+                </p>
+              </article>
+            ))}
+          </div>
+          {env.RSN_DEVELOPMENT_FIXTURE && env.NODE_ENV !== "production" && (
+            <div className="border-success/30 bg-success/10 mt-6 rounded-2xl border p-5">
+              <h3 className="font-bold">Eligibility preview enabled</h3>
+              <p className="text-text-secondary mt-2 text-sm">
+                The local deterministic public-stat profile is active for safe
+                preview and screenshots. No external lookup or customer name is
+                used.
+              </p>
+            </div>
+          )}
+        </section>
+      )}
       <section className="border-danger/30 bg-danger/5 mt-8 rounded-2xl border p-5">
         <h2 className="text-danger text-sm font-bold">
           Internal notes — admin only

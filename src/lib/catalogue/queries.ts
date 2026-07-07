@@ -3,6 +3,7 @@ import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import {
   matchesCatalogueSearch,
+  publicOfferingSelect,
   publicServiceSelect,
 } from "@/lib/catalogue/public-select";
 import { stagedCatalogueAggregateSchema } from "@/lib/catalogue/staging";
@@ -96,6 +97,96 @@ export async function getPublicService(
     },
     select: publicServiceSelect,
   });
+}
+
+export async function getPublicCatalogueCardService({
+  categorySlug,
+  serviceSlug,
+  search = "",
+  gameMode,
+  facets = [],
+  sort = "featured",
+  page = 1,
+  pageSize = 9,
+  now = new Date(),
+}: {
+  categorySlug: string;
+  serviceSlug: string;
+  search?: string;
+  gameMode?: string;
+  facets?: Array<{ key: string; value: string }>;
+  sort?: "featured" | "name" | "order";
+  page?: number;
+  pageSize?: number;
+  now?: Date;
+}) {
+  const service = await getPublicService(categorySlug, serviceSlug, now);
+  if (!service || service.engineType !== "CATALOGUE_CARD") return null;
+  const boundedPage = Math.max(1, page);
+  const boundedPageSize = Math.min(24, Math.max(1, pageSize));
+  const where: Prisma.CatalogueOfferingWhereInput = {
+    serviceId: service.id,
+    isActive: true,
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search.slice(0, 80) } },
+            { shortSummary: { contains: search.slice(0, 80) } },
+            { description: { contains: search.slice(0, 80) } },
+          ],
+        }
+      : {}),
+    ...(gameMode
+      ? {
+          OR: [
+            { gameModes: { none: {} } },
+            { gameModes: { some: { gameMode: gameMode as never } } },
+          ],
+        }
+      : {}),
+    ...(facets.length
+      ? {
+          AND: facets.map((facet) => ({
+            facets: { some: { facetKey: facet.key, facetValue: facet.value } },
+          })),
+        }
+      : {}),
+  };
+  const orderBy: Prisma.CatalogueOfferingOrderByWithRelationInput[] =
+    sort === "name"
+      ? [{ name: "asc" }]
+      : sort === "order"
+        ? [{ displayOrder: "asc" }, { name: "asc" }]
+        : [{ isFeatured: "desc" }, { displayOrder: "asc" }, { name: "asc" }];
+  const [offerings, total, facetRows] = await Promise.all([
+    prisma.catalogueOffering.findMany({
+      where,
+      orderBy,
+      skip: (boundedPage - 1) * boundedPageSize,
+      take: boundedPageSize,
+      select: publicOfferingSelect,
+    }),
+    prisma.catalogueOffering.count({ where }),
+    prisma.catalogueOfferingFacet.findMany({
+      where: { offering: { serviceId: service.id, isActive: true } },
+      orderBy: [{ facetKey: "asc" }, { displayOrder: "asc" }, { label: "asc" }],
+      select: { facetKey: true, facetValue: true, label: true },
+      distinct: ["facetKey", "facetValue"],
+    }),
+  ]);
+  return {
+    service,
+    offerings: offerings.map((offering) => ({
+      ...offering,
+      effectiveGameModes:
+        offering.gameModes.length > 0 ? offering.gameModes : service.gameModes,
+    })),
+    total,
+    page: boundedPage,
+    pages: Math.max(1, Math.ceil(total / boundedPageSize)),
+    pageSize: boundedPageSize,
+    availableFacets: facetRows,
+  };
 }
 
 export async function getCatalogueOverview() {
@@ -236,6 +327,16 @@ export async function getAdminService(id: string) {
       mediaReferences: {
         orderBy: [{ isPrimary: "desc" }, { displayOrder: "asc" }],
       },
+      offerings: {
+        orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+        include: {
+          gameModes: { orderBy: { gameMode: "asc" } },
+          facets: { orderBy: [{ displayOrder: "asc" }, { label: "asc" }] },
+          requirements: {
+            orderBy: [{ displayOrder: "asc" }, { title: "asc" }],
+          },
+        },
+      },
       revisions: {
         orderBy: { revisionNumber: "desc" },
         include: { actor: { select: { name: true, email: true } } },
@@ -277,6 +378,10 @@ export async function getAdminService(id: string) {
     gameModes: snapshot.gameModes.map((gameMode) => ({ gameMode })),
     requirements: snapshot.requirements,
     mediaReferences: snapshot.mediaReferences,
+    offerings: snapshot.offerings.map((offering) => ({
+      ...offering,
+      gameModes: offering.gameModes.map((gameMode) => ({ gameMode })),
+    })),
     version: service.stage.version,
     updatedAt: service.stage.updatedAt,
     hasPendingChanges: true as const,
@@ -289,4 +394,24 @@ export async function getAdminService(id: string) {
       updatedAt: service.updatedAt,
     },
   };
+}
+
+export async function getPrerequisiteServiceOptions(excludeServiceId: string) {
+  return prisma.catalogueService.findMany({
+    where: { publicationStatus: "PUBLISHED", id: { not: excludeServiceId } },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+}
+
+export async function getCatalogueFeatureFlags() {
+  const flags = await prisma.featureFlag.findMany({
+    where: {
+      key: { in: ["catalogue_card_engine_enabled", "rsn_eligibility_enabled"] },
+    },
+    select: { key: true, enabled: true },
+  });
+  return Object.fromEntries(
+    flags.map((flag) => [flag.key, flag.enabled]),
+  ) as Record<string, boolean>;
 }

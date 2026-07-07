@@ -83,7 +83,7 @@ test("public catalogue supports search and category filtering", async ({
   await expect(
     page.getByRole("heading", { name: "Skill training request" }),
   ).toBeVisible();
-  await expect(page.getByText("Quote only", { exact: true })).toHaveCount(4);
+  await expect(page.getByText("Quote only", { exact: true })).toHaveCount(6);
   await expect(page.getByText("Published", { exact: true })).toHaveCount(0);
   await page.getByLabel("Search catalogue").fill("quest");
   await page.getByRole("button", { name: "Search" }).click();
@@ -169,7 +169,7 @@ test("seeded Super Admin can open the catalogue editor", async ({ page }) => {
   await page.goto("/admin/catalogue/services");
   await page.getByLabel("Availability").selectOption("AVAILABLE");
   await page.getByRole("button", { name: "Apply filters" }).click();
-  await expect(page.getByText("4 matching services")).toBeVisible();
+  await expect(page.getByText("6 matching services")).toBeVisible();
   await page.getByLabel("Availability").selectOption("UNAVAILABLE");
   await page.getByRole("button", { name: "Apply filters" }).click();
   await expect(page.getByText("0 matching services")).toBeVisible();
@@ -237,6 +237,9 @@ test("published edits, children and media stay staged until atomic republish", a
     0,
   );
   await page.getByRole("link", { name: "Back to editor" }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/admin/catalogue/services/${service.id}$`),
+  );
 
   const requirementForm = page.locator("form").filter({
     has: page.getByRole("button", { name: "Add requirement" }),
@@ -306,6 +309,12 @@ test("published edits, children and media stay staged until atomic republish", a
     page.getByText("Pending primary workflow artwork", { exact: true }),
   ).toBeVisible();
   await page.getByRole("link", { name: "Back to editor" }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/admin/catalogue/services/${service.id}$`),
+  );
+  await expect(
+    page.getByRole("button", { name: "Republish pending changes" }),
+  ).toBeVisible({ timeout: 30_000 });
   page.once("dialog", (dialog) => dialog.accept());
   await page
     .getByRole("button", { name: "Republish pending changes" })

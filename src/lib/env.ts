@@ -21,6 +21,34 @@ const environmentSchema = z.object({
     .positive()
     .max(24 * 30)
     .default(168),
+  ELIGIBILITY_HMAC_SECRET: z.string().min(32).optional(),
+  RSN_PROVIDER_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(500)
+    .max(15_000)
+    .default(4_000),
+  RSN_CACHE_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(30)
+    .max(3_600)
+    .default(300),
+  RSN_NEGATIVE_CACHE_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(10)
+    .max(600)
+    .default(60),
+  RSN_RATE_LIMIT_WINDOW_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(10)
+    .max(3_600)
+    .default(60),
+  RSN_RATE_LIMIT_COUNT: z.coerce.number().int().min(1).max(100).default(8),
+  RSN_TRUST_PROXY_IP_HEADER: z.stringbool().default(false),
+  RSN_DEVELOPMENT_FIXTURE: z.stringbool().default(false),
 });
 
 const parsed = environmentSchema.safeParse(process.env);
@@ -31,4 +59,8 @@ if (!parsed.success) {
   );
 }
 
-export const env = parsed.data;
+export const env = {
+  ...parsed.data,
+  ELIGIBILITY_HMAC_SECRET:
+    parsed.data.ELIGIBILITY_HMAC_SECRET ?? parsed.data.AUTH_SECRET,
+};

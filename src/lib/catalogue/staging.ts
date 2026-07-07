@@ -50,6 +50,19 @@ export const stagedRequirementSchema = z.object({
   isRequired: z.boolean(),
   displayOrder: z.number().int().min(0).max(100_000),
   verificationMode: z.enum(requirementVerificationModes),
+  customerGuidance: z.string().max(10_000).nullable(),
+  metricKey: z.string().max(120).nullable(),
+  comparisonOperator: z
+    .enum([
+      "GREATER_THAN_OR_EQUAL",
+      "GREATER_THAN",
+      "EQUAL",
+      "LESS_THAN_OR_EQUAL",
+      "LESS_THAN",
+    ])
+    .nullable(),
+  requiredValue: z.number().int().min(0).max(2_147_483_647).nullable(),
+  recommendedServiceId: z.string().max(30).nullable(),
   seededKey: z.string().max(120).nullable(),
 });
 
@@ -62,13 +75,69 @@ export const stagedMediaSchema = z.object({
   isPrimary: z.boolean(),
 });
 
-export const stagedCatalogueAggregateSchema = z
+export const stagedOfferingFacetSchema = z.object({
+  id: z.string().min(1).max(30),
+  facetKey: z.string().min(2).max(80),
+  facetValue: z.string().min(1).max(120),
+  label: z.string().min(1).max(160),
+  displayOrder: z.number().int().min(0).max(100_000),
+});
+
+export const stagedOfferingRequirementSchema = stagedRequirementSchema.extend({
+  seededKey: z.string().max(160).nullable(),
+});
+
+export const stagedOfferingSchema = z.object({
+  id: z.string().min(1).max(30),
+  seededKey: z.string().max(140).nullable(),
+  slug: z.string().min(2).max(180),
+  name: z.string().min(2).max(191),
+  shortSummary: z.string().min(10).max(500),
+  description: z.string().max(20_000).nullable(),
+  displayOrder: z.number().int().min(0).max(100_000),
+  isActive: z.boolean(),
+  isFeatured: z.boolean(),
+  needsClientReview: z.boolean(),
+  groupLabel: z.string().max(120).nullable(),
+  tierLabel: z.string().max(120).nullable(),
+  quantityEnabled: z.boolean(),
+  quantityUnit: z.string().max(80).nullable(),
+  minimumQuantity: z.number().int().min(0).max(1_000_000).nullable(),
+  maximumQuantity: z.number().int().min(0).max(1_000_000).nullable(),
+  gameModes: z.array(z.enum(catalogueGameModes)),
+  facets: z.array(stagedOfferingFacetSchema),
+  requirements: z.array(stagedOfferingRequirementSchema),
+});
+
+function upgradeLegacyAggregate(value: unknown) {
+  if (!value || typeof value !== "object" || !("schemaVersion" in value))
+    return value;
+  const legacy = value as Record<string, unknown>;
+  if (legacy.schemaVersion !== 1 || !Array.isArray(legacy.requirements))
+    return value;
+  return {
+    ...legacy,
+    schemaVersion: 2,
+    requirements: legacy.requirements.map((requirement) => ({
+      ...(requirement as Record<string, unknown>),
+      customerGuidance: null,
+      metricKey: null,
+      comparisonOperator: null,
+      requiredValue: null,
+      recommendedServiceId: null,
+    })),
+    offerings: [],
+  };
+}
+
+const stagedCatalogueAggregateV2Schema = z
   .object({
-    schemaVersion: z.literal(1),
+    schemaVersion: z.literal(2),
     service: stagedServiceFieldsSchema,
     gameModes: z.array(z.enum(catalogueGameModes)).min(1),
     requirements: z.array(stagedRequirementSchema),
     mediaReferences: z.array(stagedMediaSchema),
+    offerings: z.array(stagedOfferingSchema),
   })
   .superRefine((aggregate, context) => {
     if (new Set(aggregate.gameModes).size !== aggregate.gameModes.length) {
@@ -106,13 +175,80 @@ export const stagedCatalogueAggregateSchema = z
         message: "Pending service media may contain only one primary item.",
       });
     }
+
+    const offeringIds = aggregate.offerings.map(({ id }) => id);
+    const offeringSlugs = aggregate.offerings.map(({ slug }) => slug);
+    if (new Set(offeringIds).size !== offeringIds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["offerings"],
+        message: "Pending offering identifiers must be unique.",
+      });
+    }
+    if (new Set(offeringSlugs).size !== offeringSlugs.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["offerings"],
+        message: "Pending offering slugs must be unique.",
+      });
+    }
+    for (const [index, offering] of aggregate.offerings.entries()) {
+      if (
+        offering.quantityEnabled &&
+        offering.minimumQuantity != null &&
+        offering.maximumQuantity != null &&
+        offering.maximumQuantity < offering.minimumQuantity
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["offerings", index, "maximumQuantity"],
+          message: "Maximum quantity cannot be lower than minimum quantity.",
+        });
+      }
+      const facetPairs = offering.facets.map(
+        ({ facetKey, facetValue }) => `${facetKey}:${facetValue}`,
+      );
+      if (new Set(facetPairs).size !== facetPairs.length) {
+        context.addIssue({
+          code: "custom",
+          path: ["offerings", index, "facets"],
+          message: "Offering facets must be unique.",
+        });
+      }
+      if (new Set(offering.gameModes).size !== offering.gameModes.length) {
+        context.addIssue({
+          code: "custom",
+          path: ["offerings", index, "gameModes"],
+          message: "Offering game modes must be unique.",
+        });
+      }
+      if (
+        offering.gameModes.some((mode) => !aggregate.gameModes.includes(mode))
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["offerings", index, "gameModes"],
+          message:
+            "Offering game modes must be supported by the parent service.",
+        });
+      }
+    }
   });
+
+export const stagedCatalogueAggregateSchema = z.preprocess(
+  upgradeLegacyAggregate,
+  stagedCatalogueAggregateV2Schema,
+);
 
 export type StagedCatalogueAggregate = z.infer<
   typeof stagedCatalogueAggregateSchema
 >;
 export type StagedRequirement = z.infer<typeof stagedRequirementSchema>;
 export type StagedMedia = z.infer<typeof stagedMediaSchema>;
+export type StagedOffering = z.infer<typeof stagedOfferingSchema>;
+export type StagedOfferingRequirement = z.infer<
+  typeof stagedOfferingRequirementSchema
+>;
 
 type AggregateSource = CatalogueService & {
   gameModes: { gameMode: CatalogueGameMode }[];
@@ -124,6 +260,17 @@ type AggregateSource = CatalogueService & {
     isRequired: boolean;
     displayOrder: number;
     verificationMode: RequirementVerificationMode;
+    customerGuidance?: string | null;
+    metricKey?: string | null;
+    comparisonOperator?:
+      | "GREATER_THAN_OR_EQUAL"
+      | "GREATER_THAN"
+      | "EQUAL"
+      | "LESS_THAN_OR_EQUAL"
+      | "LESS_THAN"
+      | null;
+    requiredValue?: number | null;
+    recommendedServiceId?: string | null;
     seededKey: string | null;
   }>;
   mediaReferences: Array<{
@@ -133,6 +280,53 @@ type AggregateSource = CatalogueService & {
     caption: string | null;
     displayOrder: number;
     isPrimary: boolean;
+  }>;
+  offerings?: Array<{
+    id: string;
+    seededKey: string | null;
+    slug: string;
+    name: string;
+    shortSummary: string;
+    description: string | null;
+    displayOrder: number;
+    isActive: boolean;
+    isFeatured: boolean;
+    needsClientReview: boolean;
+    groupLabel: string | null;
+    tierLabel: string | null;
+    quantityEnabled: boolean;
+    quantityUnit: string | null;
+    minimumQuantity: number | null;
+    maximumQuantity: number | null;
+    gameModes: Array<{ gameMode: CatalogueGameMode }>;
+    facets: Array<{
+      id: string;
+      facetKey: string;
+      facetValue: string;
+      label: string;
+      displayOrder: number;
+    }>;
+    requirements: Array<{
+      id: string;
+      title: string;
+      description: string;
+      type: CatalogueRequirementType;
+      isRequired: boolean;
+      displayOrder: number;
+      verificationMode: RequirementVerificationMode;
+      customerGuidance: string | null;
+      metricKey: string | null;
+      comparisonOperator:
+        | "GREATER_THAN_OR_EQUAL"
+        | "GREATER_THAN"
+        | "EQUAL"
+        | "LESS_THAN_OR_EQUAL"
+        | "LESS_THAN"
+        | null;
+      requiredValue: number | null;
+      recommendedServiceId: string | null;
+      seededKey: string | null;
+    }>;
   }>;
 };
 
@@ -167,7 +361,7 @@ export function snapshotFromService(
   source: AggregateSource,
 ): StagedCatalogueAggregate {
   return stagedCatalogueAggregateSchema.parse({
-    schemaVersion: 1,
+    schemaVersion: 2,
     service: {
       categoryId: source.categoryId,
       name: source.name,
@@ -198,6 +392,11 @@ export function snapshotFromService(
       isRequired: requirement.isRequired,
       displayOrder: requirement.displayOrder,
       verificationMode: requirement.verificationMode,
+      customerGuidance: requirement.customerGuidance ?? null,
+      metricKey: requirement.metricKey ?? null,
+      comparisonOperator: requirement.comparisonOperator ?? null,
+      requiredValue: requirement.requiredValue ?? null,
+      recommendedServiceId: requirement.recommendedServiceId ?? null,
       seededKey: requirement.seededKey,
     })),
     mediaReferences: source.mediaReferences.map((media) => ({
@@ -207,6 +406,27 @@ export function snapshotFromService(
       caption: media.caption,
       displayOrder: media.displayOrder,
       isPrimary: media.isPrimary,
+    })),
+    offerings: (source.offerings ?? []).map((offering) => ({
+      id: offering.id,
+      seededKey: offering.seededKey,
+      slug: offering.slug,
+      name: offering.name,
+      shortSummary: offering.shortSummary,
+      description: offering.description,
+      displayOrder: offering.displayOrder,
+      isActive: offering.isActive,
+      isFeatured: offering.isFeatured,
+      needsClientReview: offering.needsClientReview,
+      groupLabel: offering.groupLabel,
+      tierLabel: offering.tierLabel,
+      quantityEnabled: offering.quantityEnabled,
+      quantityUnit: offering.quantityUnit,
+      minimumQuantity: offering.minimumQuantity,
+      maximumQuantity: offering.maximumQuantity,
+      gameModes: offering.gameModes.map(({ gameMode }) => gameMode),
+      facets: offering.facets,
+      requirements: offering.requirements,
     })),
   });
 }
@@ -244,11 +464,38 @@ export function applyServiceEdit(
 
 export function addStagedRequirement(
   aggregate: StagedCatalogueAggregate,
-  requirement: StagedRequirement,
+  requirement: Omit<
+    StagedRequirement,
+    | "customerGuidance"
+    | "metricKey"
+    | "comparisonOperator"
+    | "requiredValue"
+    | "recommendedServiceId"
+  > &
+    Partial<
+      Pick<
+        StagedRequirement,
+        | "customerGuidance"
+        | "metricKey"
+        | "comparisonOperator"
+        | "requiredValue"
+        | "recommendedServiceId"
+      >
+    >,
 ) {
   return stagedCatalogueAggregateSchema.parse({
     ...aggregate,
-    requirements: [...aggregate.requirements, requirement],
+    requirements: [
+      ...aggregate.requirements,
+      {
+        ...requirement,
+        customerGuidance: requirement.customerGuidance ?? null,
+        metricKey: requirement.metricKey ?? null,
+        comparisonOperator: requirement.comparisonOperator ?? null,
+        requiredValue: requirement.requiredValue ?? null,
+        recommendedServiceId: requirement.recommendedServiceId ?? null,
+      },
+    ],
   });
 }
 
@@ -289,6 +536,31 @@ export function removeStagedMedia(
     mediaReferences: aggregate.mediaReferences.filter(
       (media) => media.id !== mediaId,
     ),
+  });
+}
+
+export function upsertStagedOffering(
+  aggregate: StagedCatalogueAggregate,
+  offering: StagedOffering,
+) {
+  const existing = aggregate.offerings.some(({ id }) => id === offering.id);
+  return stagedCatalogueAggregateSchema.parse({
+    ...aggregate,
+    offerings: existing
+      ? aggregate.offerings.map((item) =>
+          item.id === offering.id ? offering : item,
+        )
+      : [...aggregate.offerings, offering],
+  });
+}
+
+export function removeStagedOffering(
+  aggregate: StagedCatalogueAggregate,
+  offeringId: string,
+) {
+  return stagedCatalogueAggregateSchema.parse({
+    ...aggregate,
+    offerings: aggregate.offerings.filter(({ id }) => id !== offeringId),
   });
 }
 

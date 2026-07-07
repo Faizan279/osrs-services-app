@@ -1,0 +1,80 @@
+Task 004 review summary
+
+Branch:
+codex/task-004-catalogue-engine-eligibility
+
+Starting main SHA:
+67347c9d84d19b8ee796ef362aa96f05e5b9db65
+
+Final head SHA:
+Recorded in the final handoff after the local commit is created.
+
+Migration:
+20260706150000_task004_catalogue_engine_eligibility
+
+New database models:
+CatalogueOffering
+CatalogueOfferingFacet
+CatalogueOfferingGameMode
+CatalogueOfferingRequirement
+RsnLookupCache
+PublicRateLimitBucket
+
+New enum:
+CatalogueComparisonOperator
+
+Extended models:
+CatalogueRequirement gained customerGuidance, metricKey, comparisonOperator, requiredValue and recommendedServiceId.
+CatalogueService gained offering and recommendation relations.
+
+Routes:
+Public catalogue-card engine: /services/[categorySlug]/[serviceSlug]
+Public eligibility route: POST /api/catalogue/eligibility
+Admin offerings list: /admin/catalogue/services/[id]/offerings
+Admin new offering: /admin/catalogue/services/[id]/offerings/new
+Admin offering editor: /admin/catalogue/services/[id]/offerings/[offeringId]
+Admin preview extended: /admin/catalogue/services/[id]/preview
+
+Provider details:
+Server-only RSN provider abstraction.
+Production provider uses the official public OSRS Hiscores host with fixed allow-listing, timeout, response-size cap and parser validation.
+Development fixture provider is available only through RSN_DEVELOPMENT_FIXTURE=true.
+Normal automated tests and screenshots do not call the live provider.
+
+Feature flags:
+catalogue_card_engine_enabled defaults on.
+rsn_eligibility_enabled defaults off.
+Seed reruns preserve existing administrator flag values.
+
+Cache TTL:
+Positive lookup TTL default: RSN_CACHE_TTL_SECONDS=300.
+Negative lookup TTL default: RSN_NEGATIVE_CACHE_TTL_SECONDS=60.
+Cache keys use server-side HMAC.
+
+Rate-limit configuration:
+Window default: RSN_RATE_LIMIT_WINDOW_SECONDS=60.
+Count default: RSN_RATE_LIMIT_COUNT=8.
+Rate-limit identity keys use server-side HMAC.
+Raw IP addresses are not stored.
+Trusted proxy header use is opt-in with RSN_TRUST_PROXY_IP_HEADER=true.
+
+Permissions:
+products.view protects offering admin pages, eligibility views and preview.
+products.edit protects all catalogue/offering mutations, requirement rules, republish and discard.
+Public eligibility is guest-accessible only when enabled and rate-limited.
+
+Test totals:
+pnpm test: 14 files passed, 68 tests passed.
+pnpm test:seed: 1 file passed, 2 tests passed.
+pnpm test:e2e: 47 passed, 7 skipped, 54 total.
+pnpm lint, pnpm typecheck, pnpm format:check and pnpm build passed.
+
+MySQL validation:
+Fresh Task 004 database applied 5 migrations and seeded to 6 services, 8 offerings, 16 facets, 8 offering requirements, 6 service requirements and 11 feature flags.
+Existing Task 003 database applied Task 004 without reset and preserved user, session, feature flag, audit, revision, staged aggregate and administrator password-hash fixtures during validation.
+
+Known limitations:
+Live OSRS Hiscores smoke was not run and remains optional/disabled by default.
+Automatic metric registry currently includes total and skill level/XP metrics; boss/activity metrics can be added when provider mappings are approved.
+RSN eligibility remains off by default behind a feature flag.
+Pricing, calculators, cart, checkout, order creation, deployment and Task 005 were not started.

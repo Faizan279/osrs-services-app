@@ -14,6 +14,7 @@ import {
   mediaOwnerWhere,
 } from "@/lib/catalogue/media";
 import { publicationIssues } from "@/lib/catalogue/rules";
+import { wouldCreateRecommendationCycle } from "@/lib/catalogue/recommendations";
 import {
   editableSnapshot,
   loadServiceAggregate,
@@ -29,13 +30,17 @@ import {
   publicationEventFromHistory,
   removeStagedMedia,
   removeStagedRequirement,
+  removeStagedOffering,
   snapshotFromService,
+  upsertStagedOffering,
   type StagedCatalogueAggregate,
 } from "@/lib/catalogue/staging";
 import {
   categoryInputSchema,
   mediaReferenceInputSchema,
   nextDuplicateSlug,
+  offeringInputSchema,
+  offeringRequirementInputSchema,
   requirementInputSchema,
   serviceInputSchema,
 } from "@/lib/catalogue/validation";
@@ -45,6 +50,10 @@ type CategoryInput = ReturnType<typeof categoryInputSchema.parse>;
 type ServiceInput = ReturnType<typeof serviceInputSchema.parse>;
 type RequirementInput = ReturnType<typeof requirementInputSchema.parse>;
 type MediaInput = ReturnType<typeof mediaReferenceInputSchema.parse>;
+type OfferingInput = ReturnType<typeof offeringInputSchema.parse>;
+type OfferingRequirementInput = ReturnType<
+  typeof offeringRequirementInputSchema.parse
+>;
 
 function auditMetadata(value: Record<string, unknown>) {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -393,6 +402,53 @@ export async function publishService(
         })),
       });
     }
+    await transaction.catalogueOffering.deleteMany({
+      where: { serviceId: id },
+    });
+    for (const offering of snapshot.offerings) {
+      await transaction.catalogueOffering.create({
+        data: {
+          id: offering.id,
+          serviceId: id,
+          seededKey: offering.seededKey,
+          slug: offering.slug,
+          name: offering.name,
+          shortSummary: offering.shortSummary,
+          description: offering.description,
+          displayOrder: offering.displayOrder,
+          isActive: offering.isActive,
+          isFeatured: offering.isFeatured,
+          needsClientReview: offering.needsClientReview,
+          groupLabel: offering.groupLabel,
+          tierLabel: offering.tierLabel,
+          quantityEnabled: offering.quantityEnabled,
+          quantityUnit: offering.quantityEnabled ? offering.quantityUnit : null,
+          minimumQuantity: offering.quantityEnabled
+            ? offering.minimumQuantity
+            : null,
+          maximumQuantity: offering.quantityEnabled
+            ? offering.maximumQuantity
+            : null,
+          gameModes: {
+            create: offering.gameModes.map((gameMode) => ({ gameMode })),
+          },
+          facets: {
+            create: offering.facets.map(({ id: facetId, ...facet }) => ({
+              id: facetId,
+              ...facet,
+            })),
+          },
+          requirements: {
+            create: offering.requirements.map(
+              ({ id: requirementId, ...requirement }) => ({
+                id: requirementId,
+                ...requirement,
+              }),
+            ),
+          },
+        },
+      });
+    }
     await transaction.catalogueMediaReference.deleteMany({
       where: { serviceId: id },
     });
@@ -413,6 +469,10 @@ export async function publishService(
         requirements: { orderBy: { displayOrder: "asc" } },
         mediaReferences: {
           orderBy: [{ isPrimary: "desc" }, { displayOrder: "asc" }],
+        },
+        offerings: {
+          orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+          include: { gameModes: true, facets: true, requirements: true },
         },
       },
     });
@@ -446,6 +506,17 @@ export async function publishService(
         }),
       },
     });
+    if (event === "REPUBLISHED" && snapshot.offerings.length > 0) {
+      await transaction.auditLog.create({
+        data: {
+          actorId,
+          action: "catalogue.offering.aggregate_republished",
+          targetType: "CatalogueService",
+          targetId: id,
+          metadata: auditMetadata({ offeringCount: snapshot.offerings.length }),
+        },
+      });
+    }
     if (service.stage) {
       const deleted = await transaction.catalogueServiceStage.deleteMany({
         where: {
@@ -568,6 +639,15 @@ export async function discardServiceStage(
         metadata: auditMetadata({ stageVersion: expectedVersion }),
       },
     });
+    await transaction.auditLog.create({
+      data: {
+        actorId,
+        action: "catalogue.offering.changes_discarded",
+        targetType: "CatalogueService",
+        targetId: id,
+        metadata: auditMetadata({ stageVersion: expectedVersion }),
+      },
+    });
     return service;
   });
 }
@@ -576,7 +656,14 @@ export async function duplicateService(id: string, actorId: string) {
   return prisma.$transaction(async (transaction) => {
     const source = await transaction.catalogueService.findUniqueOrThrow({
       where: { id },
-      include: { gameModes: true, requirements: true, mediaReferences: true },
+      include: {
+        gameModes: true,
+        requirements: true,
+        mediaReferences: true,
+        offerings: {
+          include: { gameModes: true, facets: true, requirements: true },
+        },
+      },
     });
     const existing = await transaction.catalogueService.findMany({
       select: { slug: true, canonicalSlug: true },
@@ -625,6 +712,11 @@ export async function duplicateService(id: string, actorId: string) {
             isRequired: requirement.isRequired,
             displayOrder: requirement.displayOrder,
             verificationMode: requirement.verificationMode,
+            customerGuidance: requirement.customerGuidance,
+            metricKey: requirement.metricKey,
+            comparisonOperator: requirement.comparisonOperator,
+            requiredValue: requirement.requiredValue,
+            recommendedServiceId: requirement.recommendedServiceId,
           })),
         },
         mediaReferences: {
@@ -634,6 +726,50 @@ export async function duplicateService(id: string, actorId: string) {
             caption: media.caption,
             displayOrder: media.displayOrder,
             isPrimary: media.isPrimary,
+          })),
+        },
+        offerings: {
+          create: source.offerings.map((offering) => ({
+            slug: offering.slug,
+            name: offering.name,
+            shortSummary: offering.shortSummary,
+            description: offering.description,
+            displayOrder: offering.displayOrder,
+            isActive: offering.isActive,
+            isFeatured: false,
+            needsClientReview: true,
+            groupLabel: offering.groupLabel,
+            tierLabel: offering.tierLabel,
+            quantityEnabled: offering.quantityEnabled,
+            quantityUnit: offering.quantityUnit,
+            minimumQuantity: offering.minimumQuantity,
+            maximumQuantity: offering.maximumQuantity,
+            gameModes: {
+              create: offering.gameModes.map(({ gameMode }) => ({ gameMode })),
+            },
+            facets: {
+              create: offering.facets.map((facet) => ({
+                facetKey: facet.facetKey,
+                facetValue: facet.facetValue,
+                label: facet.label,
+                displayOrder: facet.displayOrder,
+              })),
+            },
+            requirements: {
+              create: offering.requirements.map((requirement) => ({
+                title: requirement.title,
+                description: requirement.description,
+                type: requirement.type,
+                isRequired: requirement.isRequired,
+                displayOrder: requirement.displayOrder,
+                verificationMode: requirement.verificationMode,
+                customerGuidance: requirement.customerGuidance,
+                metricKey: requirement.metricKey,
+                comparisonOperator: requirement.comparisonOperator,
+                requiredValue: requirement.requiredValue,
+                recommendedServiceId: requirement.recommendedServiceId,
+              })),
+            },
           })),
         },
       },
@@ -655,12 +791,66 @@ function stagedId() {
   return `stg${randomUUID().replaceAll("-", "").slice(0, 27)}`;
 }
 
+async function assertRecommendationIsAcyclic(
+  transaction: Prisma.TransactionClient,
+  ownerServiceId: string,
+  recommendedServiceId: string | null | undefined,
+  staged?: StagedCatalogueAggregate,
+) {
+  if (!recommendedServiceId) return;
+  const [serviceRequirements, offeringRequirements] = await Promise.all([
+    transaction.catalogueRequirement.findMany({
+      where: { recommendedServiceId: { not: null } },
+      select: { serviceId: true, recommendedServiceId: true },
+    }),
+    transaction.catalogueOfferingRequirement.findMany({
+      where: { recommendedServiceId: { not: null } },
+      select: {
+        recommendedServiceId: true,
+        offering: { select: { serviceId: true } },
+      },
+    }),
+  ]);
+  const edges = new Map<string, string[]>();
+  const add = (from: string, to: string | null) => {
+    if (to) edges.set(from, [...(edges.get(from) ?? []), to]);
+  };
+  serviceRequirements.forEach((item) =>
+    add(item.serviceId, item.recommendedServiceId),
+  );
+  offeringRequirements.forEach((item) =>
+    add(item.offering.serviceId, item.recommendedServiceId),
+  );
+  staged?.requirements.forEach((item) =>
+    add(ownerServiceId, item.recommendedServiceId),
+  );
+  staged?.offerings.forEach((offering) =>
+    offering.requirements.forEach((item) =>
+      add(ownerServiceId, item.recommendedServiceId),
+    ),
+  );
+  if (
+    wouldCreateRecommendationCycle(edges, ownerServiceId, recommendedServiceId)
+  ) {
+    throw new CatalogueTransitionError(
+      "This prerequisite recommendation would create a circular chain.",
+    );
+  }
+}
+
 export async function addRequirement(
   input: RequirementInput,
   actorId: string,
   expectedVersion: number,
 ) {
   return prisma.$transaction(async (transaction) => {
+    const service = await loadServiceAggregate(transaction, input.serviceId);
+    await assertRecommendationIsAcyclic(
+      transaction,
+      input.serviceId,
+      input.recommendedServiceId,
+      editableSnapshot(service),
+    );
     const stagedRequirement = {
       id: stagedId(),
       title: input.title,
@@ -669,6 +859,11 @@ export async function addRequirement(
       isRequired: input.isRequired,
       displayOrder: input.displayOrder,
       verificationMode: input.verificationMode,
+      customerGuidance: input.customerGuidance ?? null,
+      metricKey: input.metricKey ?? null,
+      comparisonOperator: input.comparisonOperator ?? null,
+      requiredValue: input.requiredValue ?? null,
+      recommendedServiceId: input.recommendedServiceId ?? null,
       seededKey: null,
     };
     const staged = await mutatePublishedStage(
@@ -931,5 +1126,460 @@ export async function deleteMediaReference(
       },
     });
     return { staged: false };
+  });
+}
+
+function offeringFromInput(
+  input: OfferingInput,
+  id: string,
+  existing?: StagedCatalogueAggregate["offerings"][number],
+): StagedCatalogueAggregate["offerings"][number] {
+  return {
+    id,
+    seededKey: existing?.seededKey ?? null,
+    slug: input.slug,
+    name: input.name,
+    shortSummary: input.shortSummary,
+    description: input.description ?? null,
+    displayOrder: input.displayOrder,
+    isActive: input.isActive,
+    isFeatured: input.isFeatured,
+    needsClientReview: input.needsClientReview,
+    groupLabel: input.groupLabel ?? null,
+    tierLabel: input.tierLabel ?? null,
+    quantityEnabled: input.quantityEnabled,
+    quantityUnit: input.quantityEnabled ? (input.quantityUnit ?? null) : null,
+    minimumQuantity: input.quantityEnabled
+      ? (input.minimumQuantity ?? null)
+      : null,
+    maximumQuantity: input.quantityEnabled
+      ? (input.maximumQuantity ?? null)
+      : null,
+    gameModes: input.gameModes,
+    facets: input.facets.map((facet) => ({
+      id:
+        existing?.facets.find(
+          (item) =>
+            item.facetKey === facet.facetKey &&
+            item.facetValue === facet.facetValue,
+        )?.id ?? stagedId(),
+      ...facet,
+    })),
+    requirements: existing?.requirements ?? [],
+  };
+}
+
+function offeringUpdateAction(
+  previous: StagedCatalogueAggregate["offerings"][number] | undefined,
+  current: StagedCatalogueAggregate["offerings"][number],
+  staged: boolean,
+) {
+  if (!previous) {
+    return staged
+      ? "catalogue.offering.created_staged"
+      : "catalogue.offering.created";
+  }
+  if (previous.isActive !== current.isActive) {
+    return current.isActive
+      ? "catalogue.offering.activated"
+      : "catalogue.offering.deactivated";
+  }
+  if (previous.displayOrder !== current.displayOrder) {
+    return "catalogue.offering.reordered";
+  }
+  if (JSON.stringify(previous.facets) !== JSON.stringify(current.facets)) {
+    return "catalogue.offering.facets_changed";
+  }
+  if (
+    JSON.stringify(previous.gameModes) !== JSON.stringify(current.gameModes)
+  ) {
+    return "catalogue.offering.game_modes_changed";
+  }
+  return staged
+    ? "catalogue.offering.updated_staged"
+    : "catalogue.offering.updated";
+}
+
+async function claimDraftService(
+  transaction: Prisma.TransactionClient,
+  serviceId: string,
+  actorId: string,
+  expectedVersion: number,
+) {
+  const claimed = await transaction.catalogueService.updateMany({
+    where: {
+      id: serviceId,
+      version: expectedVersion,
+      publicationStatus: { not: "PUBLISHED" },
+    },
+    data: { updatedById: actorId, version: { increment: 1 } },
+  });
+  if (claimed.count !== 1) {
+    throw new CatalogueConflictError(
+      "This service changed after the editor was opened. Reload before continuing.",
+    );
+  }
+}
+
+export async function saveOffering(
+  input: OfferingInput,
+  actorId: string,
+  expectedVersion: number,
+  offeringId?: string,
+) {
+  return prisma.$transaction(async (transaction) => {
+    const service = await loadServiceAggregate(transaction, input.serviceId);
+    if (
+      input.gameModes.some(
+        (mode) => !service.gameModes.some((item) => item.gameMode === mode),
+      )
+    ) {
+      throw new CatalogueTransitionError(
+        "Offering game modes must be supported by the parent service.",
+      );
+    }
+    const id = offeringId ?? stagedId();
+    if (service.publicationStatus === "PUBLISHED") {
+      const editable = editableSnapshot(service);
+      const existing = editable.offerings.find(
+        (offering) => offering.id === id,
+      );
+      if (offeringId && !existing)
+        throw new CatalogueConflictError("Offering not found.");
+      const offering = offeringFromInput(input, id, existing);
+      const result = await persistServiceStage({
+        transaction,
+        service,
+        snapshot: upsertStagedOffering(editable, offering),
+        actorId,
+        expectedVersion,
+      });
+      await transaction.auditLog.create({
+        data: {
+          actorId,
+          action: offeringUpdateAction(existing, offering, true),
+          targetType: "CatalogueOffering",
+          targetId: id,
+          metadata: auditMetadata({
+            serviceId: input.serviceId,
+            stageVersion: result.version,
+          }),
+        },
+      });
+      return { id, staged: true };
+    }
+
+    await claimDraftService(
+      transaction,
+      input.serviceId,
+      actorId,
+      expectedVersion,
+    );
+    const data = {
+      slug: input.slug,
+      name: input.name,
+      shortSummary: input.shortSummary,
+      description: input.description,
+      displayOrder: input.displayOrder,
+      isActive: input.isActive,
+      isFeatured: input.isFeatured,
+      needsClientReview: input.needsClientReview,
+      groupLabel: input.groupLabel,
+      tierLabel: input.tierLabel,
+      quantityEnabled: input.quantityEnabled,
+      quantityUnit: input.quantityEnabled ? input.quantityUnit : null,
+      minimumQuantity: input.quantityEnabled ? input.minimumQuantity : null,
+      maximumQuantity: input.quantityEnabled ? input.maximumQuantity : null,
+    };
+    const previousOffering = snapshotFromService(service).offerings.find(
+      (item) => item.id === offeringId,
+    );
+    const offering = offeringId
+      ? await transaction.catalogueOffering.update({
+          where: { id: offeringId, serviceId: input.serviceId },
+          data: {
+            ...data,
+            facets: { deleteMany: {}, create: input.facets },
+            gameModes: {
+              deleteMany: {},
+              create: input.gameModes.map((gameMode) => ({ gameMode })),
+            },
+          },
+        })
+      : await transaction.catalogueOffering.create({
+          data: {
+            id,
+            serviceId: input.serviceId,
+            ...data,
+            facets: { create: input.facets },
+            gameModes: {
+              create: input.gameModes.map((gameMode) => ({ gameMode })),
+            },
+          },
+        });
+    await transaction.auditLog.create({
+      data: {
+        actorId,
+        action: offeringUpdateAction(
+          previousOffering,
+          offeringFromInput(input, offering.id, previousOffering),
+          false,
+        ),
+        targetType: "CatalogueOffering",
+        targetId: offering.id,
+        metadata: auditMetadata({ serviceId: input.serviceId }),
+      },
+    });
+    return { id: offering.id, staged: false };
+  });
+}
+
+export async function deleteOffering(
+  serviceId: string,
+  offeringId: string,
+  actorId: string,
+  expectedVersion: number,
+) {
+  return prisma.$transaction(async (transaction) => {
+    const service = await loadServiceAggregate(transaction, serviceId);
+    if (service.publicationStatus === "PUBLISHED") {
+      const snapshot = editableSnapshot(service);
+      if (!snapshot.offerings.some(({ id }) => id === offeringId)) {
+        throw new CatalogueConflictError("Offering not found.");
+      }
+      const persisted = await persistServiceStage({
+        transaction,
+        service,
+        snapshot: removeStagedOffering(snapshot, offeringId),
+        actorId,
+        expectedVersion,
+      });
+      await transaction.auditLog.create({
+        data: {
+          actorId,
+          action: "catalogue.offering.deleted_staged",
+          targetType: "CatalogueOffering",
+          targetId: offeringId,
+          metadata: auditMetadata({
+            serviceId,
+            stageVersion: persisted.version,
+          }),
+        },
+      });
+      return { staged: true };
+    }
+    await claimDraftService(transaction, serviceId, actorId, expectedVersion);
+    const deleted = await transaction.catalogueOffering.deleteMany({
+      where: { id: offeringId, serviceId },
+    });
+    if (deleted.count !== 1)
+      throw new CatalogueConflictError("Offering not found.");
+    await transaction.auditLog.create({
+      data: {
+        actorId,
+        action: "catalogue.offering.deleted",
+        targetType: "CatalogueOffering",
+        targetId: offeringId,
+        metadata: auditMetadata({ serviceId }),
+      },
+    });
+    return { staged: false };
+  });
+}
+
+export async function duplicateOffering(
+  serviceId: string,
+  offeringId: string,
+  actorId: string,
+  expectedVersion: number,
+) {
+  return prisma.$transaction(async (transaction) => {
+    const service = await loadServiceAggregate(transaction, serviceId);
+    const snapshot = editableSnapshot(service);
+    const source = snapshot.offerings.find(({ id }) => id === offeringId);
+    if (!source) throw new CatalogueConflictError("Offering not found.");
+    const id = stagedId();
+    const slug = nextDuplicateSlug(
+      source.slug,
+      snapshot.offerings.map((item) => item.slug),
+    );
+    const duplicate = {
+      ...source,
+      id,
+      seededKey: null,
+      slug,
+      name: `${source.name} copy`,
+      isActive: false,
+      isFeatured: false,
+      needsClientReview: true,
+      facets: source.facets.map((facet) => ({ ...facet, id: stagedId() })),
+      requirements: source.requirements.map((requirement) => ({
+        ...requirement,
+        id: stagedId(),
+        seededKey: null,
+      })),
+    };
+    if (service.publicationStatus === "PUBLISHED") {
+      await persistServiceStage({
+        transaction,
+        service,
+        snapshot: upsertStagedOffering(snapshot, duplicate),
+        actorId,
+        expectedVersion,
+      });
+    } else {
+      await claimDraftService(transaction, serviceId, actorId, expectedVersion);
+      await transaction.catalogueOffering.create({
+        data: {
+          ...duplicate,
+          serviceId,
+          gameModes: {
+            create: duplicate.gameModes.map((gameMode) => ({ gameMode })),
+          },
+          facets: { create: duplicate.facets },
+          requirements: { create: duplicate.requirements },
+        },
+      });
+    }
+    await transaction.auditLog.create({
+      data: {
+        actorId,
+        action: "catalogue.offering.duplicated",
+        targetType: "CatalogueOffering",
+        targetId: id,
+        metadata: auditMetadata({ serviceId, sourceId: offeringId }),
+      },
+    });
+    return { id, staged: service.publicationStatus === "PUBLISHED" };
+  });
+}
+
+export async function addOfferingRequirement(
+  input: OfferingRequirementInput,
+  actorId: string,
+  expectedVersion: number,
+) {
+  return prisma.$transaction(async (transaction) => {
+    const service = await loadServiceAggregate(transaction, input.serviceId);
+    await assertRecommendationIsAcyclic(
+      transaction,
+      input.serviceId,
+      input.recommendedServiceId,
+      editableSnapshot(service),
+    );
+    const requirement = {
+      id: stagedId(),
+      title: input.title,
+      description: input.description,
+      type: input.type,
+      isRequired: input.isRequired,
+      displayOrder: input.displayOrder,
+      verificationMode: input.verificationMode,
+      customerGuidance: input.customerGuidance ?? null,
+      metricKey: input.metricKey ?? null,
+      comparisonOperator: input.comparisonOperator ?? null,
+      requiredValue: input.requiredValue ?? null,
+      recommendedServiceId: input.recommendedServiceId ?? null,
+      seededKey: null,
+    };
+    if (service.publicationStatus === "PUBLISHED") {
+      const snapshot = editableSnapshot(service);
+      const offering = snapshot.offerings.find(
+        ({ id }) => id === input.offeringId,
+      );
+      if (!offering) throw new CatalogueConflictError("Offering not found.");
+      await persistServiceStage({
+        transaction,
+        service,
+        snapshot: upsertStagedOffering(snapshot, {
+          ...offering,
+          requirements: [...offering.requirements, requirement],
+        }),
+        actorId,
+        expectedVersion,
+      });
+    } else {
+      await claimDraftService(
+        transaction,
+        input.serviceId,
+        actorId,
+        expectedVersion,
+      );
+      await transaction.catalogueOfferingRequirement.create({
+        data: { ...requirement, offeringId: input.offeringId },
+      });
+    }
+    await transaction.auditLog.create({
+      data: {
+        actorId,
+        action:
+          input.verificationMode === "AUTOMATIC"
+            ? "catalogue.eligibility.automatic_rule_changed"
+            : input.recommendedServiceId
+              ? "catalogue.eligibility.prerequisite_changed"
+              : "catalogue.offering.requirement_changed",
+        targetType: "CatalogueOffering",
+        targetId: input.offeringId,
+        metadata: auditMetadata({
+          serviceId: input.serviceId,
+          requirementId: requirement.id,
+          recommendedServiceId: input.recommendedServiceId ?? null,
+        }),
+      },
+    });
+    return {
+      id: requirement.id,
+      staged: service.publicationStatus === "PUBLISHED",
+    };
+  });
+}
+
+export async function deleteOfferingRequirement(
+  serviceId: string,
+  offeringId: string,
+  requirementId: string,
+  actorId: string,
+  expectedVersion: number,
+) {
+  return prisma.$transaction(async (transaction) => {
+    const service = await loadServiceAggregate(transaction, serviceId);
+    if (service.publicationStatus === "PUBLISHED") {
+      const snapshot = editableSnapshot(service);
+      const offering = snapshot.offerings.find(({ id }) => id === offeringId);
+      if (!offering?.requirements.some(({ id }) => id === requirementId)) {
+        throw new CatalogueConflictError("Offering requirement not found.");
+      }
+      await persistServiceStage({
+        transaction,
+        service,
+        snapshot: upsertStagedOffering(snapshot, {
+          ...offering,
+          requirements: offering.requirements.filter(
+            ({ id }) => id !== requirementId,
+          ),
+        }),
+        actorId,
+        expectedVersion,
+      });
+    } else {
+      await claimDraftService(transaction, serviceId, actorId, expectedVersion);
+      const deleted = await transaction.catalogueOfferingRequirement.deleteMany(
+        {
+          where: { id: requirementId, offeringId },
+        },
+      );
+      if (deleted.count !== 1)
+        throw new CatalogueConflictError("Offering requirement not found.");
+    }
+    await transaction.auditLog.create({
+      data: {
+        actorId,
+        action: "catalogue.offering.requirement_changed",
+        targetType: "CatalogueOffering",
+        targetId: offeringId,
+        metadata: auditMetadata({ serviceId, requirementId, removed: true }),
+      },
+    });
+    return { staged: service.publicationStatus === "PUBLISHED" };
   });
 }
