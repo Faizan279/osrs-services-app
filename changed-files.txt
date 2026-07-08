@@ -29,5 +29,6 @@ src/tests/eligibility-route.test.ts
 src/tests/health.test.ts
 src/tests/rsn-provider.test.ts
 task-004-review-summary.txt
+task-004-final-review-pack.zip
 tests/e2e/catalogue.spec.ts
 tests/e2e/task004.spec.ts

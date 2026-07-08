@@ -5,14 +5,18 @@
 - Repository: `Faizan279/osrs-services-app`
 - Branch: `codex/task-004-catalogue-engine-eligibility`
 - Starting main commit: `67347c9d84d19b8ee796ef362aa96f05e5b9db65`
-- Final local commit: recorded in the final handoff after this report is committed
+- Final correction implementation commit:
+  `4d65705128c8fc9fef905e86418c76e225a09001`
+- Report and review-pack refresh: documentation-only follow-up commit recorded
+  in the final handoff
 - Migration: `20260706150000_task004_catalogue_engine_eligibility`
 - Final correction migration: `20260707170000_task004_security_integrity_corrections`
 
 ## Final correction pass
 
 The final review corrections were applied on top of reviewed head
-`617e9566b476eef637ac18edad310be3babaf1b1`.
+`617e9566b476eef637ac18edad310be3babaf1b1` and committed as
+`4d65705128c8fc9fef905e86418c76e225a09001`.
 
 Security and integrity updates:
 

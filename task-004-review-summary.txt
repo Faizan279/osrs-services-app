@@ -6,8 +6,12 @@ codex/task-004-catalogue-engine-eligibility
 Reviewed starting SHA:
 617e9566b476eef637ac18edad310be3babaf1b1
 
-Correction commit:
-Recorded in the final handoff after the local commit is created.
+Correction implementation commit:
+4d65705128c8fc9fef905e86418c76e225a09001
+
+Report and review-pack refresh:
+This documentation-only follow-up records the correction implementation commit
+and regenerates task-004-final-review-pack.zip.
 
 Scope completed:
 - Replaced UA/language public rate-limit identity fallback with an opaque random HttpOnly SameSite=Lax cookie named osrs_public_client.
