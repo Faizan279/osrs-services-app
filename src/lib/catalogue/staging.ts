@@ -568,7 +568,21 @@ export function snapshotFromService(
       maximumQuantity: offering.maximumQuantity,
       gameModes: offering.gameModes.map(({ gameMode }) => gameMode),
       facets: offering.facets,
-      requirements: offering.requirements,
+      requirements: offering.requirements.map((requirement) => ({
+        id: requirement.id,
+        title: requirement.title,
+        description: requirement.description,
+        type: requirement.type,
+        isRequired: requirement.isRequired,
+        displayOrder: requirement.displayOrder,
+        verificationMode: requirement.verificationMode,
+        customerGuidance: requirement.customerGuidance,
+        metricKey: requirement.metricKey,
+        comparisonOperator: requirement.comparisonOperator,
+        requiredValue: safeRequirementNumber(requirement.requiredValue),
+        recommendedServiceId: requirement.recommendedServiceId,
+        seededKey: requirement.seededKey,
+      })),
     })),
   });
 }

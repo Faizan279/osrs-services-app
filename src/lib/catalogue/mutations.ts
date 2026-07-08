@@ -13,7 +13,10 @@ import {
   createOwnedMediaReference,
   mediaOwnerWhere,
 } from "@/lib/catalogue/media";
-import { prismaRequirementBigInt } from "@/lib/catalogue/numeric";
+import {
+  prismaRequirementBigInt,
+  safeRequirementNumber,
+} from "@/lib/catalogue/numeric";
 import { publicationIssues } from "@/lib/catalogue/rules";
 import { wouldCreateRecommendationCycle } from "@/lib/catalogue/recommendations";
 import {
@@ -60,8 +63,14 @@ function auditMetadata(value: Record<string, unknown>) {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
-function revisionSnapshot(value: unknown) {
-  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+export function revisionSnapshot(value: unknown) {
+  return JSON.parse(
+    JSON.stringify(value, (_key, nestedValue) =>
+      typeof nestedValue === "bigint"
+        ? safeRequirementNumber(nestedValue)
+        : nestedValue,
+    ),
+  ) as Prisma.InputJsonValue;
 }
 
 export async function createCategory(input: CategoryInput, actorId: string) {
