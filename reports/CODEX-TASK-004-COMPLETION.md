@@ -7,6 +7,8 @@
 - Starting main commit: `67347c9d84d19b8ee796ef362aa96f05e5b9db65`
 - Final correction implementation commit:
   `4d65705128c8fc9fef905e86418c76e225a09001`
+- BigInt snapshot blocker correction commit:
+  `99ab12685318ff4d2abaf51d7b50552a4fadc002`
 - Report and review-pack refresh: documentation-only follow-up commit recorded
   in the final handoff
 - Migration: `20260706150000_task004_catalogue_engine_eligibility`
@@ -69,6 +71,97 @@ Validation updates:
   route security/error boundary is covered by Vitest.
 - Focused real-MySQL recommendation graph E2E passed: temporary services A/B
   publish A->B, reject B->A, and preserve B stage/revision/live edge state.
+
+## BigInt snapshot blocker correction
+
+Final source review found one remaining BIGINT snapshot path after the
+security/integrity correction. The correction was committed locally as
+`99ab12685318ff4d2abaf51d7b50552a4fadc002`.
+
+Corrections applied:
+
+- `snapshotFromService` now explicitly maps every offering requirement instead
+  of passing `offering.requirements` through raw.
+- Offering-level `requiredValue` now uses
+  `safeRequirementNumber(requirement.requiredValue)`, matching service-level
+  requirement normalization.
+- Offering requirement snapshots preserve `id`, `title`, `description`,
+  `type`, `isRequired`, `displayOrder`, `verificationMode`,
+  `customerGuidance`, `metricKey`, `comparisonOperator`,
+  `recommendedServiceId` and `seededKey`.
+- Revision snapshot serialization now converts raw Prisma `bigint` values to
+  JSON-safe numbers before `JSON.stringify` can fail.
+- Historical revision rows were not rewritten.
+
+No migration was needed:
+
+- `prisma/schema.prisma` was unchanged by this correction.
+- `prisma/migrations/` was unchanged by this correction.
+- `git diff --name-only -- prisma/schema.prisma prisma/migrations` returned no
+  changed Prisma schema or migration files after the correction.
+
+Additional BigInt safety review:
+
+- Staged JSON snapshots: `snapshotFromService` and staged requirement mutation
+  helpers normalize requirement values with `safeRequirementNumber`.
+- Revision JSON snapshots: `revisionSnapshot` now converts raw `bigint` values
+  before JSON serialization.
+- API JSON responses: the eligibility route evaluates requirements through
+  `evaluateRequirements`, which normalizes `requiredValue` before returning
+  result payloads.
+- Public projections: `src/lib/catalogue/queries.ts` serializes service and
+  offering requirement values with `safeRequirementNumber`.
+- Cache payloads: RSN cache payloads store public stats profiles, not catalogue
+  requirement snapshots.
+
+Focused regression coverage added:
+
+- `snapshotFromService` accepts service and offering automatic requirements
+  whose `requiredValue` is `2147483648n`.
+- The staged aggregate stores those values as the JSON-safe number
+  `2147483648`.
+- `JSON.stringify` on the staged aggregate does not throw.
+- `editableSnapshot` works for a published service with a live offering-level
+  automatic requirement stored as `bigint`.
+- `revisionSnapshot` does not serialize raw `bigint` values from service or
+  offering requirements.
+- Existing service-level BIGINT conversion behavior remains covered by the same
+  regression fixture and the full unit suite.
+
+Final validation from this correction run:
+
+- `pnpm exec prisma format` — passed.
+- `pnpm db:generate` — passed.
+- Focused regression: `pnpm exec vitest run src/tests/catalogue-staging.test.ts`
+  — passed, 1 file and 13 tests.
+- `pnpm lint` — passed.
+- `pnpm typecheck` — passed.
+- `pnpm test` — passed, 15 files and 87 tests.
+- `pnpm test:seed` — passed, 1 file and 2 tests.
+- `pnpm format:check` — passed.
+- `pnpm build` with `RSN_DEVELOPMENT_FIXTURE=false` — passed; 9 static pages
+  generated and all dynamic routes collected successfully.
+- `pnpm test:e2e` initial attempt — blocked before tests by the intentional
+  production guard because local `.env` had `RSN_DEVELOPMENT_FIXTURE=true`.
+- `pnpm test:e2e` with `RSN_DEVELOPMENT_FIXTURE=false` — web server started and
+  Playwright enumerated 56 tests; 22 passed, 22 failed and 12 skipped because
+  the configured local MySQL test database at `127.0.0.1:3307` was not
+  reachable (`ECONNREFUSED`/pool timeouts).
+- Direct TCP check confirmed `127.0.0.1:3307` was not reachable in this
+  environment. No Docker, MySQL or MariaDB executable was available to start the
+  configured database locally.
+
+Seed safety evidence for this correction:
+
+- No seed implementation files were changed.
+- `pnpm test:seed` passed after the correction.
+- No Prisma schema or migration files changed, so no migration/reset was
+  required for this BigInt snapshot correction.
+
+Task boundary confirmation:
+
+- Task 005 was not started.
+- No push, pull request, merge, deployment or redesign work was performed.
 
 Screenshot update:
 

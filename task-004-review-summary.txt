@@ -9,9 +9,20 @@ Reviewed starting SHA:
 Correction implementation commit:
 4d65705128c8fc9fef905e86418c76e225a09001
 
+BigInt snapshot blocker correction commit:
+99ab12685318ff4d2abaf51d7b50552a4fadc002
+
 Report and review-pack refresh:
 This documentation-only follow-up records the correction implementation commit
 and regenerates task-004-final-review-pack.zip.
+
+BigInt snapshot blocker correction:
+- snapshotFromService now explicitly maps offering requirements and converts offering-level requiredValue with safeRequirementNumber(requirement.requiredValue).
+- Offering requirement snapshots preserve id, title, description, type, isRequired, displayOrder, verificationMode, customerGuidance, metricKey, comparisonOperator, recommendedServiceId and seededKey.
+- Revision snapshot serialization now converts raw Prisma bigint values to JSON-safe numbers before JSON.stringify.
+- Historical revision rows were not rewritten.
+- No migration was needed: prisma/schema.prisma and prisma/migrations had no changes for this correction.
+- Task 005 was not started.
 
 Scope completed:
 - Replaced UA/language public rate-limit identity fallback with an opaque random HttpOnly SameSite=Lax cookie named osrs_public_client.
@@ -62,14 +73,20 @@ Screenshot artifact:
 - Visual check: full page/viewport with Kandarin Hard Diary requirements dialog open.
 
 Validation commands and results:
+- BigInt focused regression:
+  - pnpm exec vitest run src/tests/catalogue-staging.test.ts: passed, 1 file, 13 tests.
 - pnpm db:generate: passed.
-- pnpm typecheck: passed.
-- pnpm test: passed, 15 files, 84 tests.
 - pnpm lint: passed.
+- pnpm typecheck: passed.
+- pnpm test: passed, 15 files, 87 tests.
+- pnpm test:seed: passed, 1 file, 2 tests.
+- pnpm format:check: passed.
 - pnpm build with RSN_DEVELOPMENT_FIXTURE=false: passed using next build --webpack.
-- pnpm test:e2e against the built local server: passed, 44 passed, 12 skipped.
-  - Skips include RSN UI browser flows while the preserved rsn_eligibility_enabled feature flag is off by default.
-  - Eligibility route behavior is covered by Vitest tests for feature-flag DB failures, rate-limit DB failures, catalogue lookup DB failures, typed provider failures, safe response bodies and no-store headers.
+- pnpm test:e2e initial attempt: blocked before tests by the intentional production guard because local .env had RSN_DEVELOPMENT_FIXTURE=true.
+- pnpm test:e2e with RSN_DEVELOPMENT_FIXTURE=false: web server started and Playwright enumerated 56 tests; 22 passed, 22 failed and 12 skipped because the configured local MySQL test database at 127.0.0.1:3307 was not reachable (ECONNREFUSED/pool timeouts).
+- Direct TCP check confirmed 127.0.0.1:3307 was not reachable. No Docker, MySQL or MariaDB executable was available to start the configured DB locally.
+- Prisma schema/migration check: git diff --name-only -- prisma/schema.prisma prisma/migrations returned no changed schema or migration files.
+- Seed safety evidence: no seed files changed and pnpm test:seed passed.
 - Focused recommendation graph E2E:
   - tests/e2e/catalogue.spec.ts "republish rejects reciprocal staged recommendation graph cycles": passed.
   - Creates temporary real MySQL services A/B, publishes A->B, rejects B->A during republish and verifies B stage/revision/live edges remain unchanged.
