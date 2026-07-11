@@ -5,6 +5,8 @@
 - Repository: `Faizan279/osrs-services-app`
 - Branch: `codex/task-004-catalogue-engine-eligibility`
 - Starting main commit: `67347c9d84d19b8ee796ef362aa96f05e5b9db65`
+- Final branch head: `355a1e0c29f5ecb4d8cb093b8a30ada44c7eda33`
+  (approved validation head before repository handoff documentation update)
 - Final correction implementation commit:
   `4d65705128c8fc9fef905e86418c76e225a09001`
 - BigInt snapshot blocker correction commit:
@@ -144,6 +146,8 @@ Final validation from this correction run:
 - `pnpm build` with `RSN_DEVELOPMENT_FIXTURE=false` — passed; 9 static pages
   generated and all dynamic routes collected successfully.
 
+- Exact final E2E total: 44 passed / 12 skipped / 0 failed / 56 total.
+
 Environment validation closeout:
 
 - A portable official MySQL Community Server 8.4.10 ZIP runtime was used outside
@@ -169,6 +173,11 @@ Environment validation closeout:
   succeeded, both requirement `requiredValue` columns verified as `bigint`, and
   staged aggregate count was 0.
 
+- MySQL validation summary: fresh MySQL validation passed; existing Task 003/004
+  migration validation passed; all 6 migrations applied; both requirement
+  `requiredValue` columns were verified as BIGINT; repeated seed validation
+  passed; staged aggregates ended at 0.
+
 Seed safety evidence for this correction:
 
 - No seed implementation files were changed.
@@ -179,7 +188,11 @@ Seed safety evidence for this correction:
 Task boundary confirmation:
 
 - Task 005 was not started.
-- No push, pull request, merge, deployment or redesign work was performed.
+- No code change was made after final source review except documentation-only
+  validation-status updates.
+- No push was done before repository handoff approval.
+- No pull request was opened before repository handoff approval.
+- No merge, deployment, redesign or Task 005 work was performed.
 
 Screenshot update:
 
