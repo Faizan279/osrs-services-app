@@ -138,18 +138,36 @@ Final validation from this correction run:
 - `pnpm typecheck` — passed.
 - `pnpm test` — passed, 15 files and 87 tests.
 - `pnpm test:seed` — passed, 1 file and 2 tests.
+- `pnpm test:e2e` with `RSN_DEVELOPMENT_FIXTURE=false` and MySQL 8.4.10 on
+  `127.0.0.1:3307` — passed, 44 passed and 12 skipped.
 - `pnpm format:check` — passed.
 - `pnpm build` with `RSN_DEVELOPMENT_FIXTURE=false` — passed; 9 static pages
   generated and all dynamic routes collected successfully.
-- `pnpm test:e2e` initial attempt — blocked before tests by the intentional
-  production guard because local `.env` had `RSN_DEVELOPMENT_FIXTURE=true`.
-- `pnpm test:e2e` with `RSN_DEVELOPMENT_FIXTURE=false` — web server started and
-  Playwright enumerated 56 tests; 22 passed, 22 failed and 12 skipped because
-  the configured local MySQL test database at `127.0.0.1:3307` was not
-  reachable (`ECONNREFUSED`/pool timeouts).
-- Direct TCP check confirmed `127.0.0.1:3307` was not reachable in this
-  environment. No Docker, MySQL or MariaDB executable was available to start the
-  configured database locally.
+
+Environment validation closeout:
+
+- A portable official MySQL Community Server 8.4.10 ZIP runtime was used outside
+  the repository on `F:\codex-mysql-runtime`.
+- The ZIP archive MD5 matched Oracle's published checksum:
+  `150f12262df6ac88d43862a0e683eb81`.
+- The disposable MySQL server was initialized with `--initialize-insecure` and
+  bound to `127.0.0.1:3307`.
+- Direct TCP and MySQL client checks confirmed `127.0.0.1:3307` was reachable.
+- Configured database `task004_existing` ran all 6 migrations, seeded
+  successfully, and supported the final Playwright run.
+- Final post-validation migration check reported no pending migrations.
+- Final repeated seed validation ran twice successfully.
+- Final post-validation data shape: 6 services, 8 offerings, 8 offering
+  requirements, 6 service requirements and 0 staged aggregates.
+- Fresh MySQL database `task004_fresh_validation`: all 6 migrations applied,
+  seed completed, both requirement `requiredValue` columns verified as
+  `bigint`, and staged aggregate count was 0.
+- Existing Task 003-shaped database `task004_existing_validation`: first four
+  Task 001/003 migrations were applied and tracked, Prisma then applied only
+  `20260706150000_task004_catalogue_engine_eligibility` and
+  `20260707170000_task004_security_integrity_corrections`; two seed reruns
+  succeeded, both requirement `requiredValue` columns verified as `bigint`, and
+  staged aggregate count was 0.
 
 Seed safety evidence for this correction:
 

@@ -80,11 +80,15 @@ Validation commands and results:
 - pnpm typecheck: passed.
 - pnpm test: passed, 15 files, 87 tests.
 - pnpm test:seed: passed, 1 file, 2 tests.
+- pnpm test:e2e with RSN_DEVELOPMENT_FIXTURE=false and MySQL 8.4.10 on 127.0.0.1:3307: passed, 44 passed, 12 skipped.
 - pnpm format:check: passed.
 - pnpm build with RSN_DEVELOPMENT_FIXTURE=false: passed using next build --webpack.
-- pnpm test:e2e initial attempt: blocked before tests by the intentional production guard because local .env had RSN_DEVELOPMENT_FIXTURE=true.
-- pnpm test:e2e with RSN_DEVELOPMENT_FIXTURE=false: web server started and Playwright enumerated 56 tests; 22 passed, 22 failed and 12 skipped because the configured local MySQL test database at 127.0.0.1:3307 was not reachable (ECONNREFUSED/pool timeouts).
-- Direct TCP check confirmed 127.0.0.1:3307 was not reachable. No Docker, MySQL or MariaDB executable was available to start the configured DB locally.
+- Portable official MySQL Community Server 8.4.10 ZIP was used outside the repository on F:\codex-mysql-runtime.
+- MySQL ZIP MD5 matched Oracle's published checksum: 150f12262df6ac88d43862a0e683eb81.
+- Direct TCP and MySQL client checks confirmed 127.0.0.1:3307 was reachable.
+- Fresh MySQL task004_fresh_validation: all 6 migrations applied, seed completed, requiredValue columns verified as bigint, staged aggregates=0.
+- Existing Task 003-shaped task004_existing_validation: first four Task 001/003 migrations applied and tracked, Prisma applied only the two Task 004 migrations, two seed reruns succeeded, requiredValue columns verified as bigint, staged aggregates=0.
+- Configured task004_existing after final E2E: no pending migrations, two seed reruns succeeded, services=6, offerings=8, offering requirements=8, service requirements=6, staged aggregates=0.
 - Prisma schema/migration check: git diff --name-only -- prisma/schema.prisma prisma/migrations returned no changed schema or migration files.
 - Seed safety evidence: no seed files changed and pnpm test:seed passed.
 - Focused recommendation graph E2E:
