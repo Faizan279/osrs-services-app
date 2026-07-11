@@ -2,11 +2,22 @@ import { z } from "zod";
 
 import {
   catalogueAvailabilityStates,
+  catalogueComparisonOperators,
   catalogueEngineTypes,
   catalogueGameModes,
   catalogueRequirementTypes,
   requirementVerificationModes,
 } from "@/lib/catalogue/constants";
+import { MAX_SAFE_REQUIREMENT_VALUE } from "@/lib/catalogue/numeric";
+import { isAllowedMetricKey } from "@/lib/eligibility/metrics";
+
+const reservedOfferingSlugs = new Set([
+  "new",
+  "edit",
+  "admin",
+  "api",
+  "requirements",
+]);
 
 export function normalizeSlug(value: string) {
   return value
@@ -37,6 +48,16 @@ const optionalTrimmedString = (maximum: number) =>
     .max(maximum)
     .optional()
     .transform((value) => value || undefined);
+
+function coerceSafeRequirementValue(value: unknown) {
+  if (value === "" || value == null) return undefined;
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return /^\d+$/.test(trimmed) ? Number(trimmed) : Number.NaN;
+  }
+  return value;
+}
 
 const optionalDate = z
   .string()
@@ -121,15 +142,174 @@ export const serviceInputSchema = z
     }
   });
 
-export const requirementInputSchema = z.object({
-  serviceId: z.string().trim().min(1).max(30),
+const requirementFields = {
   title: z.string().trim().min(2).max(191),
   description: z.string().trim().min(10).max(10_000),
   type: z.enum(catalogueRequirementTypes),
   isRequired: z.boolean(),
   displayOrder: z.coerce.number().int().min(0).max(100_000),
   verificationMode: z.enum(requirementVerificationModes),
+  customerGuidance: optionalTrimmedString(10_000),
+  metricKey: optionalTrimmedString(120),
+  comparisonOperator: z.preprocess(
+    (value) => (value === "" || value == null ? undefined : value),
+    z.enum(catalogueComparisonOperators).optional(),
+  ),
+  requiredValue: z.preprocess(
+    coerceSafeRequirementValue,
+    z.coerce.number().int().min(0).max(MAX_SAFE_REQUIREMENT_VALUE).optional(),
+  ),
+  recommendedServiceId: optionalTrimmedString(30),
+};
+
+function refineRequirementRule(
+  value: z.infer<z.ZodObject<typeof requirementFields>>,
+  context: z.RefinementCtx,
+) {
+  const automatic = value.verificationMode === "AUTOMATIC";
+  if (automatic && !isAllowedMetricKey(value.metricKey)) {
+    context.addIssue({
+      code: "custom",
+      path: ["metricKey"],
+      message: "Choose a supported public statistic.",
+    });
+  }
+  if (automatic && !value.comparisonOperator) {
+    context.addIssue({
+      code: "custom",
+      path: ["comparisonOperator"],
+      message: "Choose a comparison.",
+    });
+  }
+  if (automatic && value.requiredValue == null) {
+    context.addIssue({
+      code: "custom",
+      path: ["requiredValue"],
+      message: "Enter a required value.",
+    });
+  }
+  if (
+    !automatic &&
+    (value.metricKey || value.comparisonOperator || value.requiredValue != null)
+  ) {
+    context.addIssue({
+      code: "custom",
+      path: ["verificationMode"],
+      message: "Only automatic requirements can use public-stat rules.",
+    });
+  }
+}
+
+export const requirementInputSchema = z
+  .object({
+    serviceId: z.string().trim().min(1).max(30),
+    ...requirementFields,
+  })
+  .superRefine(refineRequirementRule);
+
+export const offeringFacetInputSchema = z.object({
+  facetKey: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(2)
+    .max(80)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  facetValue: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(1)
+    .max(120)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  label: z.string().trim().min(1).max(160),
+  displayOrder: z.coerce.number().int().min(0).max(100_000),
 });
+
+export const offeringInputSchema = z
+  .object({
+    serviceId: z.string().trim().min(1).max(30),
+    slug: z
+      .string()
+      .trim()
+      .transform(normalizeSlug)
+      .pipe(
+        z
+          .string()
+          .min(2)
+          .refine(
+            (value) => !reservedOfferingSlugs.has(value),
+            "This slug is reserved.",
+          ),
+      ),
+    name: z.string().trim().min(2).max(191),
+    shortSummary: z.string().trim().min(10).max(500),
+    description: optionalTrimmedString(20_000),
+    displayOrder: z.coerce.number().int().min(0).max(100_000),
+    isActive: z.boolean(),
+    isFeatured: z.boolean(),
+    needsClientReview: z.boolean(),
+    groupLabel: optionalTrimmedString(120),
+    tierLabel: optionalTrimmedString(120),
+    quantityEnabled: z.boolean(),
+    quantityUnit: optionalTrimmedString(80),
+    minimumQuantity: z.preprocess(
+      (value) => (value === "" || value == null ? undefined : value),
+      z.coerce.number().int().min(0).max(1_000_000).optional(),
+    ),
+    maximumQuantity: z.preprocess(
+      (value) => (value === "" || value == null ? undefined : value),
+      z.coerce.number().int().min(0).max(1_000_000).optional(),
+    ),
+    gameModes: z.array(z.enum(catalogueGameModes)),
+    facets: z.array(offeringFacetInputSchema),
+  })
+  .superRefine((value, context) => {
+    if (value.quantityEnabled && !value.quantityUnit) {
+      context.addIssue({
+        code: "custom",
+        path: ["quantityUnit"],
+        message: "Enter a quantity unit.",
+      });
+    }
+    if (
+      value.quantityEnabled &&
+      value.minimumQuantity != null &&
+      value.maximumQuantity != null &&
+      value.maximumQuantity < value.minimumQuantity
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["maximumQuantity"],
+        message: "Maximum quantity cannot be lower than minimum quantity.",
+      });
+    }
+    const pairs = value.facets.map(
+      (facet) => `${facet.facetKey}:${facet.facetValue}`,
+    );
+    if (new Set(pairs).size !== pairs.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["facets"],
+        message: "Facet key and value pairs must be unique.",
+      });
+    }
+    if (new Set(value.gameModes).size !== value.gameModes.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["gameModes"],
+        message: "Game modes must be unique.",
+      });
+    }
+  });
+
+export const offeringRequirementInputSchema = z
+  .object({
+    offeringId: z.string().trim().min(1).max(30),
+    serviceId: z.string().trim().min(1).max(30),
+    ...requirementFields,
+  })
+  .superRefine(refineRequirementRule);
 
 const optionalParentId = z.preprocess(
   (value) => (value === "" || value === null ? undefined : value),

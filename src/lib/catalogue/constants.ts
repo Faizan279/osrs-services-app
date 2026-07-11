@@ -43,6 +43,25 @@ export const requirementVerificationModes = [
   "SUPPORT_VERIFIED",
 ] as const;
 
+export const catalogueComparisonOperators = [
+  "GREATER_THAN_OR_EQUAL",
+  "GREATER_THAN",
+  "EQUAL",
+  "LESS_THAN_OR_EQUAL",
+  "LESS_THAN",
+] as const;
+
+export const comparisonOperatorLabels: Record<
+  (typeof catalogueComparisonOperators)[number],
+  string
+> = {
+  GREATER_THAN_OR_EQUAL: "Greater than or equal",
+  GREATER_THAN: "Greater than",
+  EQUAL: "Equal",
+  LESS_THAN_OR_EQUAL: "Less than or equal",
+  LESS_THAN: "Less than",
+};
+
 export const gameModeLabels: Record<
   (typeof catalogueGameModes)[number],
   string

@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
@@ -22,6 +22,7 @@
     "screenshots:task001": "tsx scripts/capture-task-001.ts",
     "screenshots:task002": "tsx scripts/capture-task-002.ts",
     "screenshots:task003": "tsx scripts/capture-task-003.ts",
+    "screenshots:task004": "tsx scripts/capture-task-004.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "prisma db seed",

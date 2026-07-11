@@ -5,7 +5,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import { catalogueActionErrorMessage } from "@/lib/catalogue/action-errors";
 import { CatalogueConflictError } from "@/lib/catalogue/errors";
+import { revisionSnapshot } from "@/lib/catalogue/mutations";
 import { publicServiceSelect } from "@/lib/catalogue/public-select";
+import { editableSnapshot } from "@/lib/catalogue/staging-repository";
 import {
   addStagedMedia,
   addStagedRequirement,
@@ -18,6 +20,8 @@ import {
 } from "@/lib/catalogue/staging";
 
 const now = new Date("2026-07-03T12:00:00.000Z");
+const bigintRequirementValue = 2147483648n;
+const bigintRequirementNumber = 2147483648;
 const liveService = {
   id: "service-1",
   categoryId: "category-1",
@@ -72,6 +76,78 @@ const liveService = {
     },
   ],
 };
+
+function liveServiceWithBigintOfferingRequirement() {
+  return {
+    ...liveService,
+    stage: null,
+    requirements: [
+      {
+        id: "requirement-1",
+        title: "Total XP requirement",
+        description: "The service requires a large public total XP value.",
+        type: "SKILL" as const,
+        isRequired: true,
+        displayOrder: 10,
+        verificationMode: "AUTOMATIC" as const,
+        customerGuidance: "Set your public profile visibility before ordering.",
+        metricKey: "total.xp",
+        comparisonOperator: "GREATER_THAN_OR_EQUAL" as const,
+        requiredValue: bigintRequirementValue,
+        recommendedServiceId: null,
+        seededKey: null,
+      },
+    ],
+    offerings: [
+      {
+        id: "offering-1",
+        seededKey: "offering-seeded-key",
+        slug: "expert",
+        name: "Expert",
+        shortSummary: "Expert offering summary.",
+        description: null,
+        displayOrder: 10,
+        isActive: true,
+        isFeatured: false,
+        needsClientReview: true,
+        groupLabel: null,
+        tierLabel: "Expert",
+        quantityEnabled: false,
+        quantityUnit: null,
+        minimumQuantity: null,
+        maximumQuantity: null,
+        gameModes: [{ gameMode: "NORMAL" as const }],
+        facets: [
+          {
+            id: "facet-1",
+            facetKey: "tier",
+            facetValue: "expert",
+            label: "Expert",
+            displayOrder: 10,
+          },
+        ],
+        requirements: [
+          {
+            id: "offering-requirement-1",
+            title: "Offering total XP",
+            description: "The offering requires a large public total XP value.",
+            type: "SKILL" as const,
+            isRequired: true,
+            displayOrder: 10,
+            verificationMode: "AUTOMATIC" as const,
+            customerGuidance:
+              "Set your public profile visibility before ordering.",
+            metricKey: "total.xp",
+            comparisonOperator: "GREATER_THAN_OR_EQUAL" as const,
+            requiredValue: bigintRequirementValue,
+            recommendedServiceId: null,
+            seededKey: "offering-requirement-seeded-key",
+          },
+        ],
+      },
+    ],
+  };
+}
 
 describe("catalogue publication staging", () => {
   it("keeps the live aggregate unchanged while public edits are staged", () => {
@@ -130,6 +206,64 @@ describe("catalogue publication staging", () => {
         altText: "Pending primary artwork",
       }),
     );
+  });
+
+  it("normalizes live service and offering BigInt requirements into JSON-safe snapshots", () => {
+    const aggregate = snapshotFromService(
+      liveServiceWithBigintOfferingRequirement(),
+    );
+    const serviceRequirement = aggregate.requirements[0];
+    const offeringRequirement = aggregate.offerings[0]?.requirements[0];
+
+    expect(serviceRequirement?.requiredValue).toBe(bigintRequirementNumber);
+    expect(offeringRequirement).toEqual(
+      expect.objectContaining({
+        id: "offering-requirement-1",
+        title: "Offering total XP",
+        description: "The offering requires a large public total XP value.",
+        type: "SKILL",
+        isRequired: true,
+        displayOrder: 10,
+        verificationMode: "AUTOMATIC",
+        customerGuidance: "Set your public profile visibility before ordering.",
+        metricKey: "total.xp",
+        comparisonOperator: "GREATER_THAN_OR_EQUAL",
+        requiredValue: bigintRequirementNumber,
+        recommendedServiceId: null,
+        seededKey: "offering-requirement-seeded-key",
+      }),
+    );
+    expect(typeof offeringRequirement?.requiredValue).toBe("number");
+    expect(() => JSON.stringify(aggregate)).not.toThrow();
+  });
+
+  it("builds editable snapshots for published offering BigInt requirements", () => {
+    const aggregate = editableSnapshot(
+      liveServiceWithBigintOfferingRequirement() as never,
+    );
+
+    expect(aggregate.offerings[0]?.requirements[0]?.requiredValue).toBe(
+      bigintRequirementNumber,
+    );
+    expect(() => JSON.stringify(aggregate)).not.toThrow();
+  });
+
+  it("serializes revision snapshots without raw offering requirement BigInts", () => {
+    const published = liveServiceWithBigintOfferingRequirement();
+    const snapshot = revisionSnapshot(published) as unknown as {
+      requirements: Array<{ requiredValue: number | null }>;
+      offerings: Array<{
+        requirements: Array<{ requiredValue: number | null }>;
+      }>;
+    };
+
+    expect(snapshot.requirements[0]?.requiredValue).toBe(
+      bigintRequirementNumber,
+    );
+    expect(snapshot.offerings[0]?.requirements[0]?.requiredValue).toBe(
+      bigintRequirementNumber,
+    );
+    expect(() => JSON.stringify(snapshot)).not.toThrow();
   });
 
   it("derives publication semantics from immutable history", () => {
@@ -245,5 +379,70 @@ describe("catalogue publication staging", () => {
     if (!result.success) {
       expect(result.error.issues[0]?.message).toMatch(/only one primary/i);
     }
+  });
+
+  it("rejects malformed staged requirement and offering aggregate data", () => {
+    const aggregate = snapshotFromService(liveService);
+    const requirement = aggregate.requirements[0];
+    if (!requirement) throw new Error("Expected seeded requirement data.");
+    expect(
+      stagedCatalogueAggregateSchema.safeParse({
+        ...aggregate,
+        requirements: [
+          {
+            ...requirement,
+            verificationMode: "AUTOMATIC",
+            metricKey: "profile.secret",
+            comparisonOperator: "GREATER_THAN_OR_EQUAL",
+            requiredValue: 70,
+          },
+        ],
+      }).success,
+    ).toBe(false);
+
+    const offering = {
+      id: "offering-1",
+      seededKey: null,
+      slug: "starter",
+      name: "Starter",
+      shortSummary: "Starter offering summary.",
+      description: null,
+      displayOrder: 10,
+      isActive: true,
+      isFeatured: false,
+      needsClientReview: true,
+      groupLabel: null,
+      tierLabel: null,
+      quantityEnabled: false,
+      quantityUnit: null,
+      minimumQuantity: 1,
+      maximumQuantity: null,
+      gameModes: ["NORMAL"],
+      facets: [
+        {
+          id: "facet-1",
+          facetKey: "Tier",
+          facetValue: "starter",
+          label: "Starter",
+          displayOrder: 10,
+        },
+      ],
+      requirements: [
+        {
+          ...requirement,
+          id: "offering-requirement-1",
+          verificationMode: "CUSTOMER_CONFIRMED",
+          metricKey: "skill.attack.level",
+          comparisonOperator: "GREATER_THAN_OR_EQUAL",
+          requiredValue: 70,
+        },
+      ],
+    };
+    expect(
+      stagedCatalogueAggregateSchema.safeParse({
+        ...aggregate,
+        offerings: [offering],
+      }).success,
+    ).toBe(false);
   });
 });

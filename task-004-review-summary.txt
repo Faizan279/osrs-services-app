@@ -1,0 +1,102 @@
+Task 004 final correction review summary
+
+Branch:
+codex/task-004-catalogue-engine-eligibility
+
+Reviewed starting SHA:
+617e9566b476eef637ac18edad310be3babaf1b1
+
+Correction implementation commit:
+4d65705128c8fc9fef905e86418c76e225a09001
+
+BigInt snapshot blocker correction commit:
+99ab12685318ff4d2abaf51d7b50552a4fadc002
+
+Report and review-pack refresh:
+This documentation-only follow-up records the correction implementation commit
+and regenerates task-004-final-review-pack.zip.
+
+BigInt snapshot blocker correction:
+- snapshotFromService now explicitly maps offering requirements and converts offering-level requiredValue with safeRequirementNumber(requirement.requiredValue).
+- Offering requirement snapshots preserve id, title, description, type, isRequired, displayOrder, verificationMode, customerGuidance, metricKey, comparisonOperator, recommendedServiceId and seededKey.
+- Revision snapshot serialization now converts raw Prisma bigint values to JSON-safe numbers before JSON.stringify.
+- Historical revision rows were not rewritten.
+- No migration was needed: prisma/schema.prisma and prisma/migrations had no changes for this correction.
+- Task 005 was not started.
+
+Scope completed:
+- Replaced UA/language public rate-limit identity fallback with an opaque random HttpOnly SameSite=Lax cookie named osrs_public_client.
+- Kept only HMAC-derived identity keys in PublicRateLimitBucket; raw cookie tokens and raw IP addresses are not stored.
+- Added opt-in x-real-ip participation only when RSN_TRUST_PROXY_IP_HEADER=true and the value passes node:net isIP validation.
+- Extended RSN eligibility route error handling across feature flag lookup, rate limiting, catalogue lookup, provider lookup and evaluation. Unexpected failures return a no-store sanitized UNAVAILABLE response and log only the error name.
+- Added production startup validation that rejects RSN_DEVELOPMENT_FIXTURE=true and kept a defensive provider-side production guard.
+- Enforced offering/service ownership before draft offering requirement add/delete mutations can claim a version, write requirements or create audit rows. Published services validate against the editable aggregate snapshot.
+- Added publish/republish-time recommendation graph validation using a Serializable Prisma transaction and deterministic CatalogueService row locking. The validator excludes the current service's old live edges, checks all candidate staged aggregate edges, rejects missing targets and direct/transitive cycles, then applies the aggregate only after validation.
+- Suppressed public recommendation links unless the target service is currently publicly reachable: PUBLISHED, active category, publishAt passed/null and unpublishAt future/null.
+- Migrated CatalogueRequirement.requiredValue and CatalogueOfferingRequirement.requiredValue from Int to BigInt while keeping API/JSON/client values bounded to Number.MAX_SAFE_INTEGER.
+- Hardened requirement value parsing for digit-only safe integer form inputs; negative, decimal and unsafe values are rejected before Prisma writes.
+- Hardened staged aggregate validation for service and offering requirement rules, normalized slugs/facets, disabled quantity limits and malformed recommendation IDs.
+- Fixed unsupported public game-mode filters so invalid/unsupported mode queries return zero offerings instead of inheriting mode-less offerings.
+- Validated offering game modes against the staged parent service modes for published services.
+- Kept the approved visual design intact. Only screenshot capture behavior changed so the requirement-dialog artifact captures the full 1440x1000 page/viewport with the dialog open.
+- Moved createHealthPayload out of the /health route module so Next 16 route export validation passes.
+- Made the build script explicit with next build --webpack to avoid the known Windows/pnpm/Turbopack symlink resolver failure in this workspace.
+
+Migrations:
+- Existing Task 004 migration retained:
+  - prisma/migrations/20260706150000_task004_catalogue_engine_eligibility/migration.sql
+- New additive correction migration:
+  - prisma/migrations/20260707170000_task004_security_integrity_corrections/migration.sql
+  - Alters CatalogueRequirement.requiredValue to BIGINT NULL.
+  - Alters CatalogueOfferingRequirement.requiredValue to BIGINT NULL.
+  - No DROP/TRUNCATE/DELETE/reset operations.
+
+Database validation:
+- Existing DB task004_existing:
+  - prisma migrate deploy applied 20260707170000_task004_security_integrity_corrections without reset.
+  - INFORMATION_SCHEMA confirmed both requiredValue columns are bigint.
+  - Existing requirement rows remained present: CatalogueRequirement=6, CatalogueOfferingRequirement=8.
+  - Repeated prisma db seed twice successfully against the existing DB.
+  - Stage count after seed check: 0 in this validation DB.
+  - Feature flag preservation check: catalogue_card_engine_enabled=1, rsn_eligibility_enabled=0.
+  - Admin preservation check: task004-validator@example.test remained ACTIVE.
+- Fresh DB task004_fresh_validation:
+  - Created with local MySQL root and granted to the app user.
+  - Full prisma migrate deploy applied all 6 migrations successfully.
+  - prisma db seed completed successfully.
+  - INFORMATION_SCHEMA confirmed both requiredValue columns are bigint.
+  - Fresh seed service count: 6.
+
+Screenshot artifact:
+- Regenerated artifacts/task-004/public-requirement-dialog-1440.png.
+- Verified dimensions: 1440 x 1000.
+- Visual check: full page/viewport with Kandarin Hard Diary requirements dialog open.
+
+Validation commands and results:
+- BigInt focused regression:
+  - pnpm exec vitest run src/tests/catalogue-staging.test.ts: passed, 1 file, 13 tests.
+- pnpm db:generate: passed.
+- pnpm lint: passed.
+- pnpm typecheck: passed.
+- pnpm test: passed, 15 files, 87 tests.
+- pnpm test:seed: passed, 1 file, 2 tests.
+- pnpm test:e2e with RSN_DEVELOPMENT_FIXTURE=false and MySQL 8.4.10 on 127.0.0.1:3307: passed, 44 passed, 12 skipped.
+- pnpm format:check: passed.
+- pnpm build with RSN_DEVELOPMENT_FIXTURE=false: passed using next build --webpack.
+- Portable official MySQL Community Server 8.4.10 ZIP was used outside the repository on F:\codex-mysql-runtime.
+- MySQL ZIP MD5 matched Oracle's published checksum: 150f12262df6ac88d43862a0e683eb81.
+- Direct TCP and MySQL client checks confirmed 127.0.0.1:3307 was reachable.
+- Fresh MySQL task004_fresh_validation: all 6 migrations applied, seed completed, requiredValue columns verified as bigint, staged aggregates=0.
+- Existing Task 003-shaped task004_existing_validation: first four Task 001/003 migrations applied and tracked, Prisma applied only the two Task 004 migrations, two seed reruns succeeded, requiredValue columns verified as bigint, staged aggregates=0.
+- Configured task004_existing after final E2E: no pending migrations, two seed reruns succeeded, services=6, offerings=8, offering requirements=8, service requirements=6, staged aggregates=0.
+- Prisma schema/migration check: git diff --name-only -- prisma/schema.prisma prisma/migrations returned no changed schema or migration files.
+- Seed safety evidence: no seed files changed and pnpm test:seed passed.
+- Focused recommendation graph E2E:
+  - tests/e2e/catalogue.spec.ts "republish rejects reciprocal staged recommendation graph cycles": passed.
+  - Creates temporary real MySQL services A/B, publishes A->B, rejects B->A during republish and verifies B stage/revision/live edges remain unchanged.
+
+Notes:
+- The first Vitest attempt was blocked by C: being at 0 bytes free. Removed disposable workspace/cache artifacts and reran successfully.
+- The initial default next build path exposed the existing Windows/pnpm/Turbopack symlink resolver problem. The project build script now uses the official webpack builder flag and passes.
+- RSN_DEVELOPMENT_FIXTURE=true was intentionally proven to fail production build/page-data collection; the successful production build was run with RSN_DEVELOPMENT_FIXTURE=false.
+- No push, PR, merge, deployment or Task 005 work was performed.

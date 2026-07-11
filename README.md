@@ -48,6 +48,12 @@ The additive migration is `20260701180000_task003_catalogue_foundation`. It crea
 
 Catalogue seeds add missing taxonomy and four development-safe quote-only services. Existing seeded categories, public copy, requirements, publication states, availability and display order are not overwritten on rerun. Managed media upload/storage, pricing, service engines, cart and checkout remain deferred.
 
+## Task 004 catalogue cards and eligibility
+
+`CATALOGUE_CARD` pages now render normalized offerings with server-backed search, URL-shareable facets and game-mode filters, stable pagination, inherited modes, bounded quantity metadata, and accessible requirement dialogs. Admin offering changes use Task 003 staging, revisions, audits, permissions, and version conflicts.
+
+The optional `/api/catalogue/eligibility` POST flow never puts an RSN in a public URL or requests a password. A server-only official Hiscores provider is protected by timeout, size, and parser limits; short database cache windows and an HMAC-keyed database rate limiter protect the lookup. `rsn_eligibility_enabled` defaults off and `catalogue_card_engine_enabled` defaults on; seed reruns preserve both.
+
 ### Requirements
 
 - Node.js 24 LTS
@@ -97,11 +103,12 @@ pnpm test:e2e
 pnpm screenshots:task001
 pnpm screenshots:task002
 pnpm screenshots:task003
+pnpm screenshots:task004
 pnpm format:check
 pnpm build
 ```
 
-Task 002 and Task 003 screenshot capture expect the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
+Task 002 through Task 004 screenshot capture expects the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
 
 ### Database commands
 

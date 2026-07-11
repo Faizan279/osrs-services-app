@@ -35,7 +35,7 @@ export type SeedClient = {
   featureFlag: {
     upsert(args: {
       where: { key: string };
-      create: { key: string; description: string; enabled: false };
+      create: { key: string; description: string; enabled: boolean };
       update: { description: string };
     }): Promise<unknown>;
   };
@@ -109,15 +109,17 @@ export const defaultRoles: Array<{
 ];
 
 export const defaultFeatureFlags = [
-  ["payments.paypal", "PayPal provider activation"],
-  ["payments.apple_pay", "Apple Pay provider activation"],
-  ["payments.google_pay", "Google Pay provider activation"],
-  ["payments.cards", "Credit and debit card provider activation"],
-  ["payments.payoneer", "Payoneer provider activation"],
-  ["payments.crypto", "Cryptocurrency provider activation"],
-  ["payments.osrs_gp", "OSRS GP payment activation"],
-  ["delivery.priority", "Priority delivery option"],
-  ["delivery.express", "Express delivery option"],
+  ["payments.paypal", "PayPal provider activation", false],
+  ["payments.apple_pay", "Apple Pay provider activation", false],
+  ["payments.google_pay", "Google Pay provider activation", false],
+  ["payments.cards", "Credit and debit card provider activation", false],
+  ["payments.payoneer", "Payoneer provider activation", false],
+  ["payments.crypto", "Cryptocurrency provider activation", false],
+  ["payments.osrs_gp", "OSRS GP payment activation", false],
+  ["delivery.priority", "Priority delivery option", false],
+  ["delivery.express", "Express delivery option", false],
+  ["catalogue_card_engine_enabled", "Reusable catalogue card engine", true],
+  ["rsn_eligibility_enabled", "Public RSN eligibility checks", false],
 ] as const;
 
 export async function seedDatabase(
@@ -160,10 +162,10 @@ export async function seedDatabase(
     });
   }
 
-  for (const [key, description] of defaultFeatureFlags) {
+  for (const [key, description, enabled] of defaultFeatureFlags) {
     await prisma.featureFlag.upsert({
       where: { key },
-      create: { key, description, enabled: false },
+      create: { key, description, enabled },
       update: { description },
     });
   }

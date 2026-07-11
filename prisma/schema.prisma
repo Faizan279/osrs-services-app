@@ -66,6 +66,14 @@ enum RequirementVerificationMode {
   SUPPORT_VERIFIED
 }
 
+enum CatalogueComparisonOperator {
+  GREATER_THAN_OR_EQUAL
+  GREATER_THAN
+  EQUAL
+  LESS_THAN_OR_EQUAL
+  LESS_THAN
+}
+
 enum CatalogueRevisionEvent {
   PUBLISHED
   REPUBLISHED
@@ -198,43 +206,46 @@ model CatalogueCategory {
 }
 
 model CatalogueService {
-  id                     String                     @id @default(cuid()) @db.VarChar(30)
-  categoryId             String                     @db.VarChar(30)
-  name                   String                     @db.VarChar(160)
-  slug                   String                     @db.VarChar(180)
-  canonicalSlug          String                     @unique @db.VarChar(191)
-  shortSummary           String                     @db.VarChar(500)
-  content                String                     @db.Text
-  serviceType            CatalogueServiceType       @default(SERVICE)
-  engineType             CatalogueEngineType
-  publicationStatus      CataloguePublicationStatus @default(DRAFT)
-  availabilityState      CatalogueAvailabilityState @default(AVAILABLE)
-  isFeatured             Boolean                    @default(false)
-  isQuoteOnly            Boolean                    @default(true)
-  displayOrder           Int                        @default(0)
-  internalNotes          String?                    @db.Text
-  publicPreparationNotes String?                    @db.Text
-  primaryMediaPath       String?                    @db.VarChar(500)
-  seoTitle               String?                    @db.VarChar(191)
-  seoDescription         String?                    @db.VarChar(500)
-  publishAt              DateTime?
-  unpublishAt            DateTime?
-  createdById            String?                    @db.VarChar(30)
-  updatedById            String?                    @db.VarChar(30)
-  version                Int                        @default(1)
-  legacySource           Json?
-  seededKey              String?                    @unique @db.VarChar(100)
-  needsClientReview      Boolean                    @default(true)
-  createdAt              DateTime                   @default(now())
-  updatedAt              DateTime                   @updatedAt
-  category               CatalogueCategory          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  createdBy              User?                      @relation("CatalogueServiceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy              User?                      @relation("CatalogueServiceUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-  gameModes              CatalogueServiceGameMode[]
-  requirements           CatalogueRequirement[]
-  mediaReferences        CatalogueMediaReference[]
-  revisions              CatalogueRevision[]
-  stage                  CatalogueServiceStage?
+  id                                String                         @id @default(cuid()) @db.VarChar(30)
+  categoryId                        String                         @db.VarChar(30)
+  name                              String                         @db.VarChar(160)
+  slug                              String                         @db.VarChar(180)
+  canonicalSlug                     String                         @unique @db.VarChar(191)
+  shortSummary                      String                         @db.VarChar(500)
+  content                           String                         @db.Text
+  serviceType                       CatalogueServiceType           @default(SERVICE)
+  engineType                        CatalogueEngineType
+  publicationStatus                 CataloguePublicationStatus     @default(DRAFT)
+  availabilityState                 CatalogueAvailabilityState     @default(AVAILABLE)
+  isFeatured                        Boolean                        @default(false)
+  isQuoteOnly                       Boolean                        @default(true)
+  displayOrder                      Int                            @default(0)
+  internalNotes                     String?                        @db.Text
+  publicPreparationNotes            String?                        @db.Text
+  primaryMediaPath                  String?                        @db.VarChar(500)
+  seoTitle                          String?                        @db.VarChar(191)
+  seoDescription                    String?                        @db.VarChar(500)
+  publishAt                         DateTime?
+  unpublishAt                       DateTime?
+  createdById                       String?                        @db.VarChar(30)
+  updatedById                       String?                        @db.VarChar(30)
+  version                           Int                            @default(1)
+  legacySource                      Json?
+  seededKey                         String?                        @unique @db.VarChar(100)
+  needsClientReview                 Boolean                        @default(true)
+  createdAt                         DateTime                       @default(now())
+  updatedAt                         DateTime                       @updatedAt
+  category                          CatalogueCategory              @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdBy                         User?                          @relation("CatalogueServiceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy                         User?                          @relation("CatalogueServiceUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  gameModes                         CatalogueServiceGameMode[]
+  requirements                      CatalogueRequirement[]
+  mediaReferences                   CatalogueMediaReference[]
+  revisions                         CatalogueRevision[]
+  stage                             CatalogueServiceStage?
+  offerings                         CatalogueOffering[]
+  recommendedByServiceRequirements  CatalogueRequirement[]         @relation("CatalogueRequirementRecommendation")
+  recommendedByOfferingRequirements CatalogueOfferingRequirement[] @relation("CatalogueOfferingRequirementRecommendation")
 
   @@unique([categoryId, slug])
   @@index([publicationStatus, publishAt, unpublishAt])
@@ -269,20 +280,134 @@ model CatalogueServiceGameMode {
 }
 
 model CatalogueRequirement {
-  id               String                      @id @default(cuid()) @db.VarChar(30)
-  serviceId        String                      @db.VarChar(30)
-  title            String                      @db.VarChar(191)
-  description      String                      @db.Text
-  type             CatalogueRequirementType
-  isRequired       Boolean                     @default(true)
-  displayOrder     Int                         @default(0)
-  verificationMode RequirementVerificationMode
-  seededKey        String?                     @unique @db.VarChar(120)
-  createdAt        DateTime                    @default(now())
-  updatedAt        DateTime                    @updatedAt
-  service          CatalogueService            @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  id                   String                       @id @default(cuid()) @db.VarChar(30)
+  serviceId            String                       @db.VarChar(30)
+  title                String                       @db.VarChar(191)
+  description          String                       @db.Text
+  type                 CatalogueRequirementType
+  isRequired           Boolean                      @default(true)
+  displayOrder         Int                          @default(0)
+  verificationMode     RequirementVerificationMode
+  customerGuidance     String?                      @db.Text
+  metricKey            String?                      @db.VarChar(120)
+  comparisonOperator   CatalogueComparisonOperator?
+  requiredValue        BigInt?
+  recommendedServiceId String?                      @db.VarChar(30)
+  seededKey            String?                      @unique @db.VarChar(120)
+  createdAt            DateTime                     @default(now())
+  updatedAt            DateTime                     @updatedAt
+  service              CatalogueService             @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  recommendedService   CatalogueService?            @relation("CatalogueRequirementRecommendation", fields: [recommendedServiceId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([serviceId, displayOrder])
+  @@index([recommendedServiceId])
+}
+
+model CatalogueOffering {
+  id                String                         @id @default(cuid()) @db.VarChar(30)
+  serviceId         String                         @db.VarChar(30)
+  seededKey         String?                        @unique @db.VarChar(140)
+  slug              String                         @db.VarChar(180)
+  name              String                         @db.VarChar(191)
+  shortSummary      String                         @db.VarChar(500)
+  description       String?                        @db.Text
+  displayOrder      Int                            @default(0)
+  isActive          Boolean                        @default(true)
+  isFeatured        Boolean                        @default(false)
+  needsClientReview Boolean                        @default(true)
+  groupLabel        String?                        @db.VarChar(120)
+  tierLabel         String?                        @db.VarChar(120)
+  quantityEnabled   Boolean                        @default(false)
+  quantityUnit      String?                        @db.VarChar(80)
+  minimumQuantity   Int?
+  maximumQuantity   Int?
+  createdAt         DateTime                       @default(now())
+  updatedAt         DateTime                       @updatedAt
+  service           CatalogueService               @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  facets            CatalogueOfferingFacet[]
+  gameModes         CatalogueOfferingGameMode[]
+  requirements      CatalogueOfferingRequirement[]
+
+  @@unique([serviceId, slug])
+  @@index([serviceId, isActive, displayOrder])
+  @@index([serviceId, isFeatured])
+  @@index([name])
+}
+
+model CatalogueOfferingFacet {
+  id           String            @id @default(cuid()) @db.VarChar(30)
+  offeringId   String            @db.VarChar(30)
+  facetKey     String            @db.VarChar(80)
+  facetValue   String            @db.VarChar(120)
+  label        String            @db.VarChar(160)
+  displayOrder Int               @default(0)
+  offering     CatalogueOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+
+  @@unique([offeringId, facetKey, facetValue])
+  @@index([facetKey, facetValue])
+  @@index([offeringId, displayOrder])
+}
+
+model CatalogueOfferingGameMode {
+  offeringId String            @db.VarChar(30)
+  gameMode   CatalogueGameMode
+  offering   CatalogueOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+
+  @@id([offeringId, gameMode])
+  @@index([gameMode])
+}
+
+model CatalogueOfferingRequirement {
+  id                   String                       @id @default(cuid()) @db.VarChar(30)
+  offeringId           String                       @db.VarChar(30)
+  title                String                       @db.VarChar(191)
+  description          String                       @db.Text
+  type                 CatalogueRequirementType
+  isRequired           Boolean                      @default(true)
+  displayOrder         Int                          @default(0)
+  verificationMode     RequirementVerificationMode
+  customerGuidance     String?                      @db.Text
+  metricKey            String?                      @db.VarChar(120)
+  comparisonOperator   CatalogueComparisonOperator?
+  requiredValue        BigInt?
+  recommendedServiceId String?                      @db.VarChar(30)
+  seededKey            String?                      @unique @db.VarChar(160)
+  createdAt            DateTime                     @default(now())
+  updatedAt            DateTime                     @updatedAt
+  offering             CatalogueOffering            @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  recommendedService   CatalogueService?            @relation("CatalogueOfferingRequirementRecommendation", fields: [recommendedServiceId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([offeringId, displayOrder])
+  @@index([recommendedServiceId])
+}
+
+model RsnLookupCache {
+  id        String   @id @default(cuid()) @db.VarChar(30)
+  lookupKey String   @db.Char(64)
+  provider  String   @db.VarChar(80)
+  status    String   @db.VarChar(32)
+  payload   Json?
+  fetchedAt DateTime
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([lookupKey, provider])
+  @@index([expiresAt])
+}
+
+model PublicRateLimitBucket {
+  id          String   @id @default(cuid()) @db.VarChar(30)
+  identityKey String   @db.Char(64)
+  actionKey   String   @db.VarChar(80)
+  windowStart DateTime
+  expiresAt   DateTime
+  count       Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([identityKey, actionKey, windowStart])
+  @@index([expiresAt])
 }
 
 model CatalogueMediaReference {

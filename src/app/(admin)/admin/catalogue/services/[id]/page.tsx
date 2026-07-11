@@ -14,10 +14,17 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { requireCapability } from "@/lib/auth/guards";
 import {
   catalogueRequirementTypes,
+  catalogueComparisonOperators,
+  comparisonOperatorLabels,
   formatEnumLabel,
   requirementVerificationModes,
 } from "@/lib/catalogue/constants";
-import { getAdminCategories, getAdminService } from "@/lib/catalogue/queries";
+import {
+  getAdminCategories,
+  getAdminService,
+  getPrerequisiteServiceOptions,
+} from "@/lib/catalogue/queries";
+import { metricRegistry } from "@/lib/eligibility/metrics";
 import {
   addMediaAction,
   addRequirementAction,
@@ -42,10 +49,11 @@ export default async function EditServicePage({
 }) {
   const { id } = await params;
   await requireCapability("products.view", `/admin/catalogue/services/${id}`);
-  const [service, categories, notice] = await Promise.all([
+  const [service, categories, notice, prerequisiteOptions] = await Promise.all([
     getAdminService(id),
     getAdminCategories(),
     searchParams,
+    getPrerequisiteServiceOptions(id),
   ]);
   if (!service) notFound();
   return (
@@ -75,6 +83,13 @@ export default async function EditServicePage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {service.engineType === "CATALOGUE_CARD" && (
+            <Button asChild variant="secondary">
+              <Link href={`/admin/catalogue/services/${id}/offerings`}>
+                Manage offerings
+              </Link>
+            </Button>
+          )}
           <Button asChild variant="secondary">
             <Link href={`/admin/catalogue/services/${id}/preview`}>
               Preview
@@ -287,7 +302,11 @@ export default async function EditServicePage({
                 </label>
                 <label className={labelClass}>
                   Verification
-                  <select className={fieldClass} name="verificationMode">
+                  <select
+                    className={fieldClass}
+                    name="verificationMode"
+                    defaultValue="SUPPORT_VERIFIED"
+                  >
                     {requirementVerificationModes.map((value) => (
                       <option key={value} value={value}>
                         {formatEnumLabel(value)}
@@ -304,6 +323,52 @@ export default async function EditServicePage({
                     defaultValue="0"
                     min="0"
                   />
+                </label>
+                <label className={labelClass}>
+                  Automatic metric
+                  <select className={fieldClass} name="metricKey">
+                    <option value="">Not automatic</option>
+                    {[...metricRegistry].map(([key, label]) => (
+                      <option key={key} value={key}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className={labelClass}>
+                  Comparison
+                  <select className={fieldClass} name="comparisonOperator">
+                    <option value="">Not automatic</option>
+                    {catalogueComparisonOperators.map((value) => (
+                      <option key={value} value={value}>
+                        {comparisonOperatorLabels[value]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className={labelClass}>
+                  Required value
+                  <input
+                    className={fieldClass}
+                    type="number"
+                    min="0"
+                    name="requiredValue"
+                  />
+                </label>
+                <label className={labelClass}>
+                  Recommended prerequisite
+                  <select className={fieldClass} name="recommendedServiceId">
+                    <option value="">No recommendation</option>
+                    {prerequisiteOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className={`${labelClass} lg:col-span-2`}>
+                  Customer guidance
+                  <textarea className={fieldClass} name="customerGuidance" />
                 </label>
                 <label className="text-text-secondary flex items-center gap-2 text-sm font-semibold">
                   <input type="checkbox" name="isRequired" defaultChecked />

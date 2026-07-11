@@ -14,15 +14,23 @@ import {
   createService,
   deleteMediaReference,
   deleteRequirement,
+  deleteOffering,
+  deleteOfferingRequirement,
   discardServiceStage,
   duplicateService,
+  duplicateOffering,
   publishService,
   updateCategory,
   updateService,
+  saveOffering,
+  addOfferingRequirement,
 } from "@/lib/catalogue/mutations";
 import {
   categoryInputSchema,
   mediaReferenceInputSchema,
+  offeringFacetInputSchema,
+  offeringInputSchema,
+  offeringRequirementInputSchema,
   requirementInputSchema,
   serviceInputSchema,
 } from "@/lib/catalogue/validation";
@@ -91,6 +99,59 @@ function serviceInput(formData: FormData) {
     needsClientReview: checked(formData, "needsClientReview"),
     version: formData.get("expectedVersion"),
   });
+}
+
+function offeringInput(formData: FormData, serviceId: string) {
+  const facets = String(formData.get("facets") ?? "")
+    .split(/\r?\n/)
+    .map((row) => row.trim())
+    .filter(Boolean)
+    .map((row, index) => {
+      const [facetKey, facetValue, label] = row
+        .split("|")
+        .map((value) => value?.trim());
+      return offeringFacetInputSchema.parse({
+        facetKey,
+        facetValue,
+        label,
+        displayOrder: (index + 1) * 10,
+      });
+    });
+  return offeringInputSchema.parse({
+    serviceId,
+    slug: formData.get("slug"),
+    name: formData.get("name"),
+    shortSummary: formData.get("shortSummary"),
+    description: formData.get("description"),
+    displayOrder: formData.get("displayOrder"),
+    isActive: checked(formData, "isActive"),
+    isFeatured: checked(formData, "isFeatured"),
+    needsClientReview: checked(formData, "needsClientReview"),
+    groupLabel: formData.get("groupLabel"),
+    tierLabel: formData.get("tierLabel"),
+    quantityEnabled: checked(formData, "quantityEnabled"),
+    quantityUnit: formData.get("quantityUnit"),
+    minimumQuantity: formData.get("minimumQuantity"),
+    maximumQuantity: formData.get("maximumQuantity"),
+    gameModes: values(formData, "gameModes"),
+    facets,
+  });
+}
+
+function eligibilityRuleFields(formData: FormData) {
+  return {
+    title: formData.get("title"),
+    description: formData.get("description"),
+    type: formData.get("type"),
+    isRequired: checked(formData, "isRequired"),
+    displayOrder: formData.get("displayOrder"),
+    verificationMode: formData.get("verificationMode"),
+    customerGuidance: formData.get("customerGuidance"),
+    metricKey: formData.get("metricKey"),
+    comparisonOperator: formData.get("comparisonOperator"),
+    requiredValue: formData.get("requiredValue"),
+    recommendedServiceId: formData.get("recommendedServiceId"),
+  };
 }
 
 function destination(path: string, state: "saved" | "error", message?: string) {
@@ -281,12 +342,7 @@ export async function addRequirementAction(formData: FormData) {
   try {
     const input = requirementInputSchema.parse({
       serviceId,
-      title: formData.get("title"),
-      description: formData.get("description"),
-      type: formData.get("type"),
-      isRequired: checked(formData, "isRequired"),
-      displayOrder: formData.get("displayOrder"),
-      verificationMode: formData.get("verificationMode"),
+      ...eligibilityRuleFields(formData),
     });
     const result = await addRequirement(
       input,
@@ -449,6 +505,181 @@ export async function discardServiceStageAction(formData: FormData) {
       `/admin/catalogue/services/${id}`,
       "saved",
       "Pending changes discarded.",
+    ),
+  );
+}
+
+export async function saveOfferingAction(formData: FormData) {
+  const serviceId = idValue(formData, "serviceId");
+  const rawOfferingId = String(formData.get("offeringId") ?? "");
+  const offeringId = rawOfferingId
+    ? catalogueIdSchema.parse(rawOfferingId)
+    : undefined;
+  const session = await requireCapability(
+    "products.edit",
+    `/admin/catalogue/services/${serviceId}/offerings`,
+  );
+  let result: Awaited<ReturnType<typeof saveOffering>>;
+  try {
+    result = await saveOffering(
+      offeringInput(formData, serviceId),
+      session.user.id,
+      expectedVersionValue(formData),
+      offeringId,
+    );
+  } catch (error) {
+    redirect(
+      destination(
+        offeringId
+          ? `/admin/catalogue/services/${serviceId}/offerings/${offeringId}`
+          : `/admin/catalogue/services/${serviceId}/offerings/new`,
+        "error",
+        catalogueActionErrorMessage(error, "save-offering"),
+      ),
+    );
+  }
+  revalidatePath(`/admin/catalogue/services/${serviceId}`);
+  redirect(
+    destination(
+      `/admin/catalogue/services/${serviceId}/offerings/${result.id}`,
+      "saved",
+      result.staged
+        ? "Offering changes staged for republish."
+        : "Offering saved to the private draft.",
+    ),
+  );
+}
+
+export async function deleteOfferingAction(formData: FormData) {
+  const serviceId = idValue(formData, "serviceId");
+  const offeringId = idValue(formData, "offeringId");
+  const session = await requireCapability(
+    "products.edit",
+    `/admin/catalogue/services/${serviceId}/offerings`,
+  );
+  try {
+    await deleteOffering(
+      serviceId,
+      offeringId,
+      session.user.id,
+      expectedVersionValue(formData),
+    );
+  } catch (error) {
+    redirect(
+      destination(
+        `/admin/catalogue/services/${serviceId}/offerings`,
+        "error",
+        catalogueActionErrorMessage(error, "delete-offering"),
+      ),
+    );
+  }
+  redirect(
+    destination(
+      `/admin/catalogue/services/${serviceId}/offerings`,
+      "saved",
+      "Offering removal saved.",
+    ),
+  );
+}
+
+export async function duplicateOfferingAction(formData: FormData) {
+  const serviceId = idValue(formData, "serviceId");
+  const offeringId = idValue(formData, "offeringId");
+  const session = await requireCapability(
+    "products.edit",
+    `/admin/catalogue/services/${serviceId}/offerings`,
+  );
+  let result: Awaited<ReturnType<typeof duplicateOffering>>;
+  try {
+    result = await duplicateOffering(
+      serviceId,
+      offeringId,
+      session.user.id,
+      expectedVersionValue(formData),
+    );
+  } catch (error) {
+    redirect(
+      destination(
+        `/admin/catalogue/services/${serviceId}/offerings`,
+        "error",
+        catalogueActionErrorMessage(error, "duplicate-offering"),
+      ),
+    );
+  }
+  redirect(
+    destination(
+      `/admin/catalogue/services/${serviceId}/offerings/${result.id}`,
+      "saved",
+      "Offering copy created as inactive.",
+    ),
+  );
+}
+
+export async function addOfferingRequirementAction(formData: FormData) {
+  const serviceId = idValue(formData, "serviceId");
+  const offeringId = idValue(formData, "offeringId");
+  const session = await requireCapability(
+    "products.edit",
+    `/admin/catalogue/services/${serviceId}/offerings/${offeringId}`,
+  );
+  try {
+    const input = offeringRequirementInputSchema.parse({
+      serviceId,
+      offeringId,
+      ...eligibilityRuleFields(formData),
+    });
+    await addOfferingRequirement(
+      input,
+      session.user.id,
+      expectedVersionValue(formData),
+    );
+  } catch (error) {
+    redirect(
+      destination(
+        `/admin/catalogue/services/${serviceId}/offerings/${offeringId}`,
+        "error",
+        catalogueActionErrorMessage(error, "add-offering-requirement"),
+      ),
+    );
+  }
+  redirect(
+    destination(
+      `/admin/catalogue/services/${serviceId}/offerings/${offeringId}`,
+      "saved",
+      "Eligibility rule saved.",
+    ),
+  );
+}
+
+export async function deleteOfferingRequirementAction(formData: FormData) {
+  const serviceId = idValue(formData, "serviceId");
+  const offeringId = idValue(formData, "offeringId");
+  const session = await requireCapability(
+    "products.edit",
+    `/admin/catalogue/services/${serviceId}/offerings/${offeringId}`,
+  );
+  try {
+    await deleteOfferingRequirement(
+      serviceId,
+      offeringId,
+      idValue(formData, "requirementId"),
+      session.user.id,
+      expectedVersionValue(formData),
+    );
+  } catch (error) {
+    redirect(
+      destination(
+        `/admin/catalogue/services/${serviceId}/offerings/${offeringId}`,
+        "error",
+        catalogueActionErrorMessage(error, "delete-offering-requirement"),
+      ),
+    );
+  }
+  redirect(
+    destination(
+      `/admin/catalogue/services/${serviceId}/offerings/${offeringId}`,
+      "saved",
+      "Eligibility rule removed.",
     ),
   );
 }

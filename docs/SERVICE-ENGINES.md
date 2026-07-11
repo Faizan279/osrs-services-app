@@ -4,7 +4,9 @@ The application must use reusable engines instead of hardcoding every page separ
 
 ## Catalogue Card Engine
 
-Used for Quests, Diaries, Combat Achievements, Minigames, Gathering, Miscellaneous, and selected boss listings. Supports search, filters, account modes, requirements, pricing, quantity where relevant, and cart actions.
+Used for Quests, Diaries, Combat Achievements, Minigames, Gathering, Miscellaneous, and selected boss listings. Task 004 implements normalized offerings, server-backed partial search, facets derived from active published offerings, game-mode filtering, stable pagination, requirement dialogs, eligibility, and bounded quantity metadata. An offering with no game-mode rows inherits every parent mode; explicit offering modes may only narrow the parent set.
+
+Pricing, cart actions, checkout, inventory and capacity reservation remain deferred. Public cards use request/review calls to action only.
 
 ## Skilling Calculator Engine
 

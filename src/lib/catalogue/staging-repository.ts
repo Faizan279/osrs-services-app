@@ -21,6 +21,18 @@ export const stagedAggregateInclude = {
   mediaReferences: {
     orderBy: [{ isPrimary: "desc" as const }, { displayOrder: "asc" as const }],
   },
+  offerings: {
+    orderBy: [{ displayOrder: "asc" as const }, { name: "asc" as const }],
+    include: {
+      gameModes: { orderBy: { gameMode: "asc" as const } },
+      facets: {
+        orderBy: [{ displayOrder: "asc" as const }, { label: "asc" as const }],
+      },
+      requirements: {
+        orderBy: [{ displayOrder: "asc" as const }, { title: "asc" as const }],
+      },
+    },
+  },
 } satisfies Prisma.CatalogueServiceInclude;
 
 export async function loadServiceAggregate(

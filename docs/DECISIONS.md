@@ -57,3 +57,14 @@
 - Media management accepts only internal paths and HTTP(S) references with alt text. Production upload/storage remains deferred.
 - Seeded catalogue records use stable seed keys and empty update clauses so reruns add missing defaults without overwriting edited content or operational state.
 - Category/service mutation inputs are explicitly allow-listed and Zod-validated. Optimistic service versions reject stale editor submissions.
+
+## Task 004 catalogue-card and eligibility decisions — 2026-07-06
+
+- Offerings are normalized children of `CatalogueService`; publication remains inherited from the parent.
+- Task 003 stage snapshots upgrade from schema version 1 to version 2 on read. Existing stages/revisions remain readable; new revisions include offerings and eligibility rules.
+- Published offering edits remain in the versioned service stage. Republish replaces the aggregate transactionally while retaining staged stable IDs.
+- Empty offering game-mode rows mean inheritance; explicit rows may only narrow parent modes.
+- Automatic eligibility accepts only allow-listed metrics and typed comparisons. Unknown or missing metrics require support review.
+- Official OSRS Hiscores is the deployed provider. Deterministic fixture mode is an explicit local/test switch that also supports local production-build E2E; it must remain disabled in deployments.
+- Cache and limiter keys are HMAC-derived. No RuneScape password, raw IP, provider URL, raw response, or lookup history is stored.
+- Catalogue cards remain quote/review only. Pricing, cart, checkout and Task 005 remain outside scope.

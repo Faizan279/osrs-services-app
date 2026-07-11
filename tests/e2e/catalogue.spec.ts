@@ -70,6 +70,196 @@ async function signInToCatalogue(page: import("@playwright/test").Page) {
   ).toBeVisible();
 }
 
+const graphCycleSeedKeys = [
+  "e2e-task004-graph-a",
+  "e2e-task004-graph-b",
+] as const;
+
+async function cleanupRecommendationGraphCycleFixture() {
+  const services = await databaseRows<{ id: string }>(
+    `SELECT id FROM CatalogueService WHERE seededKey IN (?, ?)`,
+    [...graphCycleSeedKeys],
+  );
+  const ids = services.map(({ id }) => id);
+  if (!ids.length) return;
+  const placeholders = ids.map(() => "?").join(", ");
+  await databaseRows(
+    `DELETE FROM CatalogueRequirement WHERE serviceId IN (${placeholders})`,
+    ids,
+  );
+  await databaseRows(
+    `DELETE FROM CatalogueServiceStage WHERE serviceId IN (${placeholders})`,
+    ids,
+  );
+  await databaseRows(
+    `DELETE FROM CatalogueRevision WHERE serviceId IN (${placeholders})`,
+    ids,
+  );
+  await databaseRows(
+    `DELETE FROM CatalogueServiceGameMode WHERE serviceId IN (${placeholders})`,
+    ids,
+  );
+  await databaseRows(
+    `DELETE FROM AuditLog WHERE targetId IN (${placeholders})`,
+    ids,
+  );
+  await databaseRows(
+    `DELETE FROM CatalogueService WHERE id IN (${placeholders})`,
+    ids,
+  );
+}
+
+function recommendationGraphSnapshot({
+  categoryId,
+  idPrefix,
+  name,
+  recommendedServiceId,
+  shortSummary,
+  slug,
+}: {
+  categoryId: string;
+  idPrefix: string;
+  name: string;
+  recommendedServiceId: string;
+  shortSummary: string;
+  slug: string;
+}) {
+  return {
+    schemaVersion: 2,
+    service: {
+      categoryId,
+      name,
+      slug,
+      canonicalSlug: slug,
+      shortSummary,
+      content:
+        "Temporary catalogue content used only for the recommendation graph publication guard.",
+      serviceType: "SERVICE",
+      engineType: "CATALOGUE_CARD",
+      availabilityState: "AVAILABLE",
+      isFeatured: false,
+      isQuoteOnly: true,
+      displayOrder: 999,
+      internalNotes: null,
+      publicPreparationNotes: null,
+      seoTitle: null,
+      seoDescription: null,
+      publishAt: null,
+      unpublishAt: null,
+      needsClientReview: true,
+    },
+    gameModes: ["NORMAL"],
+    requirements: [
+      {
+        id: `${idPrefix}req`,
+        title: "Linked prerequisite",
+        description:
+          "Temporary prerequisite used to verify recommendation graph cycle protection.",
+        type: "ACCOUNT",
+        isRequired: true,
+        displayOrder: 10,
+        verificationMode: "CUSTOMER_CONFIRMED",
+        customerGuidance: null,
+        metricKey: null,
+        comparisonOperator: null,
+        requiredValue: null,
+        recommendedServiceId,
+        seededKey: null,
+      },
+    ],
+    mediaReferences: [],
+    offerings: [],
+  };
+}
+
+async function createRecommendationGraphCycleFixture() {
+  await cleanupRecommendationGraphCycleFixture();
+  const category = requiredRow(
+    await databaseRows<{ id: string }>(
+      "SELECT id FROM CatalogueCategory WHERE isActive = 1 ORDER BY displayOrder, name LIMIT 1",
+    ),
+  );
+  const services = [
+    {
+      id: "e2egrapha",
+      seededKey: graphCycleSeedKeys[0],
+      name: "E2E graph service A",
+      slug: "e2e-graph-service-a",
+      shortSummary:
+        "Temporary published graph service A before reciprocal staging.",
+    },
+    {
+      id: "e2egraphb",
+      seededKey: graphCycleSeedKeys[1],
+      name: "E2E graph service B",
+      slug: "e2e-graph-service-b",
+      shortSummary:
+        "Temporary published graph service B before reciprocal staging.",
+    },
+  ];
+  for (const service of services) {
+    await databaseRows(
+      `INSERT INTO CatalogueService
+        (id, categoryId, name, slug, canonicalSlug, shortSummary, content,
+         serviceType, engineType, publicationStatus, availabilityState,
+         isFeatured, isQuoteOnly, displayOrder, seededKey, needsClientReview,
+         version, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'SERVICE', 'CATALOGUE_CARD', 'PUBLISHED',
+        'AVAILABLE', 0, 1, 999, ?, 1, 1, NOW(), NOW())`,
+      [
+        service.id,
+        category.id,
+        service.name,
+        service.slug,
+        service.slug,
+        service.shortSummary,
+        "Temporary catalogue content used only for recommendation graph cycle E2E validation.",
+        service.seededKey,
+      ],
+    );
+    await databaseRows(
+      "INSERT INTO CatalogueServiceGameMode (serviceId, gameMode) VALUES (?, 'NORMAL')",
+      [service.id],
+    );
+  }
+  const serviceA = services[0]!;
+  const serviceB = services[1]!;
+  await databaseRows(
+    `INSERT INTO CatalogueServiceStage
+      (id, serviceId, snapshot, baseVersion, version, createdAt, updatedAt)
+     VALUES (?, ?, ?, 1, 1, NOW(), NOW()), (?, ?, ?, 1, 1, NOW(), NOW())`,
+    [
+      "e2egraphstagea",
+      serviceA.id,
+      JSON.stringify(
+        recommendationGraphSnapshot({
+          categoryId: category.id,
+          idPrefix: "e2egrapha",
+          name: serviceA.name,
+          slug: serviceA.slug,
+          shortSummary:
+            "Temporary pending graph service A with service B as a prerequisite.",
+          recommendedServiceId: serviceB.id,
+        }),
+      ),
+      "e2egraphstageb",
+      serviceB.id,
+      JSON.stringify(
+        recommendationGraphSnapshot({
+          categoryId: category.id,
+          idPrefix: "e2egraphb",
+          name: serviceB.name,
+          slug: serviceB.slug,
+          shortSummary:
+            "Temporary pending graph service B with service A as a prerequisite.",
+          recommendedServiceId: serviceA.id,
+        }),
+      ),
+    ],
+  );
+  return { serviceA, serviceB };
+}
+
 test("public catalogue supports search and category filtering", async ({
   page,
 }) => {
@@ -83,7 +273,7 @@ test("public catalogue supports search and category filtering", async ({
   await expect(
     page.getByRole("heading", { name: "Skill training request" }),
   ).toBeVisible();
-  await expect(page.getByText("Quote only", { exact: true })).toHaveCount(4);
+  await expect(page.getByText("Quote only", { exact: true })).toHaveCount(6);
   await expect(page.getByText("Published", { exact: true })).toHaveCount(0);
   await page.getByLabel("Search catalogue").fill("quest");
   await page.getByRole("button", { name: "Search" }).click();
@@ -169,7 +359,7 @@ test("seeded Super Admin can open the catalogue editor", async ({ page }) => {
   await page.goto("/admin/catalogue/services");
   await page.getByLabel("Availability").selectOption("AVAILABLE");
   await page.getByRole("button", { name: "Apply filters" }).click();
-  await expect(page.getByText("4 matching services")).toBeVisible();
+  await expect(page.getByText("6 matching services")).toBeVisible();
   await page.getByLabel("Availability").selectOption("UNAVAILABLE");
   await page.getByRole("button", { name: "Apply filters" }).click();
   await expect(page.getByText("0 matching services")).toBeVisible();
@@ -236,7 +426,13 @@ test("published edits, children and media stay staged until atomic republish", a
   await expect(page.getByText("Ultimate Ironman", { exact: true })).toHaveCount(
     0,
   );
-  await page.getByRole("link", { name: "Back to editor" }).click();
+  await expect(
+    page.getByRole("link", { name: "Back to editor" }),
+  ).toHaveAttribute("href", `/admin/catalogue/services/${service.id}`);
+  await page.goto(`/admin/catalogue/services/${service.id}`);
+  await expect(page).toHaveURL(
+    new RegExp(`/admin/catalogue/services/${service.id}$`),
+  );
 
   const requirementForm = page.locator("form").filter({
     has: page.getByRole("button", { name: "Add requirement" }),
@@ -305,7 +501,16 @@ test("published edits, children and media stay staged until atomic republish", a
   await expect(
     page.getByText("Pending primary workflow artwork", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Back to editor" }).click();
+  await expect(
+    page.getByRole("link", { name: "Back to editor" }),
+  ).toHaveAttribute("href", `/admin/catalogue/services/${service.id}`);
+  await page.goto(`/admin/catalogue/services/${service.id}`);
+  await expect(page).toHaveURL(
+    new RegExp(`/admin/catalogue/services/${service.id}$`),
+  );
+  await expect(
+    page.getByRole("button", { name: "Republish pending changes" }),
+  ).toBeVisible({ timeout: 30_000 });
   page.once("dialog", (dialog) => dialog.accept());
   await page
     .getByRole("button", { name: "Republish pending changes" })
@@ -872,4 +1077,71 @@ test("failed republish preserves public content and discard restores the editor"
     ),
   );
   expect(stageCount).toBe(0);
+});
+
+test("republish rejects reciprocal staged recommendation graph cycles", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(120_000);
+  test.skip(
+    testInfo.project.name !== "desktop-chromium",
+    "Run the database mutation once.",
+  );
+  test.skip(
+    !process.env.ADMIN_SEED_EMAIL || !process.env.ADMIN_SEED_PASSWORD,
+    "Seed credentials are required.",
+  );
+  const { serviceA, serviceB } = await createRecommendationGraphCycleFixture();
+  try {
+    await signInToCatalogue(page);
+    await page.goto(`/admin/catalogue/services/${serviceA.id}`);
+    await expect(
+      page.getByRole("heading", { name: "Pending unpublished changes" }),
+    ).toBeVisible();
+    page.once("dialog", (dialog) => dialog.accept());
+    await page
+      .getByRole("button", { name: "Republish pending changes" })
+      .click({ noWaitAfter: true });
+    await expect
+      .poll(async () => (await stageState(serviceA.id)).count)
+      .toBe(0);
+    const liveEdge = requiredRow(
+      await databaseRows<{ edgeCount: number }>(
+        `SELECT COUNT(*) AS edgeCount
+         FROM CatalogueRequirement
+         WHERE serviceId = ? AND recommendedServiceId = ?`,
+        [serviceA.id, serviceB.id],
+      ),
+    );
+    expect(liveEdge.edgeCount).toBe(1);
+
+    await page.goto(`/admin/catalogue/services/${serviceB.id}`);
+    page.once("dialog", (dialog) => dialog.accept());
+    await page
+      .getByRole("button", { name: "Republish pending changes" })
+      .click({ noWaitAfter: true });
+    await expect(page.getByText(/circular chain/i)).toBeVisible({
+      timeout: 30_000,
+    });
+    const blockedState = requiredRow(
+      await databaseRows<{
+        stageCount: number;
+        revisionCount: number;
+        liveEdges: number;
+      }>(
+        `SELECT
+          (SELECT COUNT(*) FROM CatalogueServiceStage WHERE serviceId = ?) AS stageCount,
+          (SELECT COUNT(*) FROM CatalogueRevision WHERE serviceId = ?) AS revisionCount,
+          (SELECT COUNT(*) FROM CatalogueRequirement WHERE serviceId = ? AND recommendedServiceId = ?) AS liveEdges`,
+        [serviceB.id, serviceB.id, serviceB.id, serviceA.id],
+      ),
+    );
+    expect(blockedState).toEqual({
+      stageCount: 1,
+      revisionCount: 0,
+      liveEdges: 0,
+    });
+  } finally {
+    await cleanupRecommendationGraphCycleFixture();
+  }
 });
