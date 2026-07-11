@@ -25,3 +25,17 @@ The domain and email may remain at Hostinger even if the application later moves
 Configure the server-only timeout, positive/negative cache TTLs, rate-limit window/count, proxy trust, and dedicated HMAC secret from `.env.example`. Never use `NEXT_PUBLIC_*` for secrets. Leave fixture mode and proxy-header trust disabled unless their documented assumptions are explicitly satisfied.
 
 Run `prisma migrate deploy` without reset. Migration `20260706150000_task004_catalogue_engine_eligibility` is additive. Rollback is manual: disable eligibility, export new data, remove new foreign keys in dependency order, and only then remove Task 004 columns/tables after review.
+
+## Skilling calculator deployment notes
+
+Task 005 adds migration `20260711190000_task005_skilling_calculator_engine`. It is additive and creates skilling calculator tables plus enum values used by `CatalogueService.engineType = SKILLING_CALCULATOR`.
+
+Before enabling the calculator outside local validation:
+
+- run `pnpm db:migrate` without reset
+- run `pnpm db:seed` and confirm seed reruns preserve edited skilling rules and feature flags
+- confirm the database feature flag `skilling_calculator_enabled` is in the intended state
+- review every seeded skilling method/rule marked `Needs client review`
+- verify public estimates, admin skilling pages and mobile screenshots against staging data
+
+Rollback is manual. First disable `skilling_calculator_enabled`, then export any admin-edited skilling rows and staged aggregates that must be retained. Remove dependent skilling methods, skills and rules before removing the Task 005 tables or enum usage. Do not use `prisma migrate reset` against shared or production data.

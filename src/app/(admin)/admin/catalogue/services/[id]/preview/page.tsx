@@ -174,6 +174,71 @@ export default async function ServicePreviewPage({
           )}
         </section>
       )}
+      {service.engineType === "SKILLING_CALCULATOR" && (
+        <section className="mt-8">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-primary kicker-type">Skilling preview</p>
+              <h2 className="display-type mt-3 text-3xl">
+                Staged calculator configuration
+              </h2>
+            </div>
+            <Badge variant="info">
+              {service.skillingSkills.filter((skill) => skill.enabled).length}{" "}
+              enabled skills
+            </Badge>
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {service.skillingSkills.map((skill) => (
+              <article
+                className="border-border bg-surface-1 rounded-2xl border p-5"
+                key={skill.id}
+              >
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <span
+                    className={skill.enabled ? "text-success" : "text-warning"}
+                  >
+                    {skill.enabled ? "Enabled" : "Disabled"}
+                  </span>
+                  <span className="text-text-muted">
+                    Order {skill.displayOrder}
+                  </span>
+                </div>
+                <h3 className="mt-3 text-lg font-bold">{skill.name}</h3>
+                <p className="text-text-secondary mt-2 text-sm">
+                  {skill.methods.length} method
+                  {skill.methods.length === 1 ? "" : "s"} configured.
+                </p>
+                {skill.methods.length > 0 && (
+                  <ul className="mt-4 space-y-3">
+                    {skill.methods.map((method) => (
+                      <li
+                        className="border-border rounded-xl border p-3 text-sm"
+                        key={method.id}
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-bold">{method.name}</span>
+                          <span
+                            className={
+                              method.enabled ? "text-success" : "text-warning"
+                            }
+                          >
+                            {method.enabled ? "Enabled" : "Disabled"}
+                          </span>
+                        </div>
+                        <p className="text-text-muted mt-2 text-xs">
+                          Levels {method.minimumLevel}-{method.maximumLevel} -{" "}
+                          {method.basePriceCentsPerMillionXp} cents per 1m XP
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
       <section className="border-danger/30 bg-danger/5 mt-8 rounded-2xl border p-5">
         <h2 className="text-danger text-sm font-bold">
           Internal notes — admin only

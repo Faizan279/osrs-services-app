@@ -120,6 +120,7 @@ export const defaultFeatureFlags = [
   ["delivery.express", "Express delivery option", false],
   ["catalogue_card_engine_enabled", "Reusable catalogue card engine", true],
   ["rsn_eligibility_enabled", "Public RSN eligibility checks", false],
+  ["skilling_calculator_enabled", "Public skilling calculator estimates", true],
 ] as const;
 
 export async function seedDatabase(

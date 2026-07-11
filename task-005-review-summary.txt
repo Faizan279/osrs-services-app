@@ -1,0 +1,71 @@
+Task 005 review summary - Skilling Calculator Engine
+
+Branch:
+codex/task-005-skilling-calculator-engine
+
+Starting main commit:
+c7ea5ac1cc1a1e2e26490ccab9705e33e4fc95ec
+
+Local commit:
+Pending until the final local commit is created. The final handoff reports the
+exact branch head SHA.
+
+Migration:
+prisma/migrations/20260711190000_task005_skilling_calculator_engine/migration.sql
+
+Core implementation:
+- Added SkillingSkillKey and SkillingDeliverySpeed enums.
+- Added SkillingSkillConfig, SkillingTrainingMethod and
+  SkillingCalculatorRule models.
+- Added exact OSRS XP table utilities for level 1-99 and XP/level validation.
+- Added server-side estimate calculation for level and XP input modes,
+  account modes, delivery speeds, supplies and Discord Stream.
+- Added POST /api/skilling/estimate as the no-store server-authoritative
+  estimate API.
+- Added the public skilling calculator UI for the Skill training request
+  service behind skilling_calculator_enabled.
+- Added admin skilling management screens and protected mutations.
+- Extended catalogue staging, revisions, discard, republish, duplicate and
+  audit behavior for skilling aggregate data.
+- Added seeded skills, methods and rules while preserving admin edits on rerun.
+
+Important boundaries:
+- Public clients cannot submit prices, formulas or rule IDs.
+- The calculator is an estimate preview only.
+- Cart, checkout, orders, payments, quote creation, global pricing rules and
+  Task 006 remain out of scope.
+
+Validation:
+- pnpm exec prisma format: passed.
+- pnpm db:generate: passed.
+- pnpm lint: passed.
+- pnpm typecheck: passed.
+- pnpm test: passed, 18 files and 97 tests.
+- pnpm test:seed: passed, 1 file and 2 tests.
+- pnpm format:check: passed.
+- pnpm build: passed with Next.js 16.2.9 webpack and 9 static pages.
+- pnpm test:e2e: passed, 51 passed and 13 skipped, 64 total.
+- pnpm screenshots:task005: passed.
+
+MySQL validation:
+- Fresh task005_fresh_validation: 7 migrations, 6 services, 23 skills,
+  4 methods, 1 rule and skilling_calculator_enabled enabled.
+- Existing task005_existing_validation: applied only the Task 005 migration on
+  top of the six Task 004 migrations; repeated seeds preserved admin password,
+  feature flag state and admin-edited skilling method data.
+- Final review state: 7 migrations, feature flag enabled, 0 staged rows,
+  0 temporary capture sessions, Melee training review at 2400 cents per 1m XP.
+
+Screenshot evidence:
+- artifacts/task-005/public-skilling-calculator-1440.png
+- artifacts/task-005/public-skilling-estimate-1440.png
+- artifacts/task-005/public-skilling-validation-1440.png
+- artifacts/task-005/public-skilling-mobile-390.png
+- artifacts/task-005/admin-skilling-overview-1440.png
+- artifacts/task-005/admin-skilling-method-editor-1440.png
+- artifacts/task-005/admin-skilling-preview-1440.png
+- artifacts/task-005/admin-skilling-mobile-390.png
+
+Handoff:
+- Review pack: task-005-review-pack.zip
+- No push, pull request, merge, deployment or Task 006 work was performed.

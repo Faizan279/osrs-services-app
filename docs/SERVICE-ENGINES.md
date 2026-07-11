@@ -10,7 +10,24 @@ Pricing, cart actions, checkout, inventory and capacity reservation remain defer
 
 ## Skilling Calculator Engine
 
-Supports skill, current and target level or XP, account mode, training method, supplies, Discord Stream, and delivery speed.
+Task 005 implements `SKILLING_CALCULATOR` for the published Skill training request service and for future service-specific skilling calculators.
+
+The public engine supports:
+
+- skill selection from enabled service-scoped skills
+- current and target level mode
+- current and target XP mode
+- exact OSRS level 1-99 XP conversion
+- account game mode
+- enabled training methods scoped to the selected skill
+- optional supplies/material support when configured on the method
+- optional Discord Stream add-on when configured on the service rule
+- configured delivery speed choices
+- a server-authoritative estimated total and clear final-price disclaimer
+
+The admin engine supports service-scoped skilling rules, skill enable/order updates, method create/edit, method range/rate fields, client-review markers, staged preview, optimistic concurrency, audit logging and Task 003 publication staging. Published skilling edits stay private until republish; public pages keep using the last published rules. Older staged snapshots without skilling data upgrade safely with `skilling: null`.
+
+This engine does not create carts, checkout sessions, orders, payment records, quote records, global discounts or global price history. Estimate values are preview-only and remain scoped to skilling services.
 
 ## Bossing Engine
 

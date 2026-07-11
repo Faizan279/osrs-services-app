@@ -22,6 +22,7 @@ import {
   safeRequirementNumber,
 } from "@/lib/catalogue/numeric";
 import { isAllowedMetricKey } from "@/lib/eligibility/metrics";
+import { skillingSkillKeys } from "@/lib/skilling/constants";
 
 const nullableString = (maximum: number) => z.string().max(maximum).nullable();
 const identifierPattern = /^[a-z0-9]+$/i;
@@ -129,25 +130,177 @@ export const stagedOfferingSchema = z.object({
   requirements: z.array(stagedOfferingRequirementSchema),
 });
 
+const moneyCentsSchema = z.number().int().min(0).max(100_000_000);
+const basisPointsSchema = z.number().int().min(0).max(100_000);
+const skillingLevelSchema = z.number().int().min(1).max(99);
+
+export const stagedSkillingMethodSchema = z.object({
+  id: z.string().min(1).max(30),
+  seededKey: z.string().max(160).nullable(),
+  slug: z.string().min(2).max(180),
+  name: z.string().min(2).max(160),
+  shortDescription: z.string().min(10).max(500),
+  enabled: z.boolean(),
+  displayOrder: z.number().int().min(0).max(100_000),
+  minimumLevel: skillingLevelSchema,
+  maximumLevel: skillingLevelSchema,
+  xpPerHour: z.number().int().positive().max(10_000_000).nullable(),
+  basePriceCentsPerMillionXp: moneyCentsSchema,
+  minimumPriceCents: moneyCentsSchema,
+  fixedFeeCents: moneyCentsSchema,
+  suppliesEnabled: z.boolean(),
+  suppliesLabel: z.string().max(120).nullable(),
+  suppliesFeeCents: moneyCentsSchema,
+  notes: z.string().max(20_000).nullable(),
+  needsClientReview: z.boolean(),
+});
+
+export const stagedSkillingSkillSchema = z.object({
+  id: z.string().min(1).max(30),
+  seededKey: z.string().max(140).nullable(),
+  skillKey: z.enum(skillingSkillKeys),
+  name: z.string().min(2).max(80),
+  enabled: z.boolean(),
+  displayOrder: z.number().int().min(0).max(100_000),
+  iconKey: z.string().max(80).nullable(),
+  methods: z.array(stagedSkillingMethodSchema),
+});
+
+export const stagedSkillingRuleSchema = z.object({
+  id: z.string().min(1).max(30),
+  normalModeMultiplierBps: basisPointsSchema,
+  ironmanMultiplierBps: basisPointsSchema,
+  hardcoreIronmanMultiplierBps: basisPointsSchema,
+  ultimateIronmanMultiplierBps: basisPointsSchema,
+  discordStreamEnabled: z.boolean(),
+  discordStreamPercentBps: basisPointsSchema,
+  standardDeliveryEnabled: z.boolean(),
+  standardDeliveryLabel: z.string().min(2).max(80),
+  standardDeliveryDescription: z.string().max(240).nullable(),
+  standardDeliveryEstimate: z.string().max(120).nullable(),
+  standardDeliveryMultiplierBps: basisPointsSchema,
+  standardDeliveryFixedFeeCents: moneyCentsSchema,
+  priorityDeliveryEnabled: z.boolean(),
+  priorityDeliveryLabel: z.string().min(2).max(80),
+  priorityDeliveryDescription: z.string().max(240).nullable(),
+  priorityDeliveryEstimate: z.string().max(120).nullable(),
+  priorityDeliveryMultiplierBps: basisPointsSchema,
+  priorityDeliveryFixedFeeCents: moneyCentsSchema,
+  expressDeliveryEnabled: z.boolean(),
+  expressDeliveryLabel: z.string().min(2).max(80),
+  expressDeliveryDescription: z.string().max(240).nullable(),
+  expressDeliveryEstimate: z.string().max(120).nullable(),
+  expressDeliveryMultiplierBps: basisPointsSchema,
+  expressDeliveryFixedFeeCents: moneyCentsSchema,
+  needsClientReview: z.boolean(),
+});
+
+export const stagedSkillingConfigSchema = z
+  .object({
+    rule: stagedSkillingRuleSchema.nullable(),
+    skills: z.array(stagedSkillingSkillSchema),
+  })
+  .superRefine((config, context) => {
+    const skillIds = config.skills.map(({ id }) => id);
+    const skillKeys = config.skills.map(({ skillKey }) => skillKey);
+    if (new Set(skillIds).size !== skillIds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["skills"],
+        message: "Skilling skill identifiers must be unique.",
+      });
+    }
+    if (new Set(skillKeys).size !== skillKeys.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["skills"],
+        message: "Skilling skill keys must be unique.",
+      });
+    }
+    const methodIds = config.skills.flatMap((skill) =>
+      skill.methods.map(({ id }) => id),
+    );
+    if (new Set(methodIds).size !== methodIds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["skills"],
+        message: "Skilling method identifiers must be unique.",
+      });
+    }
+    for (const [skillIndex, skill] of config.skills.entries()) {
+      const methodSlugs = skill.methods.map(({ slug }) => slug);
+      if (new Set(methodSlugs).size !== methodSlugs.length) {
+        context.addIssue({
+          code: "custom",
+          path: ["skills", skillIndex, "methods"],
+          message: "Method slugs must be unique within a skill.",
+        });
+      }
+      for (const [methodIndex, method] of skill.methods.entries()) {
+        if (
+          !normalizedSlugPattern.test(method.slug) ||
+          reservedOfferingSlugs.has(method.slug)
+        ) {
+          context.addIssue({
+            code: "custom",
+            path: ["skills", skillIndex, "methods", methodIndex, "slug"],
+            message: "Method slug is invalid or reserved.",
+          });
+        }
+        if (method.maximumLevel < method.minimumLevel) {
+          context.addIssue({
+            code: "custom",
+            path: [
+              "skills",
+              skillIndex,
+              "methods",
+              methodIndex,
+              "maximumLevel",
+            ],
+            message: "Maximum level cannot be lower than minimum level.",
+          });
+        }
+        if (method.suppliesEnabled && !method.suppliesLabel) {
+          context.addIssue({
+            code: "custom",
+            path: [
+              "skills",
+              skillIndex,
+              "methods",
+              methodIndex,
+              "suppliesLabel",
+            ],
+            message: "Supply-enabled methods need a customer-facing label.",
+          });
+        }
+      }
+    }
+  });
+
 function upgradeLegacyAggregate(value: unknown) {
   if (!value || typeof value !== "object" || !("schemaVersion" in value))
     return value;
   const legacy = value as Record<string, unknown>;
-  if (legacy.schemaVersion !== 1 || !Array.isArray(legacy.requirements))
-    return value;
-  return {
-    ...legacy,
-    schemaVersion: 2,
-    requirements: legacy.requirements.map((requirement) => ({
-      ...(requirement as Record<string, unknown>),
-      customerGuidance: null,
-      metricKey: null,
-      comparisonOperator: null,
-      requiredValue: null,
-      recommendedServiceId: null,
-    })),
-    offerings: [],
-  };
+  if (legacy.schemaVersion === 1 && Array.isArray(legacy.requirements)) {
+    return {
+      ...legacy,
+      schemaVersion: 3,
+      requirements: legacy.requirements.map((requirement) => ({
+        ...(requirement as Record<string, unknown>),
+        customerGuidance: null,
+        metricKey: null,
+        comparisonOperator: null,
+        requiredValue: null,
+        recommendedServiceId: null,
+      })),
+      offerings: [],
+      skilling: null,
+    };
+  }
+  if (legacy.schemaVersion === 2) {
+    return { ...legacy, schemaVersion: 3, skilling: null };
+  }
+  return value;
 }
 
 function validateStagedRequirementRule(
@@ -201,14 +354,15 @@ function validateStagedRequirementRule(
   }
 }
 
-const stagedCatalogueAggregateV2Schema = z
+const stagedCatalogueAggregateV3Schema = z
   .object({
-    schemaVersion: z.literal(2),
+    schemaVersion: z.literal(3),
     service: stagedServiceFieldsSchema,
     gameModes: z.array(z.enum(catalogueGameModes)).min(1),
     requirements: z.array(stagedRequirementSchema),
     mediaReferences: z.array(stagedMediaSchema),
     offerings: z.array(stagedOfferingSchema),
+    skilling: stagedSkillingConfigSchema.nullable(),
   })
   .superRefine((aggregate, context) => {
     if (new Set(aggregate.gameModes).size !== aggregate.gameModes.length) {
@@ -379,7 +533,7 @@ const stagedCatalogueAggregateV2Schema = z
 
 export const stagedCatalogueAggregateSchema = z.preprocess(
   upgradeLegacyAggregate,
-  stagedCatalogueAggregateV2Schema,
+  stagedCatalogueAggregateV3Schema,
 );
 
 export type StagedCatalogueAggregate = z.infer<
@@ -391,6 +545,10 @@ export type StagedOffering = z.infer<typeof stagedOfferingSchema>;
 export type StagedOfferingRequirement = z.infer<
   typeof stagedOfferingRequirementSchema
 >;
+export type StagedSkillingConfig = z.infer<typeof stagedSkillingConfigSchema>;
+export type StagedSkillingSkill = z.infer<typeof stagedSkillingSkillSchema>;
+export type StagedSkillingMethod = z.infer<typeof stagedSkillingMethodSchema>;
+export type StagedSkillingRule = z.infer<typeof stagedSkillingRuleSchema>;
 
 type AggregateSource = CatalogueService & {
   gameModes: { gameMode: CatalogueGameMode }[];
@@ -470,6 +628,36 @@ type AggregateSource = CatalogueService & {
       seededKey: string | null;
     }>;
   }>;
+  skillingSkills?: Array<{
+    id: string;
+    seededKey: string | null;
+    skillKey: (typeof skillingSkillKeys)[number];
+    name: string;
+    enabled: boolean;
+    displayOrder: number;
+    iconKey: string | null;
+    methods: Array<{
+      id: string;
+      seededKey: string | null;
+      slug: string;
+      name: string;
+      shortDescription: string;
+      enabled: boolean;
+      displayOrder: number;
+      minimumLevel: number;
+      maximumLevel: number;
+      xpPerHour: number | null;
+      basePriceCentsPerMillionXp: number;
+      minimumPriceCents: number;
+      fixedFeeCents: number;
+      suppliesEnabled: boolean;
+      suppliesLabel: string | null;
+      suppliesFeeCents: number;
+      notes: string | null;
+      needsClientReview: boolean;
+    }>;
+  }>;
+  skillingRule?: StagedSkillingRule | null;
 };
 
 export type StagedServiceEdit = {
@@ -502,8 +690,12 @@ function dateValue(value: Date | null | undefined) {
 export function snapshotFromService(
   source: AggregateSource,
 ): StagedCatalogueAggregate {
+  const hasSkillingConfig =
+    source.engineType === "SKILLING_CALCULATOR" ||
+    Boolean(source.skillingRule) ||
+    Boolean(source.skillingSkills?.length);
   return stagedCatalogueAggregateSchema.parse({
-    schemaVersion: 2,
+    schemaVersion: 3,
     service: {
       categoryId: source.categoryId,
       name: source.name,
@@ -584,6 +776,40 @@ export function snapshotFromService(
         seededKey: requirement.seededKey,
       })),
     })),
+    skilling: hasSkillingConfig
+      ? {
+          rule: source.skillingRule ?? null,
+          skills: (source.skillingSkills ?? []).map((skill) => ({
+            id: skill.id,
+            seededKey: skill.seededKey,
+            skillKey: skill.skillKey,
+            name: skill.name,
+            enabled: skill.enabled,
+            displayOrder: skill.displayOrder,
+            iconKey: skill.iconKey,
+            methods: skill.methods.map((method) => ({
+              id: method.id,
+              seededKey: method.seededKey,
+              slug: method.slug,
+              name: method.name,
+              shortDescription: method.shortDescription,
+              enabled: method.enabled,
+              displayOrder: method.displayOrder,
+              minimumLevel: method.minimumLevel,
+              maximumLevel: method.maximumLevel,
+              xpPerHour: method.xpPerHour,
+              basePriceCentsPerMillionXp: method.basePriceCentsPerMillionXp,
+              minimumPriceCents: method.minimumPriceCents,
+              fixedFeeCents: method.fixedFeeCents,
+              suppliesEnabled: method.suppliesEnabled,
+              suppliesLabel: method.suppliesLabel,
+              suppliesFeeCents: method.suppliesFeeCents,
+              notes: method.notes,
+              needsClientReview: method.needsClientReview,
+            })),
+          })),
+        }
+      : null,
   });
 }
 
@@ -615,6 +841,10 @@ export function applyServiceEdit(
       needsClientReview: input.needsClientReview,
     },
     gameModes: input.gameModes,
+    skilling:
+      input.engineType === "SKILLING_CALCULATOR"
+        ? (aggregate.skilling ?? { rule: null, skills: [] })
+        : null,
   });
 }
 

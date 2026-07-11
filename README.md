@@ -54,6 +54,14 @@ Catalogue seeds add missing taxonomy and four development-safe quote-only servic
 
 The optional `/api/catalogue/eligibility` POST flow never puts an RSN in a public URL or requests a password. A server-only official Hiscores provider is protected by timeout, size, and parser limits; short database cache windows and an HMAC-keyed database rate limiter protect the lookup. `rsn_eligibility_enabled` defaults off and `catalogue_card_engine_enabled` defaults on; seed reruns preserve both.
 
+## Task 005 skilling calculator
+
+`SKILLING_CALCULATOR` pages now render a public skilling calculator backed by service-scoped skilling skills, methods and calculator rules. The calculator supports level and XP input modes, exact OSRS XP thresholds, account-mode adjustments, optional supplies, optional Discord Stream and configured delivery speed.
+
+Estimates are calculated through `POST /api/skilling/estimate` with no-store responses and server-side catalogue/rule lookup. They are preview-only and show `Estimated total` plus the final-price disclaimer; cart, checkout, orders, payment records and quote creation remain later tasks.
+
+Admin users with `products.view` can view skilling configuration under `/admin/catalogue/services/[id]/skilling`; edits require `products.edit` server-side. Published skilling edits use the Task 003 staged aggregate and remain private until republish. `skilling_calculator_enabled` defaults on in local seed data and seed reruns preserve administrator changes.
+
 ### Requirements
 
 - Node.js 24 LTS
@@ -104,11 +112,12 @@ pnpm screenshots:task001
 pnpm screenshots:task002
 pnpm screenshots:task003
 pnpm screenshots:task004
+pnpm screenshots:task005
 pnpm format:check
 pnpm build
 ```
 
-Task 002 through Task 004 screenshot capture expects the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
+Task 002 through Task 005 screenshot capture expects the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
 
 ### Database commands
 

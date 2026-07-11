@@ -90,6 +90,13 @@ export default async function EditServicePage({
               </Link>
             </Button>
           )}
+          {service.engineType === "SKILLING_CALCULATOR" && (
+            <Button asChild variant="secondary">
+              <Link href={`/admin/catalogue/services/${id}/skilling`}>
+                Manage skilling
+              </Link>
+            </Button>
+          )}
           <Button asChild variant="secondary">
             <Link href={`/admin/catalogue/services/${id}/preview`}>
               Preview
