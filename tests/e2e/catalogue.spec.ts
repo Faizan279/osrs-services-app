@@ -581,9 +581,11 @@ test("published edits, children and media stay staged until atomic republish", a
   );
 
   await page.goto(`/admin/catalogue/services/${service.id}`);
-  await page
-    .locator('textarea[name="shortSummary"]')
-    .fill(service.shortSummary);
+  const summaryField = page.locator('textarea[name="shortSummary"]');
+  await summaryField.fill("");
+  await expect(summaryField).toHaveValue("");
+  await summaryField.fill(service.shortSummary);
+  await expect(summaryField).toHaveValue(service.shortSummary);
   await page
     .locator('input[name="gameModes"][value="ULTIMATE_IRONMAN"]')
     .check();

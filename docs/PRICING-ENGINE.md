@@ -24,7 +24,7 @@ Inputs handled by the skilling preview:
 - optional Discord Stream percentage
 - configured delivery percentage and fixed fee
 
-The public route never trusts client-submitted prices and does not expose internal rule IDs or arbitrary formulas. Seeded skilling rates are representative defaults only and are marked `Needs client review`.
+The public route never trusts client-submitted prices and does not expose internal rule IDs or arbitrary formulas. Seeded skilling rates are representative defaults only and are marked `Needs client review`, so the public `skilling_calculator_enabled` feature flag is seeded off until client approval.
 
 Task 005 intentionally does not add checkout/order price snapshots, global discount stacking, taxes, payment-provider logic or the full pricing administration workflow for every engine.
 

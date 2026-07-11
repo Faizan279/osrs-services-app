@@ -60,7 +60,7 @@ The optional `/api/catalogue/eligibility` POST flow never puts an RSN in a publi
 
 Estimates are calculated through `POST /api/skilling/estimate` with no-store responses and server-side catalogue/rule lookup. They are preview-only and show `Estimated total` plus the final-price disclaimer; cart, checkout, orders, payment records and quote creation remain later tasks.
 
-Admin users with `products.view` can view skilling configuration under `/admin/catalogue/services/[id]/skilling`; edits require `products.edit` server-side. Published skilling edits use the Task 003 staged aggregate and remain private until republish. `skilling_calculator_enabled` defaults on in local seed data and seed reruns preserve administrator changes.
+Admin users with `products.view` can view skilling configuration under `/admin/catalogue/services/[id]/skilling`; edits require `products.edit` server-side. Published skilling edits use the Task 003 staged aggregate and remain private until republish. `skilling_calculator_enabled` is seeded off by default while seeded prices/rules are marked `Needs client review`; seed reruns preserve administrator changes to that flag.
 
 ### Requirements
 

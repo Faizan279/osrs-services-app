@@ -7,8 +7,12 @@ Starting main commit:
 c7ea5ac1cc1a1e2e26490ccab9705e33e4fc95ec
 
 Local commit:
-Pending until the final local commit is created. The final handoff reports the
-exact branch head SHA.
+Original implementation commit:
+95043d3d776f7d0a5d4c098028b5a8bc956e3315
+
+New correction commit:
+This local correction commit. The final handoff reports the exact SHA after Git
+creates the object.
 
 Migration:
 prisma/migrations/20260711190000_task005_skilling_calculator_engine/migration.sql
@@ -28,6 +32,10 @@ Core implementation:
 - Extended catalogue staging, revisions, discard, republish, duplicate and
   audit behavior for skilling aggregate data.
 - Added seeded skills, methods and rules while preserving admin edits on rerun.
+- Corrected normal seed rollout safety so skilling_calculator_enabled defaults
+  off while seeded rates still need client review.
+- Corrected seeded delivery defaults so Standard is enabled and Priority/Express
+  are created disabled until configured.
 
 Important boundaries:
 - Public clients cannot submit prices, formulas or rule IDs.
@@ -49,12 +57,16 @@ Validation:
 
 MySQL validation:
 - Fresh task005_fresh_validation: 7 migrations, 6 services, 23 skills,
-  4 methods, 1 rule and skilling_calculator_enabled enabled.
+  4 methods, 1 rule, skilling_calculator_enabled disabled, Standard enabled,
+  Priority disabled, Express disabled and 0 staged rows.
 - Existing task005_existing_validation: applied only the Task 005 migration on
   top of the six Task 004 migrations; repeated seeds preserved admin password,
-  feature flag state and admin-edited skilling method data.
-- Final review state: 7 migrations, feature flag enabled, 0 staged rows,
-  0 temporary capture sessions, Melee training review at 2400 cents per 1m XP.
+  feature flag state, admin-edited skilling method data and admin-edited
+  delivery flag values.
+- Final review state: 7 migrations, 6 services, 23 skills, 4 methods, 1 rule,
+  feature flag disabled, Standard enabled, Priority disabled, Express disabled,
+  0 staged rows, 0 temporary capture sessions, Melee training review at
+  2400 cents per 1m XP.
 
 Screenshot evidence:
 - artifacts/task-005/public-skilling-calculator-1440.png
@@ -67,5 +79,5 @@ Screenshot evidence:
 - artifacts/task-005/admin-skilling-mobile-390.png
 
 Handoff:
-- Review pack: task-005-review-pack.zip
+- Review pack: task-005-final-review-pack.zip
 - No push, pull request, merge, deployment or Task 006 work was performed.

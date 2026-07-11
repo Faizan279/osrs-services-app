@@ -5,7 +5,12 @@
 - Repository: `Faizan279/osrs-services-app`
 - Branch: `codex/task-005-skilling-calculator-engine`
 - Starting main commit: `c7ea5ac1cc1a1e2e26490ccab9705e33e4fc95ec`
-- Local implementation head before this report: pending local commit
+- Original implementation commit:
+  `95043d3d776f7d0a5d4c098028b5a8bc956e3315`
+- New correction commit: created after this report update; the exact SHA is
+  returned in the final Codex handoff.
+- Final branch head: same local correction commit returned in the final Codex
+  handoff.
 - Migration:
   `prisma/migrations/20260711190000_task005_skilling_calculator_engine/migration.sql`
 - Delivery boundary honored: no push, pull request, merge, deployment or Task 006 work.
@@ -26,8 +31,9 @@
 - Added protected admin skilling overview and method create/edit forms.
 - Extended catalogue staging, revision snapshots, republish, discard, duplicate
   and audit behavior for skilling aggregate data.
-- Added seed data for 23 OSRS skills, 4 representative methods and 1 calculator
-  rule. Seeded pricing is marked for client review and reruns preserve admin
+- Added seed data for 23 OSRS skills, 4 representative methods and 1
+  calculator rule. Seeded pricing is marked for client review, the public
+  calculator feature flag is seeded off by default, and reruns preserve admin
   edits.
 - Added documentation for service engines, pricing, deployment env and the task
   brief.
@@ -43,6 +49,9 @@
   excluded.
 - Admin skilling mutations are protected by existing catalogue permissions and
   use the staged aggregate workflow before publication.
+- Seeded delivery defaults are conservative: Standard is enabled, while
+  Priority and Express are present for admin configuration but disabled until
+  approved.
 
 ## Validation results
 
@@ -69,20 +78,26 @@ Fresh database `task005_fresh_validation`:
 - 23 skilling skill configs seeded.
 - 4 skilling training methods seeded.
 - 1 skilling calculator rule seeded.
-- `skilling_calculator_enabled` enabled.
+- `skilling_calculator_enabled` seeded disabled.
+- Delivery defaults: Standard enabled, Priority disabled, Express disabled.
+- 0 staged rows.
 
 Existing database `task005_existing_validation`:
 
 - Started from the six Task 004 migrations and applied only
   `20260711190000_task005_skilling_calculator_engine`.
 - Seed reruns preserved the existing administrator password hash.
-- Seed reruns preserved the disabled feature-flag state during preservation
+- Seed reruns preserved admin-edited feature-flag state during preservation
   checks.
 - Seed reruns preserved an admin-edited method name and price.
+- Seed reruns preserved admin-edited delivery flags, including Standard
+  disabled and Priority/Express enabled during the preservation check.
 - Stage, revision and audit counts were stable across repeated seed reruns.
-- Final validation state after screenshot cleanup: 7 migrations, feature flag
-  enabled for public review, 0 staged rows, 0 temporary capture sessions,
-  seeded method `Melee training review` at `2400` cents per 1m XP.
+- Final validation state after screenshot cleanup: 7 migrations, 6 services,
+  23 skilling skills, 4 methods, 1 rule, feature flag disabled, Standard
+  enabled, Priority disabled, Express disabled, 0 staged rows, 0 temporary
+  capture sessions, seeded method `Melee training review` at `2400` cents per
+  1m XP.
 
 ## Screenshot evidence
 
@@ -104,8 +119,8 @@ navigation overlays, and the 390px public route has no horizontal overflow.
   screenshot files included for review.
 - `task-005-review-summary.txt` summarizes the implementation and validation
   result.
-- `task-005-review-pack.zip` is generated from the local workspace for review.
-  The final SHA-256 is recorded in the final handoff after packaging.
+- `task-005-final-review-pack.zip` is generated from the local workspace for
+  review. The final SHA-256 is recorded in the final handoff after packaging.
 
 ## Explicit exclusions
 

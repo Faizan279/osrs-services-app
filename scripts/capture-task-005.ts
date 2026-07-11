@@ -3,11 +3,73 @@ import "dotenv/config";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 
-import { chromium, type Page } from "@playwright/test";
+import { chromium, type Browser, type Page } from "@playwright/test";
+import mariadb from "mariadb";
 
 const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
 const outputDirectory = path.join(process.cwd(), "artifacts", "task-005");
 const publicPath = "/services/power-levelling/skill-training-request";
+const skillingFlagKey = "skilling_calculator_enabled";
+
+type FlagSnapshot = {
+  enabled: boolean;
+} | null;
+
+async function connectDatabase() {
+  if (
+    !process.env.DATABASE_USER ||
+    !process.env.DATABASE_NAME ||
+    !process.env.DATABASE_HOST
+  ) {
+    throw new Error(
+      "Database environment is required to enable the Task 005 screenshot flag.",
+    );
+  }
+
+  return mariadb.createConnection({
+    host: process.env.DATABASE_HOST,
+    port: Number(process.env.DATABASE_PORT ?? 3306),
+    user: process.env.DATABASE_USER,
+    password: process.env.DATABASE_PASSWORD,
+    database: process.env.DATABASE_NAME,
+    allowPublicKeyRetrieval:
+      process.env.DATABASE_ALLOW_PUBLIC_KEY_RETRIEVAL === "true",
+  });
+}
+
+async function enableSkillingFlagForScreenshots() {
+  const connection = await connectDatabase();
+  try {
+    const rows = (await connection.query(
+      "SELECT enabled FROM FeatureFlag WHERE `key` = ? LIMIT 1",
+      [skillingFlagKey],
+    )) as Array<{ enabled: boolean | number }>;
+    const row = rows[0];
+    if (!row) {
+      throw new Error(`Feature flag ${skillingFlagKey} is missing.`);
+    }
+    await connection.query(
+      "UPDATE FeatureFlag SET enabled = 1 WHERE `key` = ?",
+      [skillingFlagKey],
+    );
+    return { enabled: Boolean(row.enabled) } satisfies FlagSnapshot;
+  } finally {
+    await connection.end();
+  }
+}
+
+async function restoreSkillingFlag(snapshot: FlagSnapshot) {
+  if (!snapshot) return;
+  const connection = await connectDatabase();
+  try {
+    await connection.query(
+      "UPDATE FeatureFlag SET enabled = ? WHERE `key` = ?",
+      [snapshot.enabled ? 1 : 0, skillingFlagKey],
+    );
+  } finally {
+    await connection.end();
+  }
+}
 
 async function settle(page: Page) {
   await page.waitForLoadState("domcontentloaded");
@@ -98,11 +160,13 @@ function serviceIdFromSkillingUrl(page: Page) {
 }
 
 async function main() {
-  await mkdir(outputDirectory, { recursive: true });
-  const browser = await chromium.launch({
-    executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH,
-  });
+  const flagSnapshot = await enableSkillingFlagForScreenshots();
+  let browser: Browser | null = null;
   try {
+    await mkdir(outputDirectory, { recursive: true });
+    browser = await chromium.launch({
+      executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH,
+    });
     const desktop = await browser.newContext({
       viewport: { width: 1440, height: 1000 },
       deviceScaleFactor: 1,
@@ -172,7 +236,8 @@ async function main() {
     });
     await mobile.close();
   } finally {
-    await browser.close();
+    await browser?.close();
+    await restoreSkillingFlag(flagSnapshot);
   }
 }
 

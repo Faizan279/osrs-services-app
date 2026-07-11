@@ -24,13 +24,21 @@ function createFakeClient() {
     offeringFacets: new Set<string>(),
     offeringModes: new Set<string>(),
     offeringRequirements: new Set<string>(),
-    skillingRules: new Set<string>(),
+    skillingRules: new Map<
+      string,
+      {
+        standardDeliveryEnabled: boolean;
+        priorityDeliveryEnabled: boolean;
+        expressDeliveryEnabled: boolean;
+      }
+    >(),
     skillingSkills: new Map<string, { id: string; name: string }>(),
     skillingMethods: new Map<string, { id: string; name: string }>(),
     categoryUpdates: [] as unknown[],
     serviceUpdates: [] as unknown[],
     skillingSkillUpdates: [] as unknown[],
     skillingMethodUpdates: [] as unknown[],
+    skillingRuleUpdates: [] as unknown[],
   };
   const client = {
     catalogueCategory: {
@@ -141,9 +149,22 @@ function createFakeClient() {
     skillingCalculatorRule: {
       async upsert(args: {
         where: { serviceId: string };
-        create: { serviceId: string };
+        create: {
+          serviceId: string;
+          standardDeliveryEnabled: boolean;
+          priorityDeliveryEnabled: boolean;
+          expressDeliveryEnabled: boolean;
+        };
+        update: unknown;
       }) {
-        state.skillingRules.add(args.where.serviceId || args.create.serviceId);
+        state.skillingRuleUpdates.push(args.update);
+        const key = args.where.serviceId || args.create.serviceId;
+        if (state.skillingRules.has(key)) return {};
+        state.skillingRules.set(key, {
+          standardDeliveryEnabled: args.create.standardDeliveryEnabled,
+          priorityDeliveryEnabled: args.create.priorityDeliveryEnabled,
+          expressDeliveryEnabled: args.create.expressDeliveryEnabled,
+        });
         return {};
       },
     },
@@ -195,6 +216,11 @@ describe("catalogue seed", () => {
     expect(state.offerings.size).toBe(8);
     expect(state.offeringRequirements.size).toBe(8);
     expect(state.skillingRules.size).toBe(1);
+    expect(state.skillingRules.get("service:skill-training-request")).toEqual({
+      standardDeliveryEnabled: true,
+      priorityDeliveryEnabled: false,
+      expressDeliveryEnabled: false,
+    });
     expect(state.skillingSkills.size).toBe(23);
     expect(state.skillingMethods.size).toBe(4);
     expect(
@@ -210,6 +236,11 @@ describe("catalogue seed", () => {
     await seedCatalogue(client);
     state.categories.get("quests")!.name = "Client quest taxonomy";
     state.services.get("quest-progression")!.name = "Client quest service";
+    state.skillingRules.set("service:skill-training-request", {
+      standardDeliveryEnabled: false,
+      priorityDeliveryEnabled: true,
+      expressDeliveryEnabled: true,
+    });
     const counts = [
       state.categories.size,
       state.services.size,
@@ -237,6 +268,11 @@ describe("catalogue seed", () => {
     expect(state.services.get("quest-progression")?.name).toBe(
       "Client quest service",
     );
+    expect(state.skillingRules.get("service:skill-training-request")).toEqual({
+      standardDeliveryEnabled: false,
+      priorityDeliveryEnabled: true,
+      expressDeliveryEnabled: true,
+    });
     expect(
       state.categoryUpdates.every((value) => JSON.stringify(value) === "{}"),
     ).toBe(true);
@@ -250,6 +286,11 @@ describe("catalogue seed", () => {
     ).toBe(true);
     expect(
       state.skillingMethodUpdates.every(
+        (value) => JSON.stringify(value) === "{}",
+      ),
+    ).toBe(true);
+    expect(
+      state.skillingRuleUpdates.every(
         (value) => JSON.stringify(value) === "{}",
       ),
     ).toBe(true);

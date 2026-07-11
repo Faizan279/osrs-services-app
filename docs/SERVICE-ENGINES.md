@@ -25,6 +25,8 @@ The public engine supports:
 - configured delivery speed choices
 - a server-authoritative estimated total and clear final-price disclaimer
 
+Normal seed runs keep the public skilling calculator feature flag disabled until the client reviews the representative skilling rates. Standard delivery is enabled by default, while Priority and Express are present for admin configuration but disabled until approved.
+
 The admin engine supports service-scoped skilling rules, skill enable/order updates, method create/edit, method range/rate fields, client-review markers, staged preview, optimistic concurrency, audit logging and Task 003 publication staging. Published skilling edits stay private until republish; public pages keep using the last published rules. Older staged snapshots without skilling data upgrade safely with `skilling: null`.
 
 This engine does not create carts, checkout sessions, orders, payment records, quote records, global discounts or global price history. Estimate values are preview-only and remain scoped to skilling services.

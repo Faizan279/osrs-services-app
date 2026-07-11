@@ -68,6 +68,9 @@ test("public skilling calculator renders and returns a server estimate", async (
   ).toBeVisible();
   await expect(page.getByLabel("Skill")).toBeVisible();
   await expect(page.getByLabel("Training method")).toBeVisible();
+  await expect(page.getByLabel("Delivery speed").locator("option")).toHaveText([
+    "Standard - Estimate confirmed before checkout",
+  ]);
   await expect(page.getByText("Final price is confirmed")).toBeVisible();
   await page.getByRole("button", { name: "Estimate total" }).click();
   await expect(page.getByRole("heading", { name: "$5.00" })).toBeVisible({

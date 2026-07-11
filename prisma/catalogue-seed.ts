@@ -226,13 +226,13 @@ type SkillingRuleSeedCreate = {
   standardDeliveryEstimate: string;
   standardDeliveryMultiplierBps: number;
   standardDeliveryFixedFeeCents: number;
-  priorityDeliveryEnabled: true;
+  priorityDeliveryEnabled: boolean;
   priorityDeliveryLabel: string;
   priorityDeliveryDescription: string;
   priorityDeliveryEstimate: string;
   priorityDeliveryMultiplierBps: number;
   priorityDeliveryFixedFeeCents: number;
-  expressDeliveryEnabled: true;
+  expressDeliveryEnabled: boolean;
   expressDeliveryLabel: string;
   expressDeliveryDescription: string;
   expressDeliveryEstimate: string;
@@ -884,13 +884,13 @@ export async function seedCatalogue(prisma: CatalogueSeedClient) {
       standardDeliveryEstimate: "Estimate confirmed before checkout",
       standardDeliveryMultiplierBps: 0,
       standardDeliveryFixedFeeCents: 0,
-      priorityDeliveryEnabled: true,
+      priorityDeliveryEnabled: false,
       priorityDeliveryLabel: "Priority",
       priorityDeliveryDescription: "Faster queue when staff capacity allows.",
       priorityDeliveryEstimate: "Faster estimate, client review required",
       priorityDeliveryMultiplierBps: 1500,
       priorityDeliveryFixedFeeCents: 0,
-      expressDeliveryEnabled: true,
+      expressDeliveryEnabled: false,
       expressDeliveryLabel: "Express",
       expressDeliveryDescription: "Fastest configured queue for eligible work.",
       expressDeliveryEstimate: "Fastest estimate, client review required",
