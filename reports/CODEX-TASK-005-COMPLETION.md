@@ -7,10 +7,9 @@
 - Starting main commit: `c7ea5ac1cc1a1e2e26490ccab9705e33e4fc95ec`
 - Original implementation commit:
   `95043d3d776f7d0a5d4c098028b5a8bc956e3315`
-- New correction commit: created after this report update; the exact SHA is
-  returned in the final Codex handoff.
-- Final branch head: same local correction commit returned in the final Codex
-  handoff.
+- Seed-safety / final correction commit:
+  `68c1848623469a30636489d0fac5c473215bded3`
+- Final branch head: `68c1848623469a30636489d0fac5c473215bded3`
 - Migration:
   `prisma/migrations/20260711190000_task005_skilling_calculator_engine/migration.sql`
 - Delivery boundary honored: no push, pull request, merge, deployment or Task 006 work.
