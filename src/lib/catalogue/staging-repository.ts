@@ -33,6 +33,15 @@ export const stagedAggregateInclude = {
       },
     },
   },
+  skillingRule: true,
+  skillingSkills: {
+    orderBy: [{ displayOrder: "asc" as const }, { name: "asc" as const }],
+    include: {
+      methods: {
+        orderBy: [{ displayOrder: "asc" as const }, { name: "asc" as const }],
+      },
+    },
+  },
 } satisfies Prisma.CatalogueServiceInclude;
 
 export async function loadServiceAggregate(

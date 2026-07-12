@@ -137,6 +137,9 @@ describe("database seed idempotence", () => {
 
     const paypalFlag = state.featureFlags.get("payments.paypal")!;
     paypalFlag.enabled = true;
+    const skillingFlag = state.featureFlags.get("skilling_calculator_enabled")!;
+    expect(skillingFlag.enabled).toBe(false);
+    skillingFlag.enabled = true;
 
     const editor = state.roles.get("EDITOR")!;
     const manualPermission = state.permissions.get("orders.view")!;
@@ -157,6 +160,7 @@ describe("database seed idempotence", () => {
     );
 
     expect(paypalFlag.enabled).toBe(true);
+    expect(skillingFlag.enabled).toBe(true);
     expect(state.rolePermissions.has(manualAssignment)).toBe(true);
     expect(state.rolePermissions.has(missingDefaultAssignment)).toBe(true);
     expect(administrator.passwordHash).toBe(originalPasswordHash);

@@ -352,10 +352,18 @@ test("seeded Super Admin can open the catalogue editor", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Catalogue", exact: true }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "New service" }).click();
-  await expect(
-    page.getByRole("heading", { name: "New service" }),
-  ).toBeVisible();
+  const newServiceLink = page.getByRole("link", { name: "New service" });
+  await expect(newServiceLink).toHaveAttribute(
+    "href",
+    "/admin/catalogue/services/new",
+  );
+  await newServiceLink.click();
+  await expect(page).toHaveURL(/\/admin\/catalogue\/services\/new$/, {
+    timeout: 30_000,
+  });
+  await expect(page.getByRole("heading", { name: "New service" })).toBeVisible({
+    timeout: 30_000,
+  });
   await page.goto("/admin/catalogue/services");
   await page.getByLabel("Availability").selectOption("AVAILABLE");
   await page.getByRole("button", { name: "Apply filters" }).click();
@@ -573,9 +581,11 @@ test("published edits, children and media stay staged until atomic republish", a
   );
 
   await page.goto(`/admin/catalogue/services/${service.id}`);
-  await page
-    .locator('textarea[name="shortSummary"]')
-    .fill(service.shortSummary);
+  const summaryField = page.locator('textarea[name="shortSummary"]');
+  await summaryField.fill("");
+  await expect(summaryField).toHaveValue("");
+  await summaryField.fill(service.shortSummary);
+  await expect(summaryField).toHaveValue(service.shortSummary);
   await page
     .locator('input[name="gameModes"][value="ULTIMATE_IRONMAN"]')
     .check();

@@ -34,6 +34,14 @@ import {
   requirementInputSchema,
   serviceInputSchema,
 } from "@/lib/catalogue/validation";
+import {
+  saveSkillingMethod,
+  saveSkillingRule,
+  saveSkillingSkill,
+  skillingMethodInputSchema,
+  skillingRuleInputSchema,
+  skillingSkillInputSchema,
+} from "@/lib/skilling/admin";
 
 function checked(formData: FormData, key: string) {
   return formData.get(key) === "on";
@@ -152,6 +160,79 @@ function eligibilityRuleFields(formData: FormData) {
     requiredValue: formData.get("requiredValue"),
     recommendedServiceId: formData.get("recommendedServiceId"),
   };
+}
+
+function skillingRuleInput(formData: FormData, serviceId: string) {
+  return skillingRuleInputSchema.parse({
+    serviceId,
+    normalModeMultiplierBps: formData.get("normalModeMultiplierBps"),
+    ironmanMultiplierBps: formData.get("ironmanMultiplierBps"),
+    hardcoreIronmanMultiplierBps: formData.get("hardcoreIronmanMultiplierBps"),
+    ultimateIronmanMultiplierBps: formData.get("ultimateIronmanMultiplierBps"),
+    discordStreamEnabled: checked(formData, "discordStreamEnabled"),
+    discordStreamPercentBps: formData.get("discordStreamPercentBps"),
+    standardDeliveryEnabled: checked(formData, "standardDeliveryEnabled"),
+    standardDeliveryLabel: formData.get("standardDeliveryLabel"),
+    standardDeliveryDescription: formData.get("standardDeliveryDescription"),
+    standardDeliveryEstimate: formData.get("standardDeliveryEstimate"),
+    standardDeliveryMultiplierBps: formData.get(
+      "standardDeliveryMultiplierBps",
+    ),
+    standardDeliveryFixedFeeCents: formData.get(
+      "standardDeliveryFixedFeeCents",
+    ),
+    priorityDeliveryEnabled: checked(formData, "priorityDeliveryEnabled"),
+    priorityDeliveryLabel: formData.get("priorityDeliveryLabel"),
+    priorityDeliveryDescription: formData.get("priorityDeliveryDescription"),
+    priorityDeliveryEstimate: formData.get("priorityDeliveryEstimate"),
+    priorityDeliveryMultiplierBps: formData.get(
+      "priorityDeliveryMultiplierBps",
+    ),
+    priorityDeliveryFixedFeeCents: formData.get(
+      "priorityDeliveryFixedFeeCents",
+    ),
+    expressDeliveryEnabled: checked(formData, "expressDeliveryEnabled"),
+    expressDeliveryLabel: formData.get("expressDeliveryLabel"),
+    expressDeliveryDescription: formData.get("expressDeliveryDescription"),
+    expressDeliveryEstimate: formData.get("expressDeliveryEstimate"),
+    expressDeliveryMultiplierBps: formData.get("expressDeliveryMultiplierBps"),
+    expressDeliveryFixedFeeCents: formData.get("expressDeliveryFixedFeeCents"),
+    needsClientReview: checked(formData, "needsClientReview"),
+  });
+}
+
+function skillingSkillInput(formData: FormData, serviceId: string) {
+  return skillingSkillInputSchema.parse({
+    serviceId,
+    skillId: formData.get("skillId"),
+    name: formData.get("name"),
+    enabled: checked(formData, "enabled"),
+    displayOrder: formData.get("displayOrder"),
+    iconKey: formData.get("iconKey"),
+  });
+}
+
+function skillingMethodInput(formData: FormData, serviceId: string) {
+  return skillingMethodInputSchema.parse({
+    serviceId,
+    skillConfigId: formData.get("skillConfigId"),
+    slug: formData.get("slug"),
+    name: formData.get("name"),
+    shortDescription: formData.get("shortDescription"),
+    enabled: checked(formData, "enabled"),
+    displayOrder: formData.get("displayOrder"),
+    minimumLevel: formData.get("minimumLevel"),
+    maximumLevel: formData.get("maximumLevel"),
+    xpPerHour: formData.get("xpPerHour"),
+    basePriceCentsPerMillionXp: formData.get("basePriceCentsPerMillionXp"),
+    minimumPriceCents: formData.get("minimumPriceCents"),
+    fixedFeeCents: formData.get("fixedFeeCents"),
+    suppliesEnabled: checked(formData, "suppliesEnabled"),
+    suppliesLabel: formData.get("suppliesLabel"),
+    suppliesFeeCents: formData.get("suppliesFeeCents"),
+    notes: formData.get("notes"),
+    needsClientReview: checked(formData, "needsClientReview"),
+  });
 }
 
 function destination(path: string, state: "saved" | "error", message?: string) {
@@ -680,6 +761,109 @@ export async function deleteOfferingRequirementAction(formData: FormData) {
       `/admin/catalogue/services/${serviceId}/offerings/${offeringId}`,
       "saved",
       "Eligibility rule removed.",
+    ),
+  );
+}
+
+export async function saveSkillingRuleAction(formData: FormData) {
+  const serviceId = idValue(formData, "serviceId");
+  const session = await requireCapability(
+    "products.edit",
+    `/admin/catalogue/services/${serviceId}/skilling`,
+  );
+  let staged: boolean;
+  try {
+    const result = await saveSkillingRule(
+      skillingRuleInput(formData, serviceId),
+      session.user.id,
+      expectedVersionValue(formData),
+    );
+    staged = result.staged;
+  } catch (error) {
+    redirect(
+      destination(
+        `/admin/catalogue/services/${serviceId}/skilling`,
+        "error",
+        catalogueActionErrorMessage(error, "save-skilling-rule"),
+      ),
+    );
+  }
+  redirect(
+    destination(
+      `/admin/catalogue/services/${serviceId}/skilling`,
+      "saved",
+      staged ? "Skilling rules staged for republish." : "Skilling rules saved.",
+    ),
+  );
+}
+
+export async function saveSkillingSkillAction(formData: FormData) {
+  const serviceId = idValue(formData, "serviceId");
+  const session = await requireCapability(
+    "products.edit",
+    `/admin/catalogue/services/${serviceId}/skilling`,
+  );
+  let staged: boolean;
+  try {
+    const result = await saveSkillingSkill(
+      skillingSkillInput(formData, serviceId),
+      session.user.id,
+      expectedVersionValue(formData),
+    );
+    staged = result.staged;
+  } catch (error) {
+    redirect(
+      destination(
+        `/admin/catalogue/services/${serviceId}/skilling`,
+        "error",
+        catalogueActionErrorMessage(error, "save-skilling-skill"),
+      ),
+    );
+  }
+  redirect(
+    destination(
+      `/admin/catalogue/services/${serviceId}/skilling`,
+      "saved",
+      staged ? "Skill change staged." : "Skill saved.",
+    ),
+  );
+}
+
+export async function saveSkillingMethodAction(formData: FormData) {
+  const serviceId = idValue(formData, "serviceId");
+  const rawMethodId = String(formData.get("methodId") ?? "");
+  const methodId = rawMethodId
+    ? catalogueIdSchema.parse(rawMethodId)
+    : undefined;
+  const session = await requireCapability(
+    "products.edit",
+    `/admin/catalogue/services/${serviceId}/skilling`,
+  );
+  let result: Awaited<ReturnType<typeof saveSkillingMethod>>;
+  try {
+    result = await saveSkillingMethod(
+      skillingMethodInput(formData, serviceId),
+      session.user.id,
+      expectedVersionValue(formData),
+      methodId,
+    );
+  } catch (error) {
+    redirect(
+      destination(
+        methodId
+          ? `/admin/catalogue/services/${serviceId}/skilling/methods/${methodId}`
+          : `/admin/catalogue/services/${serviceId}/skilling/methods/new`,
+        "error",
+        catalogueActionErrorMessage(error, "save-skilling-method"),
+      ),
+    );
+  }
+  revalidatePath(`/admin/catalogue/services/${serviceId}`);
+  redirect(
+    destination(
+      `/admin/catalogue/services/${serviceId}/skilling/methods/${result.id}`,
+      "saved",
+      result.staged ? "Method changes staged for republish." : "Method saved.",
     ),
   );
 }

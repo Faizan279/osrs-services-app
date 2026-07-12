@@ -134,6 +134,111 @@ export type CatalogueSeedClient = {
       skipDuplicates: true;
     }): Promise<unknown>;
   };
+  skillingCalculatorRule: {
+    upsert(args: {
+      where: { serviceId: string };
+      create: SkillingRuleSeedCreate;
+      update: Record<string, never>;
+    }): Promise<unknown>;
+  };
+  skillingSkillConfig: {
+    upsert(args: {
+      where: { seededKey: string };
+      create: {
+        seededKey: string;
+        serviceId: string;
+        skillKey: SkillingSkillKey;
+        name: string;
+        enabled: boolean;
+        displayOrder: number;
+        iconKey: string;
+      };
+      update: Record<string, never>;
+      select: { id: true };
+    }): Promise<{ id: string }>;
+  };
+  skillingTrainingMethod: {
+    upsert(args: {
+      where: { seededKey: string };
+      create: {
+        seededKey: string;
+        serviceId: string;
+        skillConfigId: string;
+        slug: string;
+        name: string;
+        shortDescription: string;
+        enabled: true;
+        displayOrder: number;
+        minimumLevel: number;
+        maximumLevel: number;
+        xpPerHour: number;
+        basePriceCentsPerMillionXp: number;
+        minimumPriceCents: number;
+        fixedFeeCents: number;
+        suppliesEnabled: boolean;
+        suppliesLabel?: string;
+        suppliesFeeCents: number;
+        notes: string;
+        needsClientReview: true;
+      };
+      update: Record<string, never>;
+      select: { id: true };
+    }): Promise<{ id: string }>;
+  };
+};
+
+type SkillingSkillKey =
+  | "ATTACK"
+  | "STRENGTH"
+  | "DEFENCE"
+  | "RANGED"
+  | "PRAYER"
+  | "MAGIC"
+  | "RUNECRAFT"
+  | "CONSTRUCTION"
+  | "HITPOINTS"
+  | "AGILITY"
+  | "HERBLORE"
+  | "THIEVING"
+  | "CRAFTING"
+  | "FLETCHING"
+  | "SLAYER"
+  | "HUNTER"
+  | "MINING"
+  | "SMITHING"
+  | "FISHING"
+  | "COOKING"
+  | "FIREMAKING"
+  | "WOODCUTTING"
+  | "FARMING";
+
+type SkillingRuleSeedCreate = {
+  serviceId: string;
+  normalModeMultiplierBps: number;
+  ironmanMultiplierBps: number;
+  hardcoreIronmanMultiplierBps: number;
+  ultimateIronmanMultiplierBps: number;
+  discordStreamEnabled: true;
+  discordStreamPercentBps: number;
+  standardDeliveryEnabled: true;
+  standardDeliveryLabel: string;
+  standardDeliveryDescription: string;
+  standardDeliveryEstimate: string;
+  standardDeliveryMultiplierBps: number;
+  standardDeliveryFixedFeeCents: number;
+  priorityDeliveryEnabled: boolean;
+  priorityDeliveryLabel: string;
+  priorityDeliveryDescription: string;
+  priorityDeliveryEstimate: string;
+  priorityDeliveryMultiplierBps: number;
+  priorityDeliveryFixedFeeCents: number;
+  expressDeliveryEnabled: boolean;
+  expressDeliveryLabel: string;
+  expressDeliveryDescription: string;
+  expressDeliveryEstimate: string;
+  expressDeliveryMultiplierBps: number;
+  expressDeliveryFixedFeeCents: number;
+  needsClientReview: true;
 };
 
 export const catalogueCategorySeeds = [
@@ -517,6 +622,102 @@ const catalogueOfferingSeeds = [
   },
 ] as const;
 
+const skillingSkillSeeds: Array<{
+  key: SkillingSkillKey;
+  name: string;
+  icon: string;
+  enabled: boolean;
+}> = [
+  { key: "ATTACK", name: "Attack", icon: "sword", enabled: true },
+  { key: "STRENGTH", name: "Strength", icon: "strength", enabled: false },
+  { key: "DEFENCE", name: "Defence", icon: "shield", enabled: false },
+  { key: "RANGED", name: "Ranged", icon: "bow", enabled: false },
+  { key: "PRAYER", name: "Prayer", icon: "prayer", enabled: false },
+  { key: "MAGIC", name: "Magic", icon: "magic", enabled: false },
+  { key: "RUNECRAFT", name: "Runecraft", icon: "rune", enabled: false },
+  { key: "CONSTRUCTION", name: "Construction", icon: "house", enabled: false },
+  { key: "HITPOINTS", name: "Hitpoints", icon: "heart", enabled: false },
+  { key: "AGILITY", name: "Agility", icon: "footprints", enabled: true },
+  { key: "HERBLORE", name: "Herblore", icon: "flask", enabled: false },
+  { key: "THIEVING", name: "Thieving", icon: "mask", enabled: false },
+  { key: "CRAFTING", name: "Crafting", icon: "gem", enabled: false },
+  { key: "FLETCHING", name: "Fletching", icon: "arrow", enabled: false },
+  { key: "SLAYER", name: "Slayer", icon: "skull", enabled: false },
+  { key: "HUNTER", name: "Hunter", icon: "trap", enabled: false },
+  { key: "MINING", name: "Mining", icon: "pickaxe", enabled: true },
+  { key: "SMITHING", name: "Smithing", icon: "anvil", enabled: false },
+  { key: "FISHING", name: "Fishing", icon: "fish", enabled: false },
+  { key: "COOKING", name: "Cooking", icon: "flame", enabled: true },
+  { key: "FIREMAKING", name: "Firemaking", icon: "campfire", enabled: false },
+  { key: "WOODCUTTING", name: "Woodcutting", icon: "axe", enabled: false },
+  { key: "FARMING", name: "Farming", icon: "sprout", enabled: false },
+];
+
+const skillingMethodSeeds = [
+  {
+    key: "attack:melee-training-review",
+    skillKey: "ATTACK" as const,
+    slug: "melee-training-review",
+    name: "Melee training review",
+    summary:
+      "A flexible combat-training route for early to late account progression.",
+    order: 10,
+    min: 1,
+    max: 99,
+    xpPerHour: 45_000,
+    centsPerMillion: 2400,
+    minimumCents: 500,
+    fixedCents: 0,
+    supplies: { label: "Food and potion supply support", cents: 350 },
+  },
+  {
+    key: "agility:rooftop-course-route",
+    skillKey: "AGILITY" as const,
+    slug: "rooftop-course-route",
+    name: "Rooftop course route",
+    summary:
+      "A course-based Agility plan with marks, unlocks and route constraints reviewed.",
+    order: 20,
+    min: 10,
+    max: 90,
+    xpPerHour: 35_000,
+    centsPerMillion: 3200,
+    minimumCents: 700,
+    fixedCents: 0,
+  },
+  {
+    key: "mining:motherlode-route",
+    skillKey: "MINING" as const,
+    slug: "motherlode-route",
+    name: "Motherlode Mine route",
+    summary:
+      "A Mining progression option for accounts that can access Motherlode Mine.",
+    order: 30,
+    min: 30,
+    max: 99,
+    xpPerHour: 28_000,
+    centsPerMillion: 2800,
+    minimumCents: 700,
+    fixedCents: 0,
+  },
+  {
+    key: "cooking:bankstanding-route",
+    skillKey: "COOKING" as const,
+    slug: "bankstanding-route",
+    name: "Bankstanding cooking route",
+    summary:
+      "A bankstanding Cooking route for accounts with supplies or reviewed material support.",
+    order: 40,
+    min: 1,
+    max: 99,
+    xpPerHour: 180_000,
+    centsPerMillion: 1200,
+    minimumCents: 400,
+    fixedCents: 0,
+    supplies: { label: "Cooking material support", cents: 500 },
+  },
+] as const;
+
 export async function seedCatalogue(prisma: CatalogueSeedClient) {
   const categoryIds = new Map<string, string>();
   const serviceIds = new Map<string, string>();
@@ -661,6 +862,96 @@ export async function seedCatalogue(prisma: CatalogueSeedClient) {
         },
       ],
       skipDuplicates: true,
+    });
+  }
+
+  const skillingServiceId = serviceIds.get("skill-training-request");
+  if (!skillingServiceId) return;
+
+  await prisma.skillingCalculatorRule.upsert({
+    where: { serviceId: skillingServiceId },
+    create: {
+      serviceId: skillingServiceId,
+      normalModeMultiplierBps: 0,
+      ironmanMultiplierBps: 1000,
+      hardcoreIronmanMultiplierBps: 2000,
+      ultimateIronmanMultiplierBps: 3000,
+      discordStreamEnabled: true,
+      discordStreamPercentBps: 200,
+      standardDeliveryEnabled: true,
+      standardDeliveryLabel: "Standard",
+      standardDeliveryDescription: "Standard review queue for skilling work.",
+      standardDeliveryEstimate: "Estimate confirmed before checkout",
+      standardDeliveryMultiplierBps: 0,
+      standardDeliveryFixedFeeCents: 0,
+      priorityDeliveryEnabled: false,
+      priorityDeliveryLabel: "Priority",
+      priorityDeliveryDescription: "Faster queue when staff capacity allows.",
+      priorityDeliveryEstimate: "Faster estimate, client review required",
+      priorityDeliveryMultiplierBps: 1500,
+      priorityDeliveryFixedFeeCents: 0,
+      expressDeliveryEnabled: false,
+      expressDeliveryLabel: "Express",
+      expressDeliveryDescription: "Fastest configured queue for eligible work.",
+      expressDeliveryEstimate: "Fastest estimate, client review required",
+      expressDeliveryMultiplierBps: 3000,
+      expressDeliveryFixedFeeCents: 0,
+      needsClientReview: true,
+    },
+    update: {},
+  });
+
+  const skillIds = new Map<SkillingSkillKey, string>();
+  for (const [index, skill] of skillingSkillSeeds.entries()) {
+    const record = await prisma.skillingSkillConfig.upsert({
+      where: { seededKey: `skill-training:${skill.key.toLowerCase()}` },
+      create: {
+        seededKey: `skill-training:${skill.key.toLowerCase()}`,
+        serviceId: skillingServiceId,
+        skillKey: skill.key,
+        name: skill.name,
+        enabled: skill.enabled,
+        displayOrder: (index + 1) * 10,
+        iconKey: skill.icon,
+      },
+      update: {},
+      select: { id: true },
+    });
+    skillIds.set(skill.key, record.id);
+  }
+
+  for (const method of skillingMethodSeeds) {
+    const supplies = "supplies" in method ? method.supplies : undefined;
+    await prisma.skillingTrainingMethod.upsert({
+      where: { seededKey: `skill-training:${method.key}` },
+      create: {
+        seededKey: `skill-training:${method.key}`,
+        serviceId: skillingServiceId,
+        skillConfigId: skillIds.get(method.skillKey)!,
+        slug: method.slug,
+        name: method.name,
+        shortDescription: method.summary,
+        enabled: true,
+        displayOrder: method.order,
+        minimumLevel: method.min,
+        maximumLevel: method.max,
+        xpPerHour: method.xpPerHour,
+        basePriceCentsPerMillionXp: method.centsPerMillion,
+        minimumPriceCents: method.minimumCents,
+        fixedFeeCents: method.fixedCents,
+        suppliesEnabled: Boolean(supplies),
+        ...(supplies
+          ? {
+              suppliesLabel: supplies.label,
+              suppliesFeeCents: supplies.cents,
+            }
+          : { suppliesFeeCents: 0 }),
+        notes:
+          "Needs client review before launch. Seeded for calculator validation only.",
+        needsClientReview: true,
+      },
+      update: {},
+      select: { id: true },
     });
   }
 }

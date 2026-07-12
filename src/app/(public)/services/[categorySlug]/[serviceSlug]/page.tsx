@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { CatalogueBreadcrumbs } from "@/components/catalogue-public";
 import { CatalogueCardEngine } from "@/components/catalogue-card-engine";
+import { SkillingCalculatorEngine } from "@/components/skilling-calculator-engine";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getDiscordHref } from "@/config/public-navigation";
@@ -16,6 +17,7 @@ import { publicPrimaryMedia } from "@/lib/catalogue/public-select";
 import {
   getCatalogueFeatureFlags,
   getPublicCatalogueCardService,
+  getPublicSkillingCalculatorService,
   getPublicService,
 } from "@/lib/catalogue/queries";
 
@@ -150,6 +152,60 @@ export default async function ServiceDetailPage({
             pages={engine.pages}
             filters={{ search, gameMode: mode, sort, facets: facetRecord }}
             eligibilityEnabled={Boolean(flags.rsn_eligibility_enabled)}
+            requestHref={discordHref}
+          />
+        </main>
+      );
+    }
+  }
+  if (service.engineType === "SKILLING_CALCULATOR") {
+    const [engine, flags] = await Promise.all([
+      getPublicSkillingCalculatorService({ categorySlug, serviceSlug }),
+      getCatalogueFeatureFlags(),
+    ]);
+    if (engine && flags.skilling_calculator_enabled) {
+      return (
+        <main id="main-content" className="min-h-[70vh]">
+          <section className="border-border bg-surface-1 border-b py-14 sm:py-20">
+            <div className="mx-auto max-w-7xl px-5 sm:px-8">
+              <CatalogueBreadcrumbs
+                items={[
+                  { label: "Home", href: "/" },
+                  { label: "Services", href: "/services" },
+                  {
+                    label: service.category.name,
+                    href: `/services/${service.category.slug}`,
+                  },
+                  { label: service.name },
+                ]}
+              />
+              <div className="mt-8 flex flex-wrap gap-2">
+                <Badge variant="info">Skilling calculator</Badge>
+                {service.isQuoteOnly && (
+                  <Badge variant="warning">Quote only</Badge>
+                )}
+              </div>
+              <p className="text-gold kicker-type mt-8">
+                {service.category.name}
+              </p>
+              <h1 className="display-type mt-4 max-w-4xl text-4xl sm:text-6xl">
+                {service.name}
+              </h1>
+              <p className="text-text-secondary mt-5 max-w-3xl text-lg leading-8">
+                {service.shortSummary}
+              </p>
+            </div>
+          </section>
+          <SkillingCalculatorEngine
+            service={{
+              id: engine.service.id,
+              name: engine.service.name,
+              content: engine.service.content,
+              requirements: engine.service.requirements,
+              gameModes: engine.service.gameModes,
+            }}
+            skills={engine.skills}
+            rule={engine.rule}
             requestHref={discordHref}
           />
         </main>

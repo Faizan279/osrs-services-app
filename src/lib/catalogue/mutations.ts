@@ -36,6 +36,7 @@ import {
   removeStagedRequirement,
   removeStagedOffering,
   snapshotFromService,
+  stagedCatalogueAggregateSchema,
   upsertStagedOffering,
   type StagedCatalogueAggregate,
 } from "@/lib/catalogue/staging";
@@ -472,6 +473,57 @@ export async function publishService(
           },
         });
       }
+      await transaction.skillingCalculatorRule.deleteMany({
+        where: { serviceId: id },
+      });
+      await transaction.skillingSkillConfig.deleteMany({
+        where: { serviceId: id },
+      });
+      if (snapshot.skilling?.rule) {
+        await transaction.skillingCalculatorRule.create({
+          data: {
+            ...snapshot.skilling.rule,
+            serviceId: id,
+          },
+        });
+      }
+      for (const skill of snapshot.skilling?.skills ?? []) {
+        await transaction.skillingSkillConfig.create({
+          data: {
+            id: skill.id,
+            serviceId: id,
+            seededKey: skill.seededKey,
+            skillKey: skill.skillKey,
+            name: skill.name,
+            enabled: skill.enabled,
+            displayOrder: skill.displayOrder,
+            iconKey: skill.iconKey,
+            methods: {
+              create: skill.methods.map((method) => ({
+                id: method.id,
+                serviceId: id,
+                seededKey: method.seededKey,
+                slug: method.slug,
+                name: method.name,
+                shortDescription: method.shortDescription,
+                enabled: method.enabled,
+                displayOrder: method.displayOrder,
+                minimumLevel: method.minimumLevel,
+                maximumLevel: method.maximumLevel,
+                xpPerHour: method.xpPerHour,
+                basePriceCentsPerMillionXp: method.basePriceCentsPerMillionXp,
+                minimumPriceCents: method.minimumPriceCents,
+                fixedFeeCents: method.fixedFeeCents,
+                suppliesEnabled: method.suppliesEnabled,
+                suppliesLabel: method.suppliesLabel,
+                suppliesFeeCents: method.suppliesFeeCents,
+                notes: method.notes,
+                needsClientReview: method.needsClientReview,
+              })),
+            },
+          },
+        });
+      }
       await transaction.catalogueMediaReference.deleteMany({
         where: { serviceId: id },
       });
@@ -496,6 +548,15 @@ export async function publishService(
           offerings: {
             orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
             include: { gameModes: true, facets: true, requirements: true },
+          },
+          skillingRule: true,
+          skillingSkills: {
+            orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+            include: {
+              methods: {
+                orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+              },
+            },
           },
         },
       });
@@ -538,6 +599,23 @@ export async function publishService(
             targetId: id,
             metadata: auditMetadata({
               offeringCount: snapshot.offerings.length,
+            }),
+          },
+        });
+      }
+      if (service.stage && snapshot.skilling) {
+        await transaction.auditLog.create({
+          data: {
+            actorId,
+            action: "catalogue.skilling.aggregate_republished",
+            targetType: "CatalogueService",
+            targetId: id,
+            metadata: auditMetadata({
+              skillCount: snapshot.skilling.skills.length,
+              methodCount: snapshot.skilling.skills.reduce(
+                (count, skill) => count + skill.methods.length,
+                0,
+              ),
             }),
           },
         });
@@ -602,6 +680,11 @@ export async function archiveService(
         gameModes: true,
         requirements: true,
         mediaReferences: true,
+        offerings: {
+          include: { gameModes: true, facets: true, requirements: true },
+        },
+        skillingRule: true,
+        skillingSkills: { include: { methods: true } },
       },
     });
     await transaction.catalogueRevision.create({
@@ -649,6 +732,9 @@ export async function discardServiceStage(
         "There are no pending changes to discard.",
       );
     }
+    const snapshot = stagedCatalogueAggregateSchema.parse(
+      service.stage.snapshot,
+    );
     const deleted = await transaction.catalogueServiceStage.deleteMany({
       where: {
         id: service.stage.id,
@@ -677,6 +763,17 @@ export async function discardServiceStage(
         metadata: auditMetadata({ stageVersion: expectedVersion }),
       },
     });
+    if (snapshot.skilling) {
+      await transaction.auditLog.create({
+        data: {
+          actorId,
+          action: "catalogue.skilling.changes_discarded",
+          targetType: "CatalogueService",
+          targetId: id,
+          metadata: auditMetadata({ stageVersion: expectedVersion }),
+        },
+      });
+    }
     return service;
   });
 }
@@ -692,6 +789,8 @@ export async function duplicateService(id: string, actorId: string) {
         offerings: {
           include: { gameModes: true, facets: true, requirements: true },
         },
+        skillingRule: true,
+        skillingSkills: { include: { methods: true } },
       },
     });
     const existing = await transaction.catalogueService.findMany({
@@ -805,6 +904,62 @@ export async function duplicateService(id: string, actorId: string) {
         },
       },
     });
+    if (source.skillingRule) {
+      const {
+        id: _ruleId,
+        serviceId: _serviceId,
+        createdAt: _createdAt,
+        updatedAt: _updatedAt,
+        ...rule
+      } = source.skillingRule;
+      void _ruleId;
+      void _serviceId;
+      void _createdAt;
+      void _updatedAt;
+      await transaction.skillingCalculatorRule.create({
+        data: {
+          ...rule,
+          serviceId: duplicate.id,
+          needsClientReview: true,
+        },
+      });
+    }
+    for (const skill of source.skillingSkills) {
+      const copiedSkill = await transaction.skillingSkillConfig.create({
+        data: {
+          serviceId: duplicate.id,
+          skillKey: skill.skillKey,
+          name: skill.name,
+          enabled: skill.enabled,
+          displayOrder: skill.displayOrder,
+          iconKey: skill.iconKey,
+          seededKey: null,
+        },
+      });
+      await transaction.skillingTrainingMethod.createMany({
+        data: skill.methods.map((method) => ({
+          serviceId: duplicate.id,
+          skillConfigId: copiedSkill.id,
+          slug: method.slug,
+          name: method.name,
+          shortDescription: method.shortDescription,
+          enabled: method.enabled,
+          displayOrder: method.displayOrder,
+          minimumLevel: method.minimumLevel,
+          maximumLevel: method.maximumLevel,
+          xpPerHour: method.xpPerHour,
+          basePriceCentsPerMillionXp: method.basePriceCentsPerMillionXp,
+          minimumPriceCents: method.minimumPriceCents,
+          fixedFeeCents: method.fixedFeeCents,
+          suppliesEnabled: method.suppliesEnabled,
+          suppliesLabel: method.suppliesLabel,
+          suppliesFeeCents: method.suppliesFeeCents,
+          notes: method.notes,
+          needsClientReview: true,
+          seededKey: null,
+        })),
+      });
+    }
     await transaction.auditLog.create({
       data: {
         actorId,

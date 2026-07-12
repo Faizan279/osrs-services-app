@@ -388,6 +388,15 @@ export async function getAdminService(id: string) {
           },
         },
       },
+      skillingRule: true,
+      skillingSkills: {
+        orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+        include: {
+          methods: {
+            orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+          },
+        },
+      },
       revisions: {
         orderBy: { revisionNumber: "desc" },
         include: { actor: { select: { name: true, email: true } } },
@@ -433,6 +442,12 @@ export async function getAdminService(id: string) {
       ...offering,
       gameModes: offering.gameModes.map((gameMode) => ({ gameMode })),
     })),
+    skillingRule: snapshot.skilling?.rule ?? null,
+    skillingSkills:
+      snapshot.skilling?.skills.map((skill) => ({
+        ...skill,
+        methods: skill.methods,
+      })) ?? [],
     version: service.stage.version,
     updatedAt: service.stage.updatedAt,
     hasPendingChanges: true as const,
@@ -458,11 +473,74 @@ export async function getPrerequisiteServiceOptions(excludeServiceId: string) {
 export async function getCatalogueFeatureFlags() {
   const flags = await prisma.featureFlag.findMany({
     where: {
-      key: { in: ["catalogue_card_engine_enabled", "rsn_eligibility_enabled"] },
+      key: {
+        in: [
+          "catalogue_card_engine_enabled",
+          "rsn_eligibility_enabled",
+          "skilling_calculator_enabled",
+        ],
+      },
     },
     select: { key: true, enabled: true },
   });
   return Object.fromEntries(
     flags.map((flag) => [flag.key, flag.enabled]),
   ) as Record<string, boolean>;
+}
+
+export async function getPublicSkillingCalculatorService({
+  categorySlug,
+  serviceSlug,
+  now = new Date(),
+}: {
+  categorySlug: string;
+  serviceSlug: string;
+  now?: Date;
+}) {
+  const service = await getPublicService(categorySlug, serviceSlug, now);
+  if (!service || service.engineType !== "SKILLING_CALCULATOR") return null;
+  const [skills, rule] = await Promise.all([
+    prisma.skillingSkillConfig.findMany({
+      where: { serviceId: service.id, enabled: true },
+      orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+      select: {
+        skillKey: true,
+        name: true,
+        iconKey: true,
+        methods: {
+          where: { enabled: true },
+          orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+          select: {
+            slug: true,
+            name: true,
+            shortDescription: true,
+            minimumLevel: true,
+            maximumLevel: true,
+            xpPerHour: true,
+            suppliesEnabled: true,
+            suppliesLabel: true,
+          },
+        },
+      },
+    }),
+    prisma.skillingCalculatorRule.findUnique({
+      where: { serviceId: service.id },
+      select: {
+        discordStreamEnabled: true,
+        standardDeliveryEnabled: true,
+        standardDeliveryLabel: true,
+        standardDeliveryDescription: true,
+        standardDeliveryEstimate: true,
+        priorityDeliveryEnabled: true,
+        priorityDeliveryLabel: true,
+        priorityDeliveryDescription: true,
+        priorityDeliveryEstimate: true,
+        expressDeliveryEnabled: true,
+        expressDeliveryLabel: true,
+        expressDeliveryDescription: true,
+        expressDeliveryEstimate: true,
+      },
+    }),
+  ]);
+  return { service, skills, rule };
 }

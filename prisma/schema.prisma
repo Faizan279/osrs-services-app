@@ -80,6 +80,38 @@ enum CatalogueRevisionEvent {
   ARCHIVED
 }
 
+enum SkillingSkillKey {
+  ATTACK
+  STRENGTH
+  DEFENCE
+  RANGED
+  PRAYER
+  MAGIC
+  RUNECRAFT
+  CONSTRUCTION
+  HITPOINTS
+  AGILITY
+  HERBLORE
+  THIEVING
+  CRAFTING
+  FLETCHING
+  SLAYER
+  HUNTER
+  MINING
+  SMITHING
+  FISHING
+  COOKING
+  FIREMAKING
+  WOODCUTTING
+  FARMING
+}
+
+enum SkillingDeliverySpeed {
+  STANDARD
+  PRIORITY
+  EXPRESS
+}
+
 model User {
   id                 String                  @id @default(cuid()) @db.VarChar(30)
   email              String                  @unique @db.VarChar(191)
@@ -244,8 +276,11 @@ model CatalogueService {
   revisions                         CatalogueRevision[]
   stage                             CatalogueServiceStage?
   offerings                         CatalogueOffering[]
+  skillingSkills                    SkillingSkillConfig[]
+  skillingRule                      SkillingCalculatorRule?
   recommendedByServiceRequirements  CatalogueRequirement[]         @relation("CatalogueRequirementRecommendation")
   recommendedByOfferingRequirements CatalogueOfferingRequirement[] @relation("CatalogueOfferingRequirementRecommendation")
+  skillingTrainingMethods           SkillingTrainingMethod[]
 
   @@unique([categoryId, slug])
   @@index([publicationStatus, publishAt, unpublishAt])
@@ -444,4 +479,86 @@ model CatalogueRevision {
   @@unique([serviceId, revisionNumber])
   @@index([serviceId, createdAt])
   @@index([actorId, createdAt])
+}
+
+model SkillingSkillConfig {
+  id           String                   @id @default(cuid()) @db.VarChar(30)
+  serviceId    String                   @db.VarChar(30)
+  skillKey     SkillingSkillKey
+  name         String                   @db.VarChar(80)
+  enabled      Boolean                  @default(false)
+  displayOrder Int                      @default(0)
+  iconKey      String?                  @db.VarChar(80)
+  seededKey    String?                  @unique @db.VarChar(140)
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+  service      CatalogueService         @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  methods      SkillingTrainingMethod[]
+
+  @@unique([serviceId, skillKey])
+  @@index([serviceId, enabled, displayOrder])
+}
+
+model SkillingTrainingMethod {
+  id                         String              @id @default(cuid()) @db.VarChar(30)
+  serviceId                  String              @db.VarChar(30)
+  skillConfigId              String              @db.VarChar(30)
+  name                       String              @db.VarChar(160)
+  slug                       String              @db.VarChar(180)
+  shortDescription           String              @db.VarChar(500)
+  enabled                    Boolean             @default(true)
+  displayOrder               Int                 @default(0)
+  minimumLevel               Int                 @default(1)
+  maximumLevel               Int                 @default(99)
+  xpPerHour                  Int?
+  basePriceCentsPerMillionXp Int
+  minimumPriceCents          Int                 @default(0)
+  fixedFeeCents              Int                 @default(0)
+  suppliesEnabled            Boolean             @default(false)
+  suppliesLabel              String?             @db.VarChar(120)
+  suppliesFeeCents           Int                 @default(0)
+  notes                      String?             @db.Text
+  needsClientReview          Boolean             @default(true)
+  seededKey                  String?             @unique @db.VarChar(160)
+  createdAt                  DateTime            @default(now())
+  updatedAt                  DateTime            @updatedAt
+  service                    CatalogueService    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  skillConfig                SkillingSkillConfig @relation(fields: [skillConfigId], references: [id], onDelete: Cascade)
+
+  @@unique([skillConfigId, slug])
+  @@index([serviceId, enabled, displayOrder])
+  @@index([skillConfigId, enabled, displayOrder])
+}
+
+model SkillingCalculatorRule {
+  id                            String           @id @default(cuid()) @db.VarChar(30)
+  serviceId                     String           @unique @db.VarChar(30)
+  normalModeMultiplierBps       Int              @default(0)
+  ironmanMultiplierBps          Int              @default(1000)
+  hardcoreIronmanMultiplierBps  Int              @default(2000)
+  ultimateIronmanMultiplierBps  Int              @default(3000)
+  discordStreamEnabled          Boolean          @default(true)
+  discordStreamPercentBps       Int              @default(200)
+  standardDeliveryEnabled       Boolean          @default(true)
+  standardDeliveryLabel         String           @default("Standard") @db.VarChar(80)
+  standardDeliveryDescription   String?          @db.VarChar(240)
+  standardDeliveryEstimate      String?          @db.VarChar(120)
+  standardDeliveryMultiplierBps Int              @default(0)
+  standardDeliveryFixedFeeCents Int              @default(0)
+  priorityDeliveryEnabled       Boolean          @default(false)
+  priorityDeliveryLabel         String           @default("Priority") @db.VarChar(80)
+  priorityDeliveryDescription   String?          @db.VarChar(240)
+  priorityDeliveryEstimate      String?          @db.VarChar(120)
+  priorityDeliveryMultiplierBps Int              @default(1500)
+  priorityDeliveryFixedFeeCents Int              @default(0)
+  expressDeliveryEnabled        Boolean          @default(false)
+  expressDeliveryLabel          String           @default("Express") @db.VarChar(80)
+  expressDeliveryDescription    String?          @db.VarChar(240)
+  expressDeliveryEstimate       String?          @db.VarChar(120)
+  expressDeliveryMultiplierBps  Int              @default(3000)
+  expressDeliveryFixedFeeCents  Int              @default(0)
+  needsClientReview             Boolean          @default(true)
+  createdAt                     DateTime         @default(now())
+  updatedAt                     DateTime         @updatedAt
+  service                       CatalogueService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 }

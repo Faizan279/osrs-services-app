@@ -4,10 +4,29 @@
 
 - The server is the source of truth.
 - Every price, percentage, and availability rule is editable in admin.
-- Published pricing rules have version history.
-- Every order item stores a full price snapshot.
+- Published pricing rules need version history before they can support orders.
+- Every future order item must store a full price snapshot.
 - Client-side totals are previews only.
 - Old orders never change when current prices change.
+
+## Task 005 skilling estimate preview
+
+Task 005 adds a skilling-specific preview engine only. It calculates an `Estimated total` from service-scoped skilling rules and training methods, then tells the customer that final price is confirmed before checkout.
+
+Inputs handled by the skilling preview:
+
+- level mode or XP mode using the OSRS XP table
+- base cents per 1 million XP
+- minimum method price
+- optional fixed method fee
+- account-mode basis-point adjustments
+- optional supplies fee
+- optional Discord Stream percentage
+- configured delivery percentage and fixed fee
+
+The public route never trusts client-submitted prices and does not expose internal rule IDs or arbitrary formulas. Seeded skilling rates are representative defaults only and are marked `Needs client review`, so the public `skilling_calculator_enabled` feature flag is seeded off until client approval.
+
+Task 005 intentionally does not add checkout/order price snapshots, global discount stacking, taxes, payment-provider logic or the full pricing administration workflow for every engine.
 
 ## Initial prices
 

@@ -24,8 +24,21 @@ function createFakeClient() {
     offeringFacets: new Set<string>(),
     offeringModes: new Set<string>(),
     offeringRequirements: new Set<string>(),
+    skillingRules: new Map<
+      string,
+      {
+        standardDeliveryEnabled: boolean;
+        priorityDeliveryEnabled: boolean;
+        expressDeliveryEnabled: boolean;
+      }
+    >(),
+    skillingSkills: new Map<string, { id: string; name: string }>(),
+    skillingMethods: new Map<string, { id: string; name: string }>(),
     categoryUpdates: [] as unknown[],
     serviceUpdates: [] as unknown[],
+    skillingSkillUpdates: [] as unknown[],
+    skillingMethodUpdates: [] as unknown[],
+    skillingRuleUpdates: [] as unknown[],
   };
   const client = {
     catalogueCategory: {
@@ -133,6 +146,62 @@ function createFakeClient() {
         return { count: args.data.length };
       },
     },
+    skillingCalculatorRule: {
+      async upsert(args: {
+        where: { serviceId: string };
+        create: {
+          serviceId: string;
+          standardDeliveryEnabled: boolean;
+          priorityDeliveryEnabled: boolean;
+          expressDeliveryEnabled: boolean;
+        };
+        update: unknown;
+      }) {
+        state.skillingRuleUpdates.push(args.update);
+        const key = args.where.serviceId || args.create.serviceId;
+        if (state.skillingRules.has(key)) return {};
+        state.skillingRules.set(key, {
+          standardDeliveryEnabled: args.create.standardDeliveryEnabled,
+          priorityDeliveryEnabled: args.create.priorityDeliveryEnabled,
+          expressDeliveryEnabled: args.create.expressDeliveryEnabled,
+        });
+        return {};
+      },
+    },
+    skillingSkillConfig: {
+      async upsert(args: {
+        where: { seededKey: string };
+        create: { name: string };
+        update: unknown;
+      }) {
+        state.skillingSkillUpdates.push(args.update);
+        const existing = state.skillingSkills.get(args.where.seededKey);
+        if (existing) return { id: existing.id };
+        const record = {
+          id: `skill:${args.where.seededKey}`,
+          name: args.create.name,
+        };
+        state.skillingSkills.set(args.where.seededKey, record);
+        return { id: record.id };
+      },
+    },
+    skillingTrainingMethod: {
+      async upsert(args: {
+        where: { seededKey: string };
+        create: { name: string };
+        update: unknown;
+      }) {
+        state.skillingMethodUpdates.push(args.update);
+        const existing = state.skillingMethods.get(args.where.seededKey);
+        if (existing) return { id: existing.id };
+        const record = {
+          id: `method:${args.where.seededKey}`,
+          name: args.create.name,
+        };
+        state.skillingMethods.set(args.where.seededKey, record);
+        return { id: record.id };
+      },
+    },
   } as unknown as CatalogueSeedClient;
   return { client, state };
 }
@@ -146,6 +215,14 @@ describe("catalogue seed", () => {
     expect(state.requirements.size).toBe(6);
     expect(state.offerings.size).toBe(8);
     expect(state.offeringRequirements.size).toBe(8);
+    expect(state.skillingRules.size).toBe(1);
+    expect(state.skillingRules.get("service:skill-training-request")).toEqual({
+      standardDeliveryEnabled: true,
+      priorityDeliveryEnabled: false,
+      expressDeliveryEnabled: false,
+    });
+    expect(state.skillingSkills.size).toBe(23);
+    expect(state.skillingMethods.size).toBe(4);
     expect(
       [...state.services.values()].every(
         (service) =>
@@ -159,6 +236,11 @@ describe("catalogue seed", () => {
     await seedCatalogue(client);
     state.categories.get("quests")!.name = "Client quest taxonomy";
     state.services.get("quest-progression")!.name = "Client quest service";
+    state.skillingRules.set("service:skill-training-request", {
+      standardDeliveryEnabled: false,
+      priorityDeliveryEnabled: true,
+      expressDeliveryEnabled: true,
+    });
     const counts = [
       state.categories.size,
       state.services.size,
@@ -167,6 +249,8 @@ describe("catalogue seed", () => {
       state.offerings.size,
       state.offeringFacets.size,
       state.offeringRequirements.size,
+      state.skillingSkills.size,
+      state.skillingMethods.size,
     ];
     await seedCatalogue(client);
     expect([
@@ -177,16 +261,38 @@ describe("catalogue seed", () => {
       state.offerings.size,
       state.offeringFacets.size,
       state.offeringRequirements.size,
+      state.skillingSkills.size,
+      state.skillingMethods.size,
     ]).toEqual(counts);
     expect(state.categories.get("quests")?.name).toBe("Client quest taxonomy");
     expect(state.services.get("quest-progression")?.name).toBe(
       "Client quest service",
     );
+    expect(state.skillingRules.get("service:skill-training-request")).toEqual({
+      standardDeliveryEnabled: false,
+      priorityDeliveryEnabled: true,
+      expressDeliveryEnabled: true,
+    });
     expect(
       state.categoryUpdates.every((value) => JSON.stringify(value) === "{}"),
     ).toBe(true);
     expect(
       state.serviceUpdates.every((value) => JSON.stringify(value) === "{}"),
+    ).toBe(true);
+    expect(
+      state.skillingSkillUpdates.every(
+        (value) => JSON.stringify(value) === "{}",
+      ),
+    ).toBe(true);
+    expect(
+      state.skillingMethodUpdates.every(
+        (value) => JSON.stringify(value) === "{}",
+      ),
+    ).toBe(true);
+    expect(
+      state.skillingRuleUpdates.every(
+        (value) => JSON.stringify(value) === "{}",
+      ),
     ).toBe(true);
   });
 });
