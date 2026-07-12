@@ -1,6 +1,6 @@
 Branch: codex/task-006-bossing-pvm-engine
 Starting main SHA: 2899a540cd56009cb222ef19c7cf15865ea5ccdf
-Final head SHA: recorded in final handoff after local commit
+Reviewed implementation commit: be5df8339b543ad58193d13127b7ffa08c5d4e71
 
 Migration:
 - prisma/migrations/20260712180000_task006_bossing_pvm_engine/migration.sql

@@ -5,7 +5,10 @@
 - Repository: `Faizan279/osrs-services-app`
 - Branch: `codex/task-006-bossing-pvm-engine`
 - Starting main commit: `2899a540cd56009cb222ef19c7cf15865ea5ccdf`
-- Final local commit: recorded in the final handoff after this report is committed.
+- Reviewed implementation commit:
+  `be5df8339b543ad58193d13127b7ffa08c5d4e71`
+- Current reviewed head before documentation-only fix:
+  `be5df8339b543ad58193d13127b7ffa08c5d4e71`
 - Migration:
   `prisma/migrations/20260712180000_task006_bossing_pvm_engine/migration.sql`
 - Delivery boundary honored: no push, pull request, merge, deployment or Task 007 work.
@@ -145,7 +148,7 @@ Responsive checks covered 320px, 390px, 768px, 1024px and 1440px with no horizon
 
 - `changed-files.txt` lists source, test, documentation, migration and screenshot files included for review.
 - `task-006-review-summary.txt` summarizes the implementation and validation result.
-- `task-006-review-pack.zip` is generated from the local workspace for review. The final SHA-256 is recorded in the final handoff after packaging.
+- `task-006-final-review-pack.zip` is the path-safe final review archive generated for handoff.
 
 ## Known limitations
 
