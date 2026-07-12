@@ -3,6 +3,7 @@ import { CheckCircle2, CircleAlert, Clock3, Gamepad2 } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { CatalogueBreadcrumbs } from "@/components/catalogue-public";
+import { BossingCalculatorEngine } from "@/components/bossing-calculator-engine";
 import { CatalogueCardEngine } from "@/components/catalogue-card-engine";
 import { SkillingCalculatorEngine } from "@/components/skilling-calculator-engine";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +17,7 @@ import {
 import { publicPrimaryMedia } from "@/lib/catalogue/public-select";
 import {
   getCatalogueFeatureFlags,
+  getPublicBossingCalculatorService,
   getPublicCatalogueCardService,
   getPublicSkillingCalculatorService,
   getPublicService,
@@ -207,6 +209,61 @@ export default async function ServiceDetailPage({
             skills={engine.skills}
             rule={engine.rule}
             requestHref={discordHref}
+          />
+        </main>
+      );
+    }
+  }
+  if (service.engineType === "BOSSING_ENGINE") {
+    const [engine, flags] = await Promise.all([
+      getPublicBossingCalculatorService({ categorySlug, serviceSlug }),
+      getCatalogueFeatureFlags(),
+    ]);
+    if (engine && flags.bossing_calculator_enabled) {
+      return (
+        <main id="main-content" className="min-h-[70vh]">
+          <section className="border-border bg-surface-1 border-b py-14 sm:py-20">
+            <div className="mx-auto max-w-7xl px-5 sm:px-8">
+              <CatalogueBreadcrumbs
+                items={[
+                  { label: "Home", href: "/" },
+                  { label: "Services", href: "/services" },
+                  {
+                    label: service.category.name,
+                    href: `/services/${service.category.slug}`,
+                  },
+                  { label: service.name },
+                ]}
+              />
+              <div className="mt-8 flex flex-wrap gap-2">
+                <Badge variant="info">Bossing calculator</Badge>
+                {service.isQuoteOnly && (
+                  <Badge variant="warning">Quote only</Badge>
+                )}
+              </div>
+              <p className="text-gold kicker-type mt-8">
+                {service.category.name}
+              </p>
+              <h1 className="display-type mt-4 max-w-4xl text-4xl sm:text-6xl">
+                {service.name}
+              </h1>
+              <p className="text-text-secondary mt-5 max-w-3xl text-lg leading-8">
+                {service.shortSummary}
+              </p>
+            </div>
+          </section>
+          <BossingCalculatorEngine
+            service={{
+              id: engine.service.id,
+              name: engine.service.name,
+              content: engine.service.content,
+              requirements: engine.service.requirements,
+              gameModes: engine.service.gameModes,
+            }}
+            bosses={engine.bosses}
+            rule={engine.rule}
+            requestHref={discordHref}
+            eligibilityEnabled={Boolean(flags.rsn_eligibility_enabled)}
           />
         </main>
       );

@@ -42,6 +42,16 @@ import {
   skillingRuleInputSchema,
   skillingSkillInputSchema,
 } from "@/lib/skilling/admin";
+import {
+  bossingBossInputSchema,
+  bossingGearRequirementInputSchema,
+  bossingMethodInputSchema,
+  bossingRuleInputSchema,
+  bossingStatRequirementInputSchema,
+  saveBossingBoss,
+  saveBossingMethod,
+  saveBossingRule,
+} from "@/lib/bossing/admin";
 
 function checked(formData: FormData, key: string) {
   return formData.get(key) === "on";
@@ -232,6 +242,134 @@ function skillingMethodInput(formData: FormData, serviceId: string) {
     suppliesFeeCents: formData.get("suppliesFeeCents"),
     notes: formData.get("notes"),
     needsClientReview: checked(formData, "needsClientReview"),
+  });
+}
+
+function bossingRuleInput(formData: FormData, serviceId: string) {
+  return bossingRuleInputSchema.parse({
+    serviceId,
+    normalModeMultiplierBps: formData.get("normalModeMultiplierBps"),
+    ironmanMultiplierBps: formData.get("ironmanMultiplierBps"),
+    hardcoreIronmanMultiplierBps: formData.get("hardcoreIronmanMultiplierBps"),
+    ultimateIronmanMultiplierBps: formData.get("ultimateIronmanMultiplierBps"),
+    discordStreamEnabled: checked(formData, "discordStreamEnabled"),
+    discordStreamPercentBps: formData.get("discordStreamPercentBps"),
+    standardDeliveryEnabled: checked(formData, "standardDeliveryEnabled"),
+    standardDeliveryLabel: formData.get("standardDeliveryLabel"),
+    standardDeliveryDescription: formData.get("standardDeliveryDescription"),
+    standardDeliveryEstimate: formData.get("standardDeliveryEstimate"),
+    standardDeliveryMultiplierBps: formData.get(
+      "standardDeliveryMultiplierBps",
+    ),
+    standardDeliveryFixedFeeCents: formData.get(
+      "standardDeliveryFixedFeeCents",
+    ),
+    priorityDeliveryEnabled: checked(formData, "priorityDeliveryEnabled"),
+    priorityDeliveryLabel: formData.get("priorityDeliveryLabel"),
+    priorityDeliveryDescription: formData.get("priorityDeliveryDescription"),
+    priorityDeliveryEstimate: formData.get("priorityDeliveryEstimate"),
+    priorityDeliveryMultiplierBps: formData.get(
+      "priorityDeliveryMultiplierBps",
+    ),
+    priorityDeliveryFixedFeeCents: formData.get(
+      "priorityDeliveryFixedFeeCents",
+    ),
+    expressDeliveryEnabled: checked(formData, "expressDeliveryEnabled"),
+    expressDeliveryLabel: formData.get("expressDeliveryLabel"),
+    expressDeliveryDescription: formData.get("expressDeliveryDescription"),
+    expressDeliveryEstimate: formData.get("expressDeliveryEstimate"),
+    expressDeliveryMultiplierBps: formData.get("expressDeliveryMultiplierBps"),
+    expressDeliveryFixedFeeCents: formData.get("expressDeliveryFixedFeeCents"),
+    needsClientReview: checked(formData, "needsClientReview"),
+  });
+}
+
+function bossingBossInput(formData: FormData, serviceId: string) {
+  return bossingBossInputSchema.parse({
+    serviceId,
+    bossKey: formData.get("bossKey"),
+    name: formData.get("name"),
+    enabled: checked(formData, "enabled"),
+    displayOrder: formData.get("displayOrder"),
+    groupLabel: formData.get("groupLabel"),
+    iconKey: formData.get("iconKey"),
+    description: formData.get("description"),
+    needsClientReview: checked(formData, "needsClientReview"),
+  });
+}
+
+function bossingStatRequirements(formData: FormData) {
+  return String(formData.get("statRequirements") ?? "")
+    .split(/\r?\n/)
+    .map((row) => row.trim())
+    .filter(Boolean)
+    .map((row, index) => {
+      const [metricKey, label, requiredLevel, customerGuidance] = row
+        .split("|")
+        .map((value) => value?.trim());
+      return bossingStatRequirementInputSchema.parse({
+        metricKey,
+        label,
+        requiredLevel,
+        displayOrder: (index + 1) * 10,
+        verificationMode: "AUTOMATIC",
+        customerGuidance,
+        needsClientReview: true,
+      });
+    });
+}
+
+function bossingGearRequirements(formData: FormData) {
+  return String(formData.get("gearRequirements") ?? "")
+    .split(/\r?\n/)
+    .map((row) => row.trim())
+    .filter(Boolean)
+    .map((row, index) => {
+      const [label, description, verificationMode, customerGuidance] = row
+        .split("|")
+        .map((value) => value?.trim());
+      return bossingGearRequirementInputSchema.parse({
+        label,
+        description,
+        isRequired: true,
+        displayOrder: (index + 1) * 10,
+        verificationMode,
+        customerGuidance,
+        needsClientReview: true,
+      });
+    });
+}
+
+function bossingMethodInput(formData: FormData, serviceId: string) {
+  return bossingMethodInputSchema.parse({
+    serviceId,
+    bossId: formData.get("bossId"),
+    slug: formData.get("slug"),
+    name: formData.get("name"),
+    shortDescription: formData.get("shortDescription"),
+    enabled: checked(formData, "enabled"),
+    displayOrder: formData.get("displayOrder"),
+    priceMode: formData.get("priceMode"),
+    minimumKillCount: formData.get("minimumKillCount"),
+    maximumKillCount: formData.get("maximumKillCount"),
+    basePriceCentsPerKill: formData.get("basePriceCentsPerKill"),
+    fixedPackagePriceCents: formData.get("fixedPackagePriceCents"),
+    minimumPriceCents: formData.get("minimumPriceCents"),
+    setupFeeCents: formData.get("setupFeeCents"),
+    difficultyTierLabel: formData.get("difficultyTierLabel"),
+    expectedRequirementsSummary: formData.get("expectedRequirementsSummary"),
+    gearNotes: formData.get("gearNotes"),
+    supplyNotes: formData.get("supplyNotes"),
+    suppliesEnabled: checked(formData, "suppliesEnabled"),
+    suppliesLabel: formData.get("suppliesLabel"),
+    suppliesFeeCents: formData.get("suppliesFeeCents"),
+    customerGearRequired: checked(formData, "customerGearRequired"),
+    customerGearLabel: formData.get("customerGearLabel"),
+    gearAdjustmentCents: formData.get("gearAdjustmentCents"),
+    estimatedKillsPerHour: formData.get("estimatedKillsPerHour"),
+    needsClientReview: checked(formData, "needsClientReview"),
+    statRequirements: bossingStatRequirements(formData),
+    gearRequirements: bossingGearRequirements(formData),
   });
 }
 
@@ -862,6 +1000,114 @@ export async function saveSkillingMethodAction(formData: FormData) {
   redirect(
     destination(
       `/admin/catalogue/services/${serviceId}/skilling/methods/${result.id}`,
+      "saved",
+      result.staged ? "Method changes staged for republish." : "Method saved.",
+    ),
+  );
+}
+
+export async function saveBossingRuleAction(formData: FormData) {
+  const serviceId = idValue(formData, "serviceId");
+  const session = await requireCapability(
+    "products.edit",
+    `/admin/catalogue/services/${serviceId}/bossing`,
+  );
+  let staged: boolean;
+  try {
+    const result = await saveBossingRule(
+      bossingRuleInput(formData, serviceId),
+      session.user.id,
+      expectedVersionValue(formData),
+    );
+    staged = result.staged;
+  } catch (error) {
+    redirect(
+      destination(
+        `/admin/catalogue/services/${serviceId}/bossing`,
+        "error",
+        catalogueActionErrorMessage(error, "save-bossing-rule"),
+      ),
+    );
+  }
+  redirect(
+    destination(
+      `/admin/catalogue/services/${serviceId}/bossing`,
+      "saved",
+      staged ? "Bossing rules staged for republish." : "Bossing rules saved.",
+    ),
+  );
+}
+
+export async function saveBossingBossAction(formData: FormData) {
+  const serviceId = idValue(formData, "serviceId");
+  const rawBossId = String(formData.get("bossId") ?? "");
+  const bossId = rawBossId ? catalogueIdSchema.parse(rawBossId) : undefined;
+  const session = await requireCapability(
+    "products.edit",
+    `/admin/catalogue/services/${serviceId}/bossing`,
+  );
+  let result: Awaited<ReturnType<typeof saveBossingBoss>>;
+  try {
+    result = await saveBossingBoss(
+      bossingBossInput(formData, serviceId),
+      session.user.id,
+      expectedVersionValue(formData),
+      bossId,
+    );
+  } catch (error) {
+    redirect(
+      destination(
+        bossId
+          ? `/admin/catalogue/services/${serviceId}/bossing/bosses/${bossId}`
+          : `/admin/catalogue/services/${serviceId}/bossing/bosses/new`,
+        "error",
+        catalogueActionErrorMessage(error, "save-bossing-boss"),
+      ),
+    );
+  }
+  revalidatePath(`/admin/catalogue/services/${serviceId}`);
+  redirect(
+    destination(
+      `/admin/catalogue/services/${serviceId}/bossing`,
+      "saved",
+      result.staged ? "Boss changes staged for republish." : "Boss saved.",
+    ),
+  );
+}
+
+export async function saveBossingMethodAction(formData: FormData) {
+  const serviceId = idValue(formData, "serviceId");
+  const rawMethodId = String(formData.get("methodId") ?? "");
+  const methodId = rawMethodId
+    ? catalogueIdSchema.parse(rawMethodId)
+    : undefined;
+  const session = await requireCapability(
+    "products.edit",
+    `/admin/catalogue/services/${serviceId}/bossing`,
+  );
+  let result: Awaited<ReturnType<typeof saveBossingMethod>>;
+  try {
+    result = await saveBossingMethod(
+      bossingMethodInput(formData, serviceId),
+      session.user.id,
+      expectedVersionValue(formData),
+      methodId,
+    );
+  } catch (error) {
+    redirect(
+      destination(
+        methodId
+          ? `/admin/catalogue/services/${serviceId}/bossing/methods/${methodId}`
+          : `/admin/catalogue/services/${serviceId}/bossing/methods/new`,
+        "error",
+        catalogueActionErrorMessage(error, "save-bossing-method"),
+      ),
+    );
+  }
+  revalidatePath(`/admin/catalogue/services/${serviceId}`);
+  redirect(
+    destination(
+      `/admin/catalogue/services/${serviceId}/bossing/methods/${result.id}`,
       "saved",
       result.staged ? "Method changes staged for republish." : "Method saved.",
     ),

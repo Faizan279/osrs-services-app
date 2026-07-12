@@ -34,11 +34,26 @@ function createFakeClient() {
     >(),
     skillingSkills: new Map<string, { id: string; name: string }>(),
     skillingMethods: new Map<string, { id: string; name: string }>(),
+    bossingRules: new Map<
+      string,
+      {
+        standardDeliveryEnabled: boolean;
+        priorityDeliveryEnabled: boolean;
+        expressDeliveryEnabled: boolean;
+      }
+    >(),
+    bossingBosses: new Map<string, { id: string; name: string }>(),
+    bossingMethods: new Map<string, { id: string; name: string }>(),
+    bossingStatRequirements: new Set<string>(),
+    bossingGearRequirements: new Set<string>(),
     categoryUpdates: [] as unknown[],
     serviceUpdates: [] as unknown[],
     skillingSkillUpdates: [] as unknown[],
     skillingMethodUpdates: [] as unknown[],
     skillingRuleUpdates: [] as unknown[],
+    bossingBossUpdates: [] as unknown[],
+    bossingMethodUpdates: [] as unknown[],
+    bossingRuleUpdates: [] as unknown[],
   };
   const client = {
     catalogueCategory: {
@@ -202,6 +217,78 @@ function createFakeClient() {
         return { id: record.id };
       },
     },
+    bossingCalculatorRule: {
+      async upsert(args: {
+        where: { serviceId: string };
+        create: {
+          serviceId: string;
+          standardDeliveryEnabled: boolean;
+          priorityDeliveryEnabled: boolean;
+          expressDeliveryEnabled: boolean;
+        };
+        update: unknown;
+      }) {
+        state.bossingRuleUpdates.push(args.update);
+        const key = args.where.serviceId || args.create.serviceId;
+        if (state.bossingRules.has(key)) return {};
+        state.bossingRules.set(key, {
+          standardDeliveryEnabled: args.create.standardDeliveryEnabled,
+          priorityDeliveryEnabled: args.create.priorityDeliveryEnabled,
+          expressDeliveryEnabled: args.create.expressDeliveryEnabled,
+        });
+        return {};
+      },
+    },
+    bossingBossConfig: {
+      async upsert(args: {
+        where: { seededKey: string };
+        create: { name: string };
+        update: unknown;
+      }) {
+        state.bossingBossUpdates.push(args.update);
+        const existing = state.bossingBosses.get(args.where.seededKey);
+        if (existing) return { id: existing.id };
+        const record = {
+          id: `boss:${args.where.seededKey}`,
+          name: args.create.name,
+        };
+        state.bossingBosses.set(args.where.seededKey, record);
+        return { id: record.id };
+      },
+    },
+    bossingMethod: {
+      async upsert(args: {
+        where: { seededKey: string };
+        create: { name: string };
+        update: unknown;
+      }) {
+        state.bossingMethodUpdates.push(args.update);
+        const existing = state.bossingMethods.get(args.where.seededKey);
+        if (existing) return { id: existing.id };
+        const record = {
+          id: `bossing-method:${args.where.seededKey}`,
+          name: args.create.name,
+        };
+        state.bossingMethods.set(args.where.seededKey, record);
+        return { id: record.id };
+      },
+    },
+    bossingStatRequirement: {
+      async createMany(args: { data: Array<{ seededKey: string }> }) {
+        args.data.forEach((item) =>
+          state.bossingStatRequirements.add(item.seededKey),
+        );
+        return { count: args.data.length };
+      },
+    },
+    bossingGearRequirement: {
+      async createMany(args: { data: Array<{ seededKey: string }> }) {
+        args.data.forEach((item) =>
+          state.bossingGearRequirements.add(item.seededKey),
+        );
+        return { count: args.data.length };
+      },
+    },
   } as unknown as CatalogueSeedClient;
   return { client, state };
 }
@@ -223,6 +310,16 @@ describe("catalogue seed", () => {
     });
     expect(state.skillingSkills.size).toBe(23);
     expect(state.skillingMethods.size).toBe(4);
+    expect(state.bossingRules.size).toBe(1);
+    expect(state.bossingRules.get("service:pvm-support")).toEqual({
+      standardDeliveryEnabled: true,
+      priorityDeliveryEnabled: false,
+      expressDeliveryEnabled: false,
+    });
+    expect(state.bossingBosses.size).toBe(3);
+    expect(state.bossingMethods.size).toBe(3);
+    expect(state.bossingStatRequirements.size).toBe(8);
+    expect(state.bossingGearRequirements.size).toBe(6);
     expect(
       [...state.services.values()].every(
         (service) =>
@@ -241,6 +338,13 @@ describe("catalogue seed", () => {
       priorityDeliveryEnabled: true,
       expressDeliveryEnabled: true,
     });
+    state.bossingRules.set("service:pvm-support", {
+      standardDeliveryEnabled: false,
+      priorityDeliveryEnabled: true,
+      expressDeliveryEnabled: true,
+    });
+    state.bossingMethods.get("pvm-support:giant-mole:standard-kills")!.name =
+      "Client-edited Mole method";
     const counts = [
       state.categories.size,
       state.services.size,
@@ -251,6 +355,10 @@ describe("catalogue seed", () => {
       state.offeringRequirements.size,
       state.skillingSkills.size,
       state.skillingMethods.size,
+      state.bossingBosses.size,
+      state.bossingMethods.size,
+      state.bossingStatRequirements.size,
+      state.bossingGearRequirements.size,
     ];
     await seedCatalogue(client);
     expect([
@@ -263,6 +371,10 @@ describe("catalogue seed", () => {
       state.offeringRequirements.size,
       state.skillingSkills.size,
       state.skillingMethods.size,
+      state.bossingBosses.size,
+      state.bossingMethods.size,
+      state.bossingStatRequirements.size,
+      state.bossingGearRequirements.size,
     ]).toEqual(counts);
     expect(state.categories.get("quests")?.name).toBe("Client quest taxonomy");
     expect(state.services.get("quest-progression")?.name).toBe(
@@ -273,6 +385,14 @@ describe("catalogue seed", () => {
       priorityDeliveryEnabled: true,
       expressDeliveryEnabled: true,
     });
+    expect(state.bossingRules.get("service:pvm-support")).toEqual({
+      standardDeliveryEnabled: false,
+      priorityDeliveryEnabled: true,
+      expressDeliveryEnabled: true,
+    });
+    expect(
+      state.bossingMethods.get("pvm-support:giant-mole:standard-kills")?.name,
+    ).toBe("Client-edited Mole method");
     expect(
       state.categoryUpdates.every((value) => JSON.stringify(value) === "{}"),
     ).toBe(true);
@@ -293,6 +413,17 @@ describe("catalogue seed", () => {
       state.skillingRuleUpdates.every(
         (value) => JSON.stringify(value) === "{}",
       ),
+    ).toBe(true);
+    expect(
+      state.bossingBossUpdates.every((value) => JSON.stringify(value) === "{}"),
+    ).toBe(true);
+    expect(
+      state.bossingMethodUpdates.every(
+        (value) => JSON.stringify(value) === "{}",
+      ),
+    ).toBe(true);
+    expect(
+      state.bossingRuleUpdates.every((value) => JSON.stringify(value) === "{}"),
     ).toBe(true);
   });
 });

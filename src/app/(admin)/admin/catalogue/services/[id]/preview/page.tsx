@@ -239,6 +239,73 @@ export default async function ServicePreviewPage({
           </div>
         </section>
       )}
+      {service.engineType === "BOSSING_ENGINE" && (
+        <section className="mt-8">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-primary kicker-type">Bossing preview</p>
+              <h2 className="display-type mt-3 text-3xl">
+                Staged PvM calculator configuration
+              </h2>
+            </div>
+            <Badge variant="info">
+              {service.bossingBosses.filter((boss) => boss.enabled).length}{" "}
+              enabled bosses
+            </Badge>
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {service.bossingBosses.map((boss) => (
+              <article
+                className="border-border bg-surface-1 rounded-2xl border p-5"
+                key={boss.id}
+              >
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <span
+                    className={boss.enabled ? "text-success" : "text-warning"}
+                  >
+                    {boss.enabled ? "Enabled" : "Disabled"}
+                  </span>
+                  <span className="text-text-muted">
+                    Order {boss.displayOrder}
+                  </span>
+                </div>
+                <h3 className="mt-3 text-lg font-bold">{boss.name}</h3>
+                <p className="text-text-secondary mt-2 text-sm">
+                  {boss.methods.length} method
+                  {boss.methods.length === 1 ? "" : "s"} configured.
+                </p>
+                {boss.methods.length > 0 && (
+                  <ul className="mt-4 space-y-3">
+                    {boss.methods.map((method) => (
+                      <li
+                        className="border-border rounded-xl border p-3 text-sm"
+                        key={method.id}
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-bold">{method.name}</span>
+                          <span
+                            className={
+                              method.enabled ? "text-success" : "text-warning"
+                            }
+                          >
+                            {method.enabled ? "Enabled" : "Disabled"}
+                          </span>
+                        </div>
+                        <p className="text-text-muted mt-2 text-xs">
+                          {method.minimumKillCount.toLocaleString()}-
+                          {method.maximumKillCount?.toLocaleString() ??
+                            "unlimited"}{" "}
+                          kills - {method.priceMode.replaceAll("_", " ")}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
       <section className="border-danger/30 bg-danger/5 mt-8 rounded-2xl border p-5">
         <h2 className="text-danger text-sm font-bold">
           Internal notes — admin only

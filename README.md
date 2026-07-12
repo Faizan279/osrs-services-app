@@ -62,6 +62,14 @@ Estimates are calculated through `POST /api/skilling/estimate` with no-store res
 
 Admin users with `products.view` can view skilling configuration under `/admin/catalogue/services/[id]/skilling`; edits require `products.edit` server-side. Published skilling edits use the Task 003 staged aggregate and remain private until republish. `skilling_calculator_enabled` is seeded off by default while seeded prices/rules are marked `Needs client review`; seed reruns preserve administrator changes to that flag.
 
+## Task 006 bossing calculator
+
+`BOSSING_ENGINE` pages now support a public bossing/PvM calculator backed by service-scoped boss configs, methods, calculator rules, stat requirements and gear requirements. The calculator supports direct kill quantity, current KC to target KC, account-mode adjustments, optional supplies, optional Discord Stream, customer-provided gear confirmation and configured delivery speed.
+
+Estimates are calculated through `POST /api/bossing/estimate` with no-store responses and server-side catalogue/rule lookup. They are preview-only and show `Estimated total` plus the final-price disclaimer; cart, checkout, orders, payment records, premium configurators and quote creation remain later tasks.
+
+Admin users with `products.view` can view bossing configuration under `/admin/catalogue/services/[id]/bossing`; edits require `products.edit` server-side. Published bossing edits use the Task 003 staged aggregate and remain private until republish. `bossing_calculator_enabled` is seeded off by default while seeded prices/rules are marked `Needs client review`; seed reruns preserve administrator changes to that flag.
+
 ### Requirements
 
 - Node.js 24 LTS
@@ -113,11 +121,12 @@ pnpm screenshots:task002
 pnpm screenshots:task003
 pnpm screenshots:task004
 pnpm screenshots:task005
+pnpm screenshots:task006
 pnpm format:check
 pnpm build
 ```
 
-Task 002 through Task 005 screenshot capture expects the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
+Task 002 through Task 006 screenshot capture expects the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
 
 ### Database commands
 

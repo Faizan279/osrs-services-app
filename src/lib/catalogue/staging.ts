@@ -22,6 +22,10 @@ import {
   safeRequirementNumber,
 } from "@/lib/catalogue/numeric";
 import { isAllowedMetricKey } from "@/lib/eligibility/metrics";
+import {
+  bossingPriceModes,
+  bossingPublicStatMetricKeys,
+} from "@/lib/bossing/constants";
 import { skillingSkillKeys } from "@/lib/skilling/constants";
 
 const nullableString = (maximum: number) => z.string().max(maximum).nullable();
@@ -277,6 +281,216 @@ export const stagedSkillingConfigSchema = z
     }
   });
 
+export const stagedBossingStatRequirementSchema = z.object({
+  id: z.string().min(1).max(30),
+  seededKey: z.string().max(200).nullable(),
+  metricKey: z
+    .string()
+    .max(120)
+    .refine(
+      (value) => bossingPublicStatMetricKeys.includes(value as never),
+      "Choose a supported public bossing statistic.",
+    ),
+  label: z.string().min(2).max(160),
+  requiredLevel: z.number().int().min(1).max(2_277),
+  displayOrder: z.number().int().min(0).max(100_000),
+  verificationMode: z.enum(requirementVerificationModes),
+  customerGuidance: z.string().max(10_000).nullable(),
+  needsClientReview: z.boolean(),
+});
+
+export const stagedBossingGearRequirementSchema = z.object({
+  id: z.string().min(1).max(30),
+  seededKey: z.string().max(200).nullable(),
+  label: z.string().min(2).max(160),
+  description: z.string().min(5).max(10_000),
+  isRequired: z.boolean(),
+  displayOrder: z.number().int().min(0).max(100_000),
+  verificationMode: z.enum(requirementVerificationModes),
+  customerGuidance: z.string().max(10_000).nullable(),
+  needsClientReview: z.boolean(),
+});
+
+export const stagedBossingMethodSchema = z
+  .object({
+    id: z.string().min(1).max(30),
+    seededKey: z.string().max(180).nullable(),
+    slug: z.string().min(2).max(180),
+    name: z.string().min(2).max(160),
+    shortDescription: z.string().min(10).max(500),
+    enabled: z.boolean(),
+    displayOrder: z.number().int().min(0).max(100_000),
+    priceMode: z.enum(bossingPriceModes),
+    minimumKillCount: z.number().int().min(1).max(1_000_000),
+    maximumKillCount: z.number().int().min(1).max(1_000_000).nullable(),
+    basePriceCentsPerKill: moneyCentsSchema,
+    fixedPackagePriceCents: moneyCentsSchema,
+    minimumPriceCents: moneyCentsSchema,
+    setupFeeCents: moneyCentsSchema,
+    difficultyTierLabel: z.string().max(120).nullable(),
+    expectedRequirementsSummary: z.string().max(500).nullable(),
+    gearNotes: z.string().max(20_000).nullable(),
+    supplyNotes: z.string().max(20_000).nullable(),
+    suppliesEnabled: z.boolean(),
+    suppliesLabel: z.string().max(120).nullable(),
+    suppliesFeeCents: moneyCentsSchema,
+    customerGearRequired: z.boolean(),
+    customerGearLabel: z.string().max(160).nullable(),
+    gearAdjustmentCents: moneyCentsSchema,
+    estimatedKillsPerHour: z.number().int().positive().max(100_000).nullable(),
+    needsClientReview: z.boolean(),
+    statRequirements: z.array(stagedBossingStatRequirementSchema),
+    gearRequirements: z.array(stagedBossingGearRequirementSchema),
+  })
+  .superRefine((method, context) => {
+    if (
+      method.maximumKillCount != null &&
+      method.maximumKillCount < method.minimumKillCount
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["maximumKillCount"],
+        message: "Maximum kill count cannot be lower than minimum kill count.",
+      });
+    }
+    if (method.priceMode === "PER_KILL" && method.basePriceCentsPerKill <= 0) {
+      context.addIssue({
+        code: "custom",
+        path: ["basePriceCentsPerKill"],
+        message: "Per-kill methods need a positive per-kill rate.",
+      });
+    }
+    if (
+      method.priceMode === "FIXED_PACKAGE" &&
+      method.fixedPackagePriceCents <= 0
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["fixedPackagePriceCents"],
+        message: "Fixed packages need a positive package price.",
+      });
+    }
+    if (method.suppliesEnabled && !method.suppliesLabel) {
+      context.addIssue({
+        code: "custom",
+        path: ["suppliesLabel"],
+        message: "Supply-enabled methods need a customer-facing label.",
+      });
+    }
+    if (method.customerGearRequired && !method.customerGearLabel) {
+      context.addIssue({
+        code: "custom",
+        path: ["customerGearLabel"],
+        message: "Gear-confirmation methods need a customer-facing label.",
+      });
+    }
+  });
+
+export const stagedBossingBossSchema = z.object({
+  id: z.string().min(1).max(30),
+  seededKey: z.string().max(160).nullable(),
+  bossKey: z.string().min(2).max(120),
+  name: z.string().min(2).max(160),
+  enabled: z.boolean(),
+  displayOrder: z.number().int().min(0).max(100_000),
+  groupLabel: z.string().max(120).nullable(),
+  iconKey: z.string().max(80).nullable(),
+  description: z.string().max(20_000).nullable(),
+  needsClientReview: z.boolean(),
+  methods: z.array(stagedBossingMethodSchema),
+});
+
+export const stagedBossingRuleSchema = stagedSkillingRuleSchema;
+
+export const stagedBossingConfigSchema = z
+  .object({
+    rule: stagedBossingRuleSchema.nullable(),
+    bosses: z.array(stagedBossingBossSchema),
+  })
+  .superRefine((config, context) => {
+    const bossIds = config.bosses.map(({ id }) => id);
+    const bossKeys = config.bosses.map(({ bossKey }) => bossKey);
+    if (new Set(bossIds).size !== bossIds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["bosses"],
+        message: "Boss identifiers must be unique.",
+      });
+    }
+    if (new Set(bossKeys).size !== bossKeys.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["bosses"],
+        message: "Boss keys must be unique within a service.",
+      });
+    }
+    for (const [bossIndex, boss] of config.bosses.entries()) {
+      if (!normalizedSlugPattern.test(boss.bossKey)) {
+        context.addIssue({
+          code: "custom",
+          path: ["bosses", bossIndex, "bossKey"],
+          message: "Boss key must use a normalized slug format.",
+        });
+      }
+      const methodIds = boss.methods.map(({ id }) => id);
+      const methodSlugs = boss.methods.map(({ slug }) => slug);
+      if (new Set(methodIds).size !== methodIds.length) {
+        context.addIssue({
+          code: "custom",
+          path: ["bosses", bossIndex, "methods"],
+          message: "Bossing method identifiers must be unique.",
+        });
+      }
+      if (new Set(methodSlugs).size !== methodSlugs.length) {
+        context.addIssue({
+          code: "custom",
+          path: ["bosses", bossIndex, "methods"],
+          message: "Method slugs must be unique within a boss.",
+        });
+      }
+      for (const [methodIndex, method] of boss.methods.entries()) {
+        if (
+          !normalizedSlugPattern.test(method.slug) ||
+          reservedOfferingSlugs.has(method.slug)
+        ) {
+          context.addIssue({
+            code: "custom",
+            path: ["bosses", bossIndex, "methods", methodIndex, "slug"],
+            message: "Method slug is invalid or reserved.",
+          });
+        }
+        const statIds = method.statRequirements.map(({ id }) => id);
+        const gearIds = method.gearRequirements.map(({ id }) => id);
+        if (new Set(statIds).size !== statIds.length) {
+          context.addIssue({
+            code: "custom",
+            path: [
+              "bosses",
+              bossIndex,
+              "methods",
+              methodIndex,
+              "statRequirements",
+            ],
+            message: "Stat requirement identifiers must be unique.",
+          });
+        }
+        if (new Set(gearIds).size !== gearIds.length) {
+          context.addIssue({
+            code: "custom",
+            path: [
+              "bosses",
+              bossIndex,
+              "methods",
+              methodIndex,
+              "gearRequirements",
+            ],
+            message: "Gear requirement identifiers must be unique.",
+          });
+        }
+      }
+    }
+  });
+
 function upgradeLegacyAggregate(value: unknown) {
   if (!value || typeof value !== "object" || !("schemaVersion" in value))
     return value;
@@ -284,7 +498,7 @@ function upgradeLegacyAggregate(value: unknown) {
   if (legacy.schemaVersion === 1 && Array.isArray(legacy.requirements)) {
     return {
       ...legacy,
-      schemaVersion: 3,
+      schemaVersion: 4,
       requirements: legacy.requirements.map((requirement) => ({
         ...(requirement as Record<string, unknown>),
         customerGuidance: null,
@@ -295,10 +509,14 @@ function upgradeLegacyAggregate(value: unknown) {
       })),
       offerings: [],
       skilling: null,
+      bossing: null,
     };
   }
   if (legacy.schemaVersion === 2) {
-    return { ...legacy, schemaVersion: 3, skilling: null };
+    return { ...legacy, schemaVersion: 4, skilling: null, bossing: null };
+  }
+  if (legacy.schemaVersion === 3) {
+    return { ...legacy, schemaVersion: 4, bossing: null };
   }
   return value;
 }
@@ -356,13 +574,14 @@ function validateStagedRequirementRule(
 
 const stagedCatalogueAggregateV3Schema = z
   .object({
-    schemaVersion: z.literal(3),
+    schemaVersion: z.literal(4),
     service: stagedServiceFieldsSchema,
     gameModes: z.array(z.enum(catalogueGameModes)).min(1),
     requirements: z.array(stagedRequirementSchema),
     mediaReferences: z.array(stagedMediaSchema),
     offerings: z.array(stagedOfferingSchema),
     skilling: stagedSkillingConfigSchema.nullable(),
+    bossing: stagedBossingConfigSchema.nullable(),
   })
   .superRefine((aggregate, context) => {
     if (new Set(aggregate.gameModes).size !== aggregate.gameModes.length) {
@@ -549,6 +768,16 @@ export type StagedSkillingConfig = z.infer<typeof stagedSkillingConfigSchema>;
 export type StagedSkillingSkill = z.infer<typeof stagedSkillingSkillSchema>;
 export type StagedSkillingMethod = z.infer<typeof stagedSkillingMethodSchema>;
 export type StagedSkillingRule = z.infer<typeof stagedSkillingRuleSchema>;
+export type StagedBossingConfig = z.infer<typeof stagedBossingConfigSchema>;
+export type StagedBossingBoss = z.infer<typeof stagedBossingBossSchema>;
+export type StagedBossingMethod = z.infer<typeof stagedBossingMethodSchema>;
+export type StagedBossingRule = z.infer<typeof stagedBossingRuleSchema>;
+export type StagedBossingStatRequirement = z.infer<
+  typeof stagedBossingStatRequirementSchema
+>;
+export type StagedBossingGearRequirement = z.infer<
+  typeof stagedBossingGearRequirementSchema
+>;
 
 type AggregateSource = CatalogueService & {
   gameModes: { gameMode: CatalogueGameMode }[];
@@ -658,6 +887,69 @@ type AggregateSource = CatalogueService & {
     }>;
   }>;
   skillingRule?: StagedSkillingRule | null;
+  bossingRule?: StagedBossingRule | null;
+  bossingBosses?: Array<{
+    id: string;
+    seededKey: string | null;
+    bossKey: string;
+    name: string;
+    enabled: boolean;
+    displayOrder: number;
+    groupLabel: string | null;
+    iconKey: string | null;
+    description: string | null;
+    needsClientReview: boolean;
+    methods: Array<{
+      id: string;
+      seededKey: string | null;
+      slug: string;
+      name: string;
+      shortDescription: string;
+      enabled: boolean;
+      displayOrder: number;
+      priceMode: (typeof bossingPriceModes)[number];
+      minimumKillCount: number;
+      maximumKillCount: number | null;
+      basePriceCentsPerKill: number;
+      fixedPackagePriceCents: number;
+      minimumPriceCents: number;
+      setupFeeCents: number;
+      difficultyTierLabel: string | null;
+      expectedRequirementsSummary: string | null;
+      gearNotes: string | null;
+      supplyNotes: string | null;
+      suppliesEnabled: boolean;
+      suppliesLabel: string | null;
+      suppliesFeeCents: number;
+      customerGearRequired: boolean;
+      customerGearLabel: string | null;
+      gearAdjustmentCents: number;
+      estimatedKillsPerHour: number | null;
+      needsClientReview: boolean;
+      statRequirements: Array<{
+        id: string;
+        seededKey: string | null;
+        metricKey: string;
+        label: string;
+        requiredLevel: number;
+        displayOrder: number;
+        verificationMode: RequirementVerificationMode;
+        customerGuidance: string | null;
+        needsClientReview: boolean;
+      }>;
+      gearRequirements: Array<{
+        id: string;
+        seededKey: string | null;
+        label: string;
+        description: string;
+        isRequired: boolean;
+        displayOrder: number;
+        verificationMode: RequirementVerificationMode;
+        customerGuidance: string | null;
+        needsClientReview: boolean;
+      }>;
+    }>;
+  }>;
 };
 
 export type StagedServiceEdit = {
@@ -694,8 +986,12 @@ export function snapshotFromService(
     source.engineType === "SKILLING_CALCULATOR" ||
     Boolean(source.skillingRule) ||
     Boolean(source.skillingSkills?.length);
+  const hasBossingConfig =
+    source.engineType === "BOSSING_ENGINE" ||
+    Boolean(source.bossingRule) ||
+    Boolean(source.bossingBosses?.length);
   return stagedCatalogueAggregateSchema.parse({
-    schemaVersion: 3,
+    schemaVersion: 4,
     service: {
       categoryId: source.categoryId,
       name: source.name,
@@ -810,6 +1106,53 @@ export function snapshotFromService(
           })),
         }
       : null,
+    bossing: hasBossingConfig
+      ? {
+          rule: source.bossingRule ?? null,
+          bosses: (source.bossingBosses ?? []).map((boss) => ({
+            id: boss.id,
+            seededKey: boss.seededKey,
+            bossKey: boss.bossKey,
+            name: boss.name,
+            enabled: boss.enabled,
+            displayOrder: boss.displayOrder,
+            groupLabel: boss.groupLabel,
+            iconKey: boss.iconKey,
+            description: boss.description,
+            needsClientReview: boss.needsClientReview,
+            methods: boss.methods.map((method) => ({
+              id: method.id,
+              seededKey: method.seededKey,
+              slug: method.slug,
+              name: method.name,
+              shortDescription: method.shortDescription,
+              enabled: method.enabled,
+              displayOrder: method.displayOrder,
+              priceMode: method.priceMode,
+              minimumKillCount: method.minimumKillCount,
+              maximumKillCount: method.maximumKillCount,
+              basePriceCentsPerKill: method.basePriceCentsPerKill,
+              fixedPackagePriceCents: method.fixedPackagePriceCents,
+              minimumPriceCents: method.minimumPriceCents,
+              setupFeeCents: method.setupFeeCents,
+              difficultyTierLabel: method.difficultyTierLabel,
+              expectedRequirementsSummary: method.expectedRequirementsSummary,
+              gearNotes: method.gearNotes,
+              supplyNotes: method.supplyNotes,
+              suppliesEnabled: method.suppliesEnabled,
+              suppliesLabel: method.suppliesLabel,
+              suppliesFeeCents: method.suppliesFeeCents,
+              customerGearRequired: method.customerGearRequired,
+              customerGearLabel: method.customerGearLabel,
+              gearAdjustmentCents: method.gearAdjustmentCents,
+              estimatedKillsPerHour: method.estimatedKillsPerHour,
+              needsClientReview: method.needsClientReview,
+              statRequirements: method.statRequirements,
+              gearRequirements: method.gearRequirements,
+            })),
+          })),
+        }
+      : null,
   });
 }
 
@@ -844,6 +1187,10 @@ export function applyServiceEdit(
     skilling:
       input.engineType === "SKILLING_CALCULATOR"
         ? (aggregate.skilling ?? { rule: null, skills: [] })
+        : null,
+    bossing:
+      input.engineType === "BOSSING_ENGINE"
+        ? (aggregate.bossing ?? { rule: null, bosses: [] })
         : null,
   });
 }

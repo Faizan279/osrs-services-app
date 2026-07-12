@@ -42,3 +42,20 @@ Before enabling the calculator outside local validation:
 - verify public estimates, admin skilling pages and mobile screenshots against staging data
 
 Rollback is manual. First disable `skilling_calculator_enabled`, then export any admin-edited skilling rows and staged aggregates that must be retained. Remove dependent skilling methods, skills and rules before removing the Task 005 tables or enum usage. Do not use `prisma migrate reset` against shared or production data.
+
+## Bossing calculator deployment notes
+
+Task 006 adds migration `20260712180000_task006_bossing_pvm_engine`. It is additive and creates bossing calculator tables for rules, boss configs, methods, stat requirements and gear requirements. It uses the existing `CatalogueService.engineType = BOSSING_ENGINE` enum value.
+
+Normal seed runs create `bossing_calculator_enabled` disabled because the representative bossing rates and rules are still marked `Needs client review`. Staging or screenshot validation may enable the flag deliberately, but public rollout should wait for client-approved boss/method pricing, requirement wording and delivery configuration.
+
+Before enabling the calculator outside local validation:
+
+- run `pnpm db:migrate` without reset
+- run `pnpm db:seed` and confirm seed reruns preserve edited bossing rules, methods, feature flags, staged aggregates and revisions
+- confirm the database feature flag `bossing_calculator_enabled` is intentionally enabled
+- review every seeded bossing method/rule marked `Needs client review`
+- keep Priority and Express delivery disabled until the client approves those fees and estimates
+- verify public estimates, admin bossing pages and mobile screenshots against staging data
+
+Rollback is manual. First disable `bossing_calculator_enabled`, then export any admin-edited bossing rows and staged aggregates that must be retained. Remove dependent bossing stat and gear requirements, methods, bosses and rules before removing the Task 006 tables. Do not use `prisma migrate reset` against shared or production data.

@@ -185,6 +185,100 @@ export type CatalogueSeedClient = {
       select: { id: true };
     }): Promise<{ id: string }>;
   };
+  bossingCalculatorRule: {
+    upsert(args: {
+      where: { serviceId: string };
+      create: BossingRuleSeedCreate;
+      update: Record<string, never>;
+    }): Promise<unknown>;
+  };
+  bossingBossConfig: {
+    upsert(args: {
+      where: { seededKey: string };
+      create: {
+        seededKey: string;
+        serviceId: string;
+        bossKey: string;
+        name: string;
+        enabled: boolean;
+        displayOrder: number;
+        groupLabel: string;
+        iconKey: string;
+        description: string;
+        needsClientReview: true;
+      };
+      update: Record<string, never>;
+      select: { id: true };
+    }): Promise<{ id: string }>;
+  };
+  bossingMethod: {
+    upsert(args: {
+      where: { seededKey: string };
+      create: {
+        seededKey: string;
+        serviceId: string;
+        bossId: string;
+        slug: string;
+        name: string;
+        shortDescription: string;
+        enabled: true;
+        displayOrder: number;
+        priceMode: BossingPriceMode;
+        minimumKillCount: number;
+        maximumKillCount?: number;
+        basePriceCentsPerKill: number;
+        fixedPackagePriceCents: number;
+        minimumPriceCents: number;
+        setupFeeCents: number;
+        difficultyTierLabel: string;
+        expectedRequirementsSummary: string;
+        gearNotes: string;
+        supplyNotes: string;
+        suppliesEnabled: boolean;
+        suppliesLabel?: string;
+        suppliesFeeCents: number;
+        customerGearRequired: boolean;
+        customerGearLabel?: string;
+        gearAdjustmentCents: number;
+        estimatedKillsPerHour: number;
+        needsClientReview: true;
+      };
+      update: Record<string, never>;
+      select: { id: true };
+    }): Promise<{ id: string }>;
+  };
+  bossingStatRequirement: {
+    createMany(args: {
+      data: Array<{
+        seededKey: string;
+        methodId: string;
+        metricKey: string;
+        label: string;
+        requiredLevel: number;
+        displayOrder: number;
+        verificationMode: "AUTOMATIC";
+        customerGuidance: string;
+        needsClientReview: true;
+      }>;
+      skipDuplicates: true;
+    }): Promise<unknown>;
+  };
+  bossingGearRequirement: {
+    createMany(args: {
+      data: Array<{
+        seededKey: string;
+        methodId: string;
+        label: string;
+        description: string;
+        isRequired: boolean;
+        displayOrder: number;
+        verificationMode: "CUSTOMER_CONFIRMED" | "SUPPORT_VERIFIED";
+        customerGuidance: string;
+        needsClientReview: true;
+      }>;
+      skipDuplicates: true;
+    }): Promise<unknown>;
+  };
 };
 
 type SkillingSkillKey =
@@ -240,6 +334,10 @@ type SkillingRuleSeedCreate = {
   expressDeliveryFixedFeeCents: number;
   needsClientReview: true;
 };
+
+type BossingPriceMode = "PER_KILL" | "FIXED_PACKAGE";
+
+type BossingRuleSeedCreate = SkillingRuleSeedCreate;
 
 export const catalogueCategorySeeds = [
   ["power-levelling", "Power Levelling", "activity"],
@@ -718,6 +816,178 @@ const skillingMethodSeeds = [
   },
 ] as const;
 
+const bossingBossSeeds = [
+  {
+    key: "giant-mole",
+    name: "Giant Mole",
+    group: "Entry bossing",
+    icon: "swords",
+    description:
+      "Representative entry PvM configuration for calculator validation. Needs client review before public launch.",
+    enabled: true,
+    order: 10,
+    methods: [
+      {
+        key: "standard-kills",
+        slug: "standard-kills",
+        name: "Standard kill support",
+        summary:
+          "A simple kill-count request using configured per-kill pricing and public combat stat checks.",
+        order: 10,
+        priceMode: "PER_KILL" as const,
+        minKills: 1,
+        maxKills: 250,
+        centsPerKill: 65,
+        packageCents: 0,
+        minimumCents: 500,
+        setupCents: 150,
+        tier: "Entry",
+        requirements:
+          "Public combat stats can be checked. Gear and Falador access remain customer/support confirmed.",
+        gearNotes:
+          "Customer confirms suitable combat gear. Support verifies unlocks that cannot be read from public stats.",
+        supplyNotes:
+          "Food, stamina and teleport support can be configured as a reviewed supply option.",
+        supplies: { label: "Food, stamina and teleport supplies", cents: 250 },
+        gear: {
+          label: "Customer provides standard combat gear",
+          adjustmentCents: 300,
+        },
+        killsPerHour: 45,
+        stats: [
+          ["skill.attack.level", "Attack level", 60],
+          ["skill.strength.level", "Strength level", 60],
+          ["skill.defence.level", "Defence level", 50],
+        ] as const,
+        gearRequirements: [
+          [
+            "Combat gear confirmation",
+            "Confirm the account has appropriate weapon, armour, food and teleports available.",
+            "CUSTOMER_CONFIRMED",
+          ],
+          [
+            "Access review",
+            "Falador hard diary and travel conveniences are support reviewed when relevant; they are not inferred from RSN.",
+            "SUPPORT_VERIFIED",
+          ],
+        ] as const,
+      },
+    ],
+  },
+  {
+    key: "barrows",
+    name: "Barrows",
+    group: "Classic PvM",
+    icon: "shield",
+    description:
+      "Representative Barrows run configuration for staged bossing calculator validation.",
+    enabled: true,
+    order: 20,
+    methods: [
+      {
+        key: "chest-runs",
+        slug: "chest-runs",
+        name: "Chest run package",
+        summary:
+          "A package-style PvM request with configured bounds and manual unlock review.",
+        order: 10,
+        priceMode: "FIXED_PACKAGE" as const,
+        minKills: 10,
+        maxKills: 100,
+        centsPerKill: 0,
+        packageCents: 1800,
+        minimumCents: 1800,
+        setupCents: 0,
+        tier: "Classic",
+        requirements:
+          "Public magic/ranged stats can be checked. Quest, route and gear context remains support reviewed.",
+        gearNotes:
+          "Customer confirms magic/ranged gear and prayer supplies before quote finalization.",
+        supplyNotes:
+          "Supply option covers reviewed prayer potion and teleport support only when configured.",
+        supplies: { label: "Prayer potion and teleport support", cents: 450 },
+        gear: {
+          label: "Customer provides Barrows-ready gear",
+          adjustmentCents: 500,
+        },
+        killsPerHour: 18,
+        stats: [
+          ["skill.magic.level", "Magic level", 55],
+          ["skill.prayer.level", "Prayer level", 43],
+        ] as const,
+        gearRequirements: [
+          [
+            "Barrows gear confirmation",
+            "Confirm staff, ranged switch, food and prayer supplies before review.",
+            "CUSTOMER_CONFIRMED",
+          ],
+          [
+            "Quest and access review",
+            "Required quests, teleport routes and diary conveniences are support verified.",
+            "SUPPORT_VERIFIED",
+          ],
+        ] as const,
+      },
+    ],
+  },
+  {
+    key: "zulrah",
+    name: "Zulrah",
+    group: "Advanced PvM",
+    icon: "target",
+    description:
+      "Representative advanced PvM configuration. Rates are placeholders that require client review.",
+    enabled: true,
+    order: 30,
+    methods: [
+      {
+        key: "reviewed-kills",
+        slug: "reviewed-kills",
+        name: "Reviewed kill support",
+        summary:
+          "An advanced kill-count request with higher stat checks and explicit support-verified unlocks.",
+        order: 10,
+        priceMode: "PER_KILL" as const,
+        minKills: 5,
+        maxKills: 200,
+        centsPerKill: 220,
+        packageCents: 0,
+        minimumCents: 1400,
+        setupCents: 300,
+        tier: "Advanced",
+        requirements:
+          "Public Ranged, Magic and Hitpoints levels can be checked. Quest completion and gear ownership are not inferred.",
+        gearNotes:
+          "Customer confirms suitable gear and support verifies non-public quest/unlock context.",
+        supplyNotes: "Supply support is optional and client-review priced.",
+        supplies: { label: "Advanced supply support", cents: 700 },
+        gear: {
+          label: "Customer provides Zulrah-ready gear",
+          adjustmentCents: 900,
+        },
+        killsPerHour: 20,
+        stats: [
+          ["skill.ranged.level", "Ranged level", 75],
+          ["skill.magic.level", "Magic level", 75],
+          ["skill.hitpoints.level", "Hitpoints level", 70],
+        ] as const,
+        gearRequirements: [
+          [
+            "Gear and switches confirmation",
+            "Confirm mage/ranged gear, recoil handling and supplies. Ownership is never inferred from public stats.",
+            "CUSTOMER_CONFIRMED",
+          ],
+          [
+            "Regicide and access review",
+            "Quest completion, fairy ring access and other unlocks are support verified.",
+            "SUPPORT_VERIFIED",
+          ],
+        ] as const,
+      },
+    ],
+  },
+] as const;
+
 export async function seedCatalogue(prisma: CatalogueSeedClient) {
   const categoryIds = new Map<string, string>();
   const serviceIds = new Map<string, string>();
@@ -866,12 +1136,103 @@ export async function seedCatalogue(prisma: CatalogueSeedClient) {
   }
 
   const skillingServiceId = serviceIds.get("skill-training-request");
-  if (!skillingServiceId) return;
+  if (skillingServiceId) {
+    await prisma.skillingCalculatorRule.upsert({
+      where: { serviceId: skillingServiceId },
+      create: {
+        serviceId: skillingServiceId,
+        normalModeMultiplierBps: 0,
+        ironmanMultiplierBps: 1000,
+        hardcoreIronmanMultiplierBps: 2000,
+        ultimateIronmanMultiplierBps: 3000,
+        discordStreamEnabled: true,
+        discordStreamPercentBps: 200,
+        standardDeliveryEnabled: true,
+        standardDeliveryLabel: "Standard",
+        standardDeliveryDescription: "Standard review queue for skilling work.",
+        standardDeliveryEstimate: "Estimate confirmed before checkout",
+        standardDeliveryMultiplierBps: 0,
+        standardDeliveryFixedFeeCents: 0,
+        priorityDeliveryEnabled: false,
+        priorityDeliveryLabel: "Priority",
+        priorityDeliveryDescription: "Faster queue when staff capacity allows.",
+        priorityDeliveryEstimate: "Faster estimate, client review required",
+        priorityDeliveryMultiplierBps: 1500,
+        priorityDeliveryFixedFeeCents: 0,
+        expressDeliveryEnabled: false,
+        expressDeliveryLabel: "Express",
+        expressDeliveryDescription:
+          "Fastest configured queue for eligible work.",
+        expressDeliveryEstimate: "Fastest estimate, client review required",
+        expressDeliveryMultiplierBps: 3000,
+        expressDeliveryFixedFeeCents: 0,
+        needsClientReview: true,
+      },
+      update: {},
+    });
 
-  await prisma.skillingCalculatorRule.upsert({
-    where: { serviceId: skillingServiceId },
+    const skillIds = new Map<SkillingSkillKey, string>();
+    for (const [index, skill] of skillingSkillSeeds.entries()) {
+      const record = await prisma.skillingSkillConfig.upsert({
+        where: { seededKey: `skill-training:${skill.key.toLowerCase()}` },
+        create: {
+          seededKey: `skill-training:${skill.key.toLowerCase()}`,
+          serviceId: skillingServiceId,
+          skillKey: skill.key,
+          name: skill.name,
+          enabled: skill.enabled,
+          displayOrder: (index + 1) * 10,
+          iconKey: skill.icon,
+        },
+        update: {},
+        select: { id: true },
+      });
+      skillIds.set(skill.key, record.id);
+    }
+
+    for (const method of skillingMethodSeeds) {
+      const supplies = "supplies" in method ? method.supplies : undefined;
+      await prisma.skillingTrainingMethod.upsert({
+        where: { seededKey: `skill-training:${method.key}` },
+        create: {
+          seededKey: `skill-training:${method.key}`,
+          serviceId: skillingServiceId,
+          skillConfigId: skillIds.get(method.skillKey)!,
+          slug: method.slug,
+          name: method.name,
+          shortDescription: method.summary,
+          enabled: true,
+          displayOrder: method.order,
+          minimumLevel: method.min,
+          maximumLevel: method.max,
+          xpPerHour: method.xpPerHour,
+          basePriceCentsPerMillionXp: method.centsPerMillion,
+          minimumPriceCents: method.minimumCents,
+          fixedFeeCents: method.fixedCents,
+          suppliesEnabled: Boolean(supplies),
+          ...(supplies
+            ? {
+                suppliesLabel: supplies.label,
+                suppliesFeeCents: supplies.cents,
+              }
+            : { suppliesFeeCents: 0 }),
+          notes:
+            "Needs client review before launch. Seeded for calculator validation only.",
+          needsClientReview: true,
+        },
+        update: {},
+        select: { id: true },
+      });
+    }
+  }
+
+  const bossingServiceId = serviceIds.get("pvm-support");
+  if (!bossingServiceId) return;
+
+  await prisma.bossingCalculatorRule.upsert({
+    where: { serviceId: bossingServiceId },
     create: {
-      serviceId: skillingServiceId,
+      serviceId: bossingServiceId,
       normalModeMultiplierBps: 0,
       ironmanMultiplierBps: 1000,
       hardcoreIronmanMultiplierBps: 2000,
@@ -880,7 +1241,7 @@ export async function seedCatalogue(prisma: CatalogueSeedClient) {
       discordStreamPercentBps: 200,
       standardDeliveryEnabled: true,
       standardDeliveryLabel: "Standard",
-      standardDeliveryDescription: "Standard review queue for skilling work.",
+      standardDeliveryDescription: "Standard review queue for PvM work.",
       standardDeliveryEstimate: "Estimate confirmed before checkout",
       standardDeliveryMultiplierBps: 0,
       standardDeliveryFixedFeeCents: 0,
@@ -892,7 +1253,7 @@ export async function seedCatalogue(prisma: CatalogueSeedClient) {
       priorityDeliveryFixedFeeCents: 0,
       expressDeliveryEnabled: false,
       expressDeliveryLabel: "Express",
-      expressDeliveryDescription: "Fastest configured queue for eligible work.",
+      expressDeliveryDescription: "Fastest configured queue for eligible PvM.",
       expressDeliveryEstimate: "Fastest estimate, client review required",
       expressDeliveryMultiplierBps: 3000,
       expressDeliveryFixedFeeCents: 0,
@@ -901,57 +1262,100 @@ export async function seedCatalogue(prisma: CatalogueSeedClient) {
     update: {},
   });
 
-  const skillIds = new Map<SkillingSkillKey, string>();
-  for (const [index, skill] of skillingSkillSeeds.entries()) {
-    const record = await prisma.skillingSkillConfig.upsert({
-      where: { seededKey: `skill-training:${skill.key.toLowerCase()}` },
+  for (const [bossIndex, boss] of bossingBossSeeds.entries()) {
+    const bossRecord = await prisma.bossingBossConfig.upsert({
+      where: { seededKey: `pvm-support:${boss.key}` },
       create: {
-        seededKey: `skill-training:${skill.key.toLowerCase()}`,
-        serviceId: skillingServiceId,
-        skillKey: skill.key,
-        name: skill.name,
-        enabled: skill.enabled,
-        displayOrder: (index + 1) * 10,
-        iconKey: skill.icon,
-      },
-      update: {},
-      select: { id: true },
-    });
-    skillIds.set(skill.key, record.id);
-  }
-
-  for (const method of skillingMethodSeeds) {
-    const supplies = "supplies" in method ? method.supplies : undefined;
-    await prisma.skillingTrainingMethod.upsert({
-      where: { seededKey: `skill-training:${method.key}` },
-      create: {
-        seededKey: `skill-training:${method.key}`,
-        serviceId: skillingServiceId,
-        skillConfigId: skillIds.get(method.skillKey)!,
-        slug: method.slug,
-        name: method.name,
-        shortDescription: method.summary,
-        enabled: true,
-        displayOrder: method.order,
-        minimumLevel: method.min,
-        maximumLevel: method.max,
-        xpPerHour: method.xpPerHour,
-        basePriceCentsPerMillionXp: method.centsPerMillion,
-        minimumPriceCents: method.minimumCents,
-        fixedFeeCents: method.fixedCents,
-        suppliesEnabled: Boolean(supplies),
-        ...(supplies
-          ? {
-              suppliesLabel: supplies.label,
-              suppliesFeeCents: supplies.cents,
-            }
-          : { suppliesFeeCents: 0 }),
-        notes:
-          "Needs client review before launch. Seeded for calculator validation only.",
+        seededKey: `pvm-support:${boss.key}`,
+        serviceId: bossingServiceId,
+        bossKey: boss.key,
+        name: boss.name,
+        enabled: boss.enabled,
+        displayOrder: boss.order || (bossIndex + 1) * 10,
+        groupLabel: boss.group,
+        iconKey: boss.icon,
+        description: boss.description,
         needsClientReview: true,
       },
       update: {},
       select: { id: true },
     });
+
+    for (const method of boss.methods) {
+      const methodRecord = await prisma.bossingMethod.upsert({
+        where: { seededKey: `pvm-support:${boss.key}:${method.key}` },
+        create: {
+          seededKey: `pvm-support:${boss.key}:${method.key}`,
+          serviceId: bossingServiceId,
+          bossId: bossRecord.id,
+          slug: method.slug,
+          name: method.name,
+          shortDescription: method.summary,
+          enabled: true,
+          displayOrder: method.order,
+          priceMode: method.priceMode,
+          minimumKillCount: method.minKills,
+          maximumKillCount: method.maxKills,
+          basePriceCentsPerKill: method.centsPerKill,
+          fixedPackagePriceCents: method.packageCents,
+          minimumPriceCents: method.minimumCents,
+          setupFeeCents: method.setupCents,
+          difficultyTierLabel: method.tier,
+          expectedRequirementsSummary: method.requirements,
+          gearNotes: method.gearNotes,
+          supplyNotes: method.supplyNotes,
+          suppliesEnabled: Boolean(method.supplies),
+          ...(method.supplies
+            ? {
+                suppliesLabel: method.supplies.label,
+                suppliesFeeCents: method.supplies.cents,
+              }
+            : { suppliesFeeCents: 0 }),
+          customerGearRequired: true,
+          customerGearLabel: method.gear.label,
+          gearAdjustmentCents: method.gear.adjustmentCents,
+          estimatedKillsPerHour: method.killsPerHour,
+          needsClientReview: true,
+        },
+        update: {},
+        select: { id: true },
+      });
+
+      await prisma.bossingStatRequirement.createMany({
+        data: method.stats.map(([metricKey, label, requiredLevel], index) => ({
+          seededKey: `pvm-support:${boss.key}:${method.key}:stat:${metricKey}`,
+          methodId: methodRecord.id,
+          metricKey,
+          label,
+          requiredLevel,
+          displayOrder: (index + 1) * 10,
+          verificationMode: "AUTOMATIC",
+          customerGuidance:
+            "This public stat can be checked by RSN when eligibility is enabled.",
+          needsClientReview: true,
+        })),
+        skipDuplicates: true,
+      });
+
+      await prisma.bossingGearRequirement.createMany({
+        data: method.gearRequirements.map(
+          ([label, description, verificationMode], index) => ({
+            seededKey: `pvm-support:${boss.key}:${method.key}:gear:${index + 1}`,
+            methodId: methodRecord.id,
+            label,
+            description,
+            isRequired: true,
+            displayOrder: (index + 1) * 10,
+            verificationMode,
+            customerGuidance:
+              verificationMode === "CUSTOMER_CONFIRMED"
+                ? "Confirm this before requesting review. Do not provide a RuneScape password."
+                : "Support verifies this requirement without inferring it from RSN.",
+            needsClientReview: true,
+          }),
+        ),
+        skipDuplicates: true,
+      });
+    }
   }
 }
