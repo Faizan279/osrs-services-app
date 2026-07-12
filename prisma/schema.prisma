@@ -112,6 +112,11 @@ enum SkillingDeliverySpeed {
   EXPRESS
 }
 
+enum BossingPriceMode {
+  PER_KILL
+  FIXED_PACKAGE
+}
+
 model User {
   id                 String                  @id @default(cuid()) @db.VarChar(30)
   email              String                  @unique @db.VarChar(191)
@@ -281,6 +286,9 @@ model CatalogueService {
   recommendedByServiceRequirements  CatalogueRequirement[]         @relation("CatalogueRequirementRecommendation")
   recommendedByOfferingRequirements CatalogueOfferingRequirement[] @relation("CatalogueOfferingRequirementRecommendation")
   skillingTrainingMethods           SkillingTrainingMethod[]
+  bossingRule                       BossingCalculatorRule?
+  bossingBosses                     BossingBossConfig[]
+  bossingMethods                    BossingMethod[]
 
   @@unique([categoryId, slug])
   @@index([publicationStatus, publishAt, unpublishAt])
@@ -561,4 +569,135 @@ model SkillingCalculatorRule {
   createdAt                     DateTime         @default(now())
   updatedAt                     DateTime         @updatedAt
   service                       CatalogueService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+}
+
+model BossingCalculatorRule {
+  id                            String           @id @default(cuid()) @db.VarChar(30)
+  serviceId                     String           @unique @db.VarChar(30)
+  normalModeMultiplierBps       Int              @default(0)
+  ironmanMultiplierBps          Int              @default(1000)
+  hardcoreIronmanMultiplierBps  Int              @default(2000)
+  ultimateIronmanMultiplierBps  Int              @default(3000)
+  discordStreamEnabled          Boolean          @default(true)
+  discordStreamPercentBps       Int              @default(200)
+  standardDeliveryEnabled       Boolean          @default(true)
+  standardDeliveryLabel         String           @default("Standard") @db.VarChar(80)
+  standardDeliveryDescription   String?          @db.VarChar(240)
+  standardDeliveryEstimate      String?          @db.VarChar(120)
+  standardDeliveryMultiplierBps Int              @default(0)
+  standardDeliveryFixedFeeCents Int              @default(0)
+  priorityDeliveryEnabled       Boolean          @default(false)
+  priorityDeliveryLabel         String           @default("Priority") @db.VarChar(80)
+  priorityDeliveryDescription   String?          @db.VarChar(240)
+  priorityDeliveryEstimate      String?          @db.VarChar(120)
+  priorityDeliveryMultiplierBps Int              @default(1500)
+  priorityDeliveryFixedFeeCents Int              @default(0)
+  expressDeliveryEnabled        Boolean          @default(false)
+  expressDeliveryLabel          String           @default("Express") @db.VarChar(80)
+  expressDeliveryDescription    String?          @db.VarChar(240)
+  expressDeliveryEstimate       String?          @db.VarChar(120)
+  expressDeliveryMultiplierBps  Int              @default(3000)
+  expressDeliveryFixedFeeCents  Int              @default(0)
+  needsClientReview             Boolean          @default(true)
+  createdAt                     DateTime         @default(now())
+  updatedAt                     DateTime         @updatedAt
+  service                       CatalogueService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+}
+
+model BossingBossConfig {
+  id                String           @id @default(cuid()) @db.VarChar(30)
+  serviceId         String           @db.VarChar(30)
+  bossKey           String           @db.VarChar(120)
+  name              String           @db.VarChar(160)
+  enabled           Boolean          @default(true)
+  displayOrder      Int              @default(0)
+  groupLabel        String?          @db.VarChar(120)
+  iconKey           String?          @db.VarChar(80)
+  description       String?          @db.Text
+  needsClientReview Boolean          @default(true)
+  seededKey         String?          @unique @db.VarChar(160)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  service           CatalogueService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  methods           BossingMethod[]
+
+  @@unique([serviceId, bossKey])
+  @@index([serviceId, enabled, displayOrder])
+}
+
+model BossingMethod {
+  id                          String                   @id @default(cuid()) @db.VarChar(30)
+  serviceId                   String                   @db.VarChar(30)
+  bossId                      String                   @db.VarChar(30)
+  slug                        String                   @db.VarChar(180)
+  name                        String                   @db.VarChar(160)
+  shortDescription            String                   @db.VarChar(500)
+  enabled                     Boolean                  @default(true)
+  displayOrder                Int                      @default(0)
+  priceMode                   BossingPriceMode         @default(PER_KILL)
+  minimumKillCount            Int                      @default(1)
+  maximumKillCount            Int?
+  basePriceCentsPerKill       Int                      @default(0)
+  fixedPackagePriceCents      Int                      @default(0)
+  minimumPriceCents           Int                      @default(0)
+  setupFeeCents               Int                      @default(0)
+  difficultyTierLabel         String?                  @db.VarChar(120)
+  expectedRequirementsSummary String?                  @db.VarChar(500)
+  gearNotes                   String?                  @db.Text
+  supplyNotes                 String?                  @db.Text
+  suppliesEnabled             Boolean                  @default(false)
+  suppliesLabel               String?                  @db.VarChar(120)
+  suppliesFeeCents            Int                      @default(0)
+  customerGearRequired        Boolean                  @default(false)
+  customerGearLabel           String?                  @db.VarChar(160)
+  gearAdjustmentCents         Int                      @default(0)
+  estimatedKillsPerHour       Int?
+  needsClientReview           Boolean                  @default(true)
+  seededKey                   String?                  @unique @db.VarChar(180)
+  createdAt                   DateTime                 @default(now())
+  updatedAt                   DateTime                 @updatedAt
+  service                     CatalogueService         @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  boss                        BossingBossConfig        @relation(fields: [bossId], references: [id], onDelete: Cascade)
+  statRequirements            BossingStatRequirement[]
+  gearRequirements            BossingGearRequirement[]
+
+  @@unique([bossId, slug])
+  @@index([serviceId, enabled, displayOrder])
+  @@index([bossId, enabled, displayOrder])
+}
+
+model BossingStatRequirement {
+  id                String                      @id @default(cuid()) @db.VarChar(30)
+  methodId          String                      @db.VarChar(30)
+  metricKey         String                      @db.VarChar(120)
+  label             String                      @db.VarChar(160)
+  requiredLevel     Int
+  displayOrder      Int                         @default(0)
+  verificationMode  RequirementVerificationMode @default(AUTOMATIC)
+  customerGuidance  String?                     @db.Text
+  needsClientReview Boolean                     @default(true)
+  seededKey         String?                     @unique @db.VarChar(200)
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+  method            BossingMethod               @relation(fields: [methodId], references: [id], onDelete: Cascade)
+
+  @@index([methodId, displayOrder])
+}
+
+model BossingGearRequirement {
+  id                String                      @id @default(cuid()) @db.VarChar(30)
+  methodId          String                      @db.VarChar(30)
+  label             String                      @db.VarChar(160)
+  description       String                      @db.Text
+  isRequired        Boolean                     @default(true)
+  displayOrder      Int                         @default(0)
+  verificationMode  RequirementVerificationMode @default(CUSTOMER_CONFIRMED)
+  customerGuidance  String?                     @db.Text
+  needsClientReview Boolean                     @default(true)
+  seededKey         String?                     @unique @db.VarChar(200)
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+  method            BossingMethod               @relation(fields: [methodId], references: [id], onDelete: Cascade)
+
+  @@index([methodId, displayOrder])
 }

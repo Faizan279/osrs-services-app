@@ -28,6 +28,26 @@ The public route never trusts client-submitted prices and does not expose intern
 
 Task 005 intentionally does not add checkout/order price snapshots, global discount stacking, taxes, payment-provider logic or the full pricing administration workflow for every engine.
 
+## Task 006 bossing estimate preview
+
+Task 006 adds a bossing-specific preview engine only. It calculates an `Estimated total` from service-scoped bossing rules, enabled bosses and enabled methods, then tells the customer that final price is confirmed before checkout.
+
+Inputs handled by the bossing preview:
+
+- direct kill quantity or current KC to target KC
+- base cents per kill or fixed package cents
+- minimum method price
+- optional setup fee
+- account-mode basis-point adjustments
+- optional customer-gear adjustment when customer-provided gear is not confirmed
+- optional supplies fee
+- optional Discord Stream percentage
+- configured delivery percentage and fixed fee
+
+The public route never trusts client-submitted prices and does not expose internal rule IDs or arbitrary formulas. Seeded bossing rates are representative defaults only and are marked `Needs client review`, so the public `bossing_calculator_enabled` feature flag is seeded off until client approval.
+
+Task 006 intentionally does not add checkout/order price snapshots, global discount stacking, taxes, payment-provider logic, premium configurators, cart, checkout, orders or the full pricing administration workflow for every engine.
+
 ## Initial prices
 
 - Existing WooCommerce prices are migration input.

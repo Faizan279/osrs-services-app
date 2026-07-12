@@ -33,7 +33,28 @@ This engine does not create carts, checkout sessions, orders, payment records, q
 
 ## Bossing Engine
 
-Supports boss, kill count, current KC, account mode, stats, gear or method, requirements, add-ons, and delivery speed.
+Task 006 implements the existing `BOSSING_ENGINE` enum value as the reusable bossing/PvM calculator engine. It is equivalent to the planned bossing calculator name while preserving the repository's current enum style.
+
+The public engine supports:
+
+- enabled boss selection from service-scoped boss configs
+- enabled method/package selection scoped to the selected boss
+- direct kill quantity mode
+- current KC to target KC mode
+- account game mode
+- automatic public-stat requirement display for allow-listed combat/total stats
+- customer/support gear requirement display without inferring bank or inventory contents
+- optional customer-provided gear confirmation when configured
+- optional supplies/material support when configured on the method
+- optional Discord Stream add-on when configured on the service rule
+- configured delivery speed choices
+- a server-authoritative estimated total and clear final-price disclaimer
+
+Normal seed runs keep the public bossing calculator feature flag disabled until the client reviews the representative boss/method rates. Standard delivery is enabled by default, while Priority and Express are present for admin configuration but disabled until approved.
+
+The admin engine supports service-scoped bossing rules, boss create/edit/order/enable fields, method create/edit, kill-count ranges, price fields, stat and gear requirement text configuration, client-review markers, staged preview, optimistic concurrency, audit logging and Task 003 publication staging. Published bossing edits stay private until republish; public pages keep using the last published rules. Older staged snapshots without bossing data upgrade safely with `bossing: null`.
+
+This engine does not create carts, checkout sessions, orders, payment records, quote records, global discounts or global price history. Estimate values are preview-only and remain scoped to bossing services.
 
 ## Premium Service Configurator
 

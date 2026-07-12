@@ -524,6 +524,84 @@ export async function publishService(
           },
         });
       }
+      await transaction.bossingCalculatorRule.deleteMany({
+        where: { serviceId: id },
+      });
+      await transaction.bossingBossConfig.deleteMany({
+        where: { serviceId: id },
+      });
+      if (snapshot.bossing?.rule) {
+        await transaction.bossingCalculatorRule.create({
+          data: {
+            ...snapshot.bossing.rule,
+            serviceId: id,
+          },
+        });
+      }
+      for (const boss of snapshot.bossing?.bosses ?? []) {
+        await transaction.bossingBossConfig.create({
+          data: {
+            id: boss.id,
+            serviceId: id,
+            seededKey: boss.seededKey,
+            bossKey: boss.bossKey,
+            name: boss.name,
+            enabled: boss.enabled,
+            displayOrder: boss.displayOrder,
+            groupLabel: boss.groupLabel,
+            iconKey: boss.iconKey,
+            description: boss.description,
+            needsClientReview: boss.needsClientReview,
+            methods: {
+              create: boss.methods.map((method) => ({
+                id: method.id,
+                serviceId: id,
+                seededKey: method.seededKey,
+                slug: method.slug,
+                name: method.name,
+                shortDescription: method.shortDescription,
+                enabled: method.enabled,
+                displayOrder: method.displayOrder,
+                priceMode: method.priceMode,
+                minimumKillCount: method.minimumKillCount,
+                maximumKillCount: method.maximumKillCount,
+                basePriceCentsPerKill: method.basePriceCentsPerKill,
+                fixedPackagePriceCents: method.fixedPackagePriceCents,
+                minimumPriceCents: method.minimumPriceCents,
+                setupFeeCents: method.setupFeeCents,
+                difficultyTierLabel: method.difficultyTierLabel,
+                expectedRequirementsSummary: method.expectedRequirementsSummary,
+                gearNotes: method.gearNotes,
+                supplyNotes: method.supplyNotes,
+                suppliesEnabled: method.suppliesEnabled,
+                suppliesLabel: method.suppliesLabel,
+                suppliesFeeCents: method.suppliesFeeCents,
+                customerGearRequired: method.customerGearRequired,
+                customerGearLabel: method.customerGearLabel,
+                gearAdjustmentCents: method.gearAdjustmentCents,
+                estimatedKillsPerHour: method.estimatedKillsPerHour,
+                needsClientReview: method.needsClientReview,
+                statRequirements: {
+                  create: method.statRequirements.map(
+                    ({ id: requirementId, ...requirement }) => ({
+                      id: requirementId,
+                      ...requirement,
+                    }),
+                  ),
+                },
+                gearRequirements: {
+                  create: method.gearRequirements.map(
+                    ({ id: requirementId, ...requirement }) => ({
+                      id: requirementId,
+                      ...requirement,
+                    }),
+                  ),
+                },
+              })),
+            },
+          },
+        });
+      }
       await transaction.catalogueMediaReference.deleteMany({
         where: { serviceId: id },
       });
@@ -555,6 +633,23 @@ export async function publishService(
             include: {
               methods: {
                 orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+              },
+            },
+          },
+          bossingRule: true,
+          bossingBosses: {
+            orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+            include: {
+              methods: {
+                orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+                include: {
+                  statRequirements: {
+                    orderBy: [{ displayOrder: "asc" }, { label: "asc" }],
+                  },
+                  gearRequirements: {
+                    orderBy: [{ displayOrder: "asc" }, { label: "asc" }],
+                  },
+                },
               },
             },
           },
@@ -614,6 +709,23 @@ export async function publishService(
               skillCount: snapshot.skilling.skills.length,
               methodCount: snapshot.skilling.skills.reduce(
                 (count, skill) => count + skill.methods.length,
+                0,
+              ),
+            }),
+          },
+        });
+      }
+      if (service.stage && snapshot.bossing) {
+        await transaction.auditLog.create({
+          data: {
+            actorId,
+            action: "catalogue.bossing.aggregate_republished",
+            targetType: "CatalogueService",
+            targetId: id,
+            metadata: auditMetadata({
+              bossCount: snapshot.bossing.bosses.length,
+              methodCount: snapshot.bossing.bosses.reduce(
+                (count, boss) => count + boss.methods.length,
                 0,
               ),
             }),
@@ -685,6 +797,14 @@ export async function archiveService(
         },
         skillingRule: true,
         skillingSkills: { include: { methods: true } },
+        bossingRule: true,
+        bossingBosses: {
+          include: {
+            methods: {
+              include: { statRequirements: true, gearRequirements: true },
+            },
+          },
+        },
       },
     });
     await transaction.catalogueRevision.create({
@@ -774,6 +894,17 @@ export async function discardServiceStage(
         },
       });
     }
+    if (snapshot.bossing) {
+      await transaction.auditLog.create({
+        data: {
+          actorId,
+          action: "catalogue.bossing.changes_discarded",
+          targetType: "CatalogueService",
+          targetId: id,
+          metadata: auditMetadata({ stageVersion: expectedVersion }),
+        },
+      });
+    }
     return service;
   });
 }
@@ -791,6 +922,14 @@ export async function duplicateService(id: string, actorId: string) {
         },
         skillingRule: true,
         skillingSkills: { include: { methods: true } },
+        bossingRule: true,
+        bossingBosses: {
+          include: {
+            methods: {
+              include: { statRequirements: true, gearRequirements: true },
+            },
+          },
+        },
       },
     });
     const existing = await transaction.catalogueService.findMany({
@@ -959,6 +1098,99 @@ export async function duplicateService(id: string, actorId: string) {
           seededKey: null,
         })),
       });
+    }
+    if (source.bossingRule) {
+      const {
+        id: _ruleId,
+        serviceId: _serviceId,
+        createdAt: _createdAt,
+        updatedAt: _updatedAt,
+        ...rule
+      } = source.bossingRule;
+      void _ruleId;
+      void _serviceId;
+      void _createdAt;
+      void _updatedAt;
+      await transaction.bossingCalculatorRule.create({
+        data: {
+          ...rule,
+          serviceId: duplicate.id,
+          needsClientReview: true,
+        },
+      });
+    }
+    for (const boss of source.bossingBosses) {
+      const copiedBoss = await transaction.bossingBossConfig.create({
+        data: {
+          serviceId: duplicate.id,
+          bossKey: boss.bossKey,
+          name: boss.name,
+          enabled: boss.enabled,
+          displayOrder: boss.displayOrder,
+          groupLabel: boss.groupLabel,
+          iconKey: boss.iconKey,
+          description: boss.description,
+          needsClientReview: true,
+          seededKey: null,
+        },
+      });
+      for (const method of boss.methods) {
+        await transaction.bossingMethod.create({
+          data: {
+            serviceId: duplicate.id,
+            bossId: copiedBoss.id,
+            slug: method.slug,
+            name: method.name,
+            shortDescription: method.shortDescription,
+            enabled: method.enabled,
+            displayOrder: method.displayOrder,
+            priceMode: method.priceMode,
+            minimumKillCount: method.minimumKillCount,
+            maximumKillCount: method.maximumKillCount,
+            basePriceCentsPerKill: method.basePriceCentsPerKill,
+            fixedPackagePriceCents: method.fixedPackagePriceCents,
+            minimumPriceCents: method.minimumPriceCents,
+            setupFeeCents: method.setupFeeCents,
+            difficultyTierLabel: method.difficultyTierLabel,
+            expectedRequirementsSummary: method.expectedRequirementsSummary,
+            gearNotes: method.gearNotes,
+            supplyNotes: method.supplyNotes,
+            suppliesEnabled: method.suppliesEnabled,
+            suppliesLabel: method.suppliesLabel,
+            suppliesFeeCents: method.suppliesFeeCents,
+            customerGearRequired: method.customerGearRequired,
+            customerGearLabel: method.customerGearLabel,
+            gearAdjustmentCents: method.gearAdjustmentCents,
+            estimatedKillsPerHour: method.estimatedKillsPerHour,
+            needsClientReview: true,
+            seededKey: null,
+            statRequirements: {
+              create: method.statRequirements.map((requirement) => ({
+                metricKey: requirement.metricKey,
+                label: requirement.label,
+                requiredLevel: requirement.requiredLevel,
+                displayOrder: requirement.displayOrder,
+                verificationMode: requirement.verificationMode,
+                customerGuidance: requirement.customerGuidance,
+                needsClientReview: true,
+                seededKey: null,
+              })),
+            },
+            gearRequirements: {
+              create: method.gearRequirements.map((requirement) => ({
+                label: requirement.label,
+                description: requirement.description,
+                isRequired: requirement.isRequired,
+                displayOrder: requirement.displayOrder,
+                verificationMode: requirement.verificationMode,
+                customerGuidance: requirement.customerGuidance,
+                needsClientReview: true,
+                seededKey: null,
+              })),
+            },
+          },
+        });
+      }
     }
     await transaction.auditLog.create({
       data: {

@@ -42,6 +42,29 @@ export const stagedAggregateInclude = {
       },
     },
   },
+  bossingRule: true,
+  bossingBosses: {
+    orderBy: [{ displayOrder: "asc" as const }, { name: "asc" as const }],
+    include: {
+      methods: {
+        orderBy: [{ displayOrder: "asc" as const }, { name: "asc" as const }],
+        include: {
+          statRequirements: {
+            orderBy: [
+              { displayOrder: "asc" as const },
+              { label: "asc" as const },
+            ],
+          },
+          gearRequirements: {
+            orderBy: [
+              { displayOrder: "asc" as const },
+              { label: "asc" as const },
+            ],
+          },
+        },
+      },
+    },
+  },
 } satisfies Prisma.CatalogueServiceInclude;
 
 export async function loadServiceAggregate(

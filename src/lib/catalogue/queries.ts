@@ -397,6 +397,23 @@ export async function getAdminService(id: string) {
           },
         },
       },
+      bossingRule: true,
+      bossingBosses: {
+        orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+        include: {
+          methods: {
+            orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+            include: {
+              statRequirements: {
+                orderBy: [{ displayOrder: "asc" }, { label: "asc" }],
+              },
+              gearRequirements: {
+                orderBy: [{ displayOrder: "asc" }, { label: "asc" }],
+              },
+            },
+          },
+        },
+      },
       revisions: {
         orderBy: { revisionNumber: "desc" },
         include: { actor: { select: { name: true, email: true } } },
@@ -448,6 +465,12 @@ export async function getAdminService(id: string) {
         ...skill,
         methods: skill.methods,
       })) ?? [],
+    bossingRule: snapshot.bossing?.rule ?? null,
+    bossingBosses:
+      snapshot.bossing?.bosses.map((boss) => ({
+        ...boss,
+        methods: boss.methods,
+      })) ?? [],
     version: service.stage.version,
     updatedAt: service.stage.updatedAt,
     hasPendingChanges: true as const,
@@ -478,6 +501,7 @@ export async function getCatalogueFeatureFlags() {
           "catalogue_card_engine_enabled",
           "rsn_eligibility_enabled",
           "skilling_calculator_enabled",
+          "bossing_calculator_enabled",
         ],
       },
     },
@@ -543,4 +567,90 @@ export async function getPublicSkillingCalculatorService({
     }),
   ]);
   return { service, skills, rule };
+}
+
+export async function getPublicBossingCalculatorService({
+  categorySlug,
+  serviceSlug,
+  now = new Date(),
+}: {
+  categorySlug: string;
+  serviceSlug: string;
+  now?: Date;
+}) {
+  const service = await getPublicService(categorySlug, serviceSlug, now);
+  if (!service || service.engineType !== "BOSSING_ENGINE") return null;
+  const [bosses, rule] = await Promise.all([
+    prisma.bossingBossConfig.findMany({
+      where: { serviceId: service.id, enabled: true },
+      orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+      select: {
+        bossKey: true,
+        name: true,
+        groupLabel: true,
+        iconKey: true,
+        description: true,
+        methods: {
+          where: { enabled: true },
+          orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+          select: {
+            slug: true,
+            name: true,
+            shortDescription: true,
+            priceMode: true,
+            minimumKillCount: true,
+            maximumKillCount: true,
+            difficultyTierLabel: true,
+            expectedRequirementsSummary: true,
+            gearNotes: true,
+            supplyNotes: true,
+            suppliesEnabled: true,
+            suppliesLabel: true,
+            customerGearRequired: true,
+            customerGearLabel: true,
+            estimatedKillsPerHour: true,
+            statRequirements: {
+              orderBy: [{ displayOrder: "asc" }, { label: "asc" }],
+              select: {
+                metricKey: true,
+                label: true,
+                requiredLevel: true,
+                verificationMode: true,
+                customerGuidance: true,
+              },
+            },
+            gearRequirements: {
+              orderBy: [{ displayOrder: "asc" }, { label: "asc" }],
+              select: {
+                label: true,
+                description: true,
+                isRequired: true,
+                verificationMode: true,
+                customerGuidance: true,
+              },
+            },
+          },
+        },
+      },
+    }),
+    prisma.bossingCalculatorRule.findUnique({
+      where: { serviceId: service.id },
+      select: {
+        discordStreamEnabled: true,
+        standardDeliveryEnabled: true,
+        standardDeliveryLabel: true,
+        standardDeliveryDescription: true,
+        standardDeliveryEstimate: true,
+        priorityDeliveryEnabled: true,
+        priorityDeliveryLabel: true,
+        priorityDeliveryDescription: true,
+        priorityDeliveryEstimate: true,
+        expressDeliveryEnabled: true,
+        expressDeliveryLabel: true,
+        expressDeliveryDescription: true,
+        expressDeliveryEstimate: true,
+      },
+    }),
+  ]);
+  return { service, bosses, rule };
 }

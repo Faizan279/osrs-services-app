@@ -17,7 +17,7 @@ Allow a guest or customer to enter an RSN and compare public account statistics 
 
 - Public skill levels
 - Total level and XP
-- Public boss or activity values where available
+- Bossing calculator public stat requirements from the allow-listed combat and total-level metrics
 
 ## Not reliably verifiable from RSN alone
 
@@ -45,3 +45,9 @@ Never request a RuneScape password for eligibility lookup.
 - The database rate limiter uses `RSN_RATE_LIMIT_WINDOW_SECONDS` and `RSN_RATE_LIMIT_COUNT`. Raw IPs are not stored. `X-Real-IP` is used only with explicit trusted-proxy configuration.
 - `RSN_DEVELOPMENT_FIXTURE=true` explicitly selects a synthetic provider for local production-build E2E and screenshots. It must never be enabled on a deployed environment. Normal tests never call the live provider.
 - `rsn_eligibility_enabled` is seeded disabled and preserved on rerun.
+
+## Task 006 bossing usage
+
+The bossing calculator may optionally reuse the RSN eligibility flow for public stat requirements only: Attack, Strength, Defence, Ranged, Prayer, Magic, Hitpoints and Total level. The calculator still works without an RSN.
+
+Bossing does not infer boss KC ownership, gear ownership, inventory, bank contents, quests, diaries, account ownership or membership from RSN lookup. Gear and manual requirements remain customer-confirmed or support-verified. The public UI never asks for a RuneScape password and the estimate route uses POST bodies so RSNs are not placed in URLs.

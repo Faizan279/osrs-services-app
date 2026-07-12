@@ -11,7 +11,7 @@ describe("catalogue route security", () => {
     );
     expect(
       source.match(/requireCapability\(\s*"products\.edit"/g)?.length,
-    ).toBe(18);
+    ).toBe(21);
   });
 
   it("enforces products.view on protected catalogue pages and preview", () => {
@@ -31,6 +31,11 @@ describe("catalogue route security", () => {
       "services/[id]/skilling/page.tsx",
       "services/[id]/skilling/methods/new/page.tsx",
       "services/[id]/skilling/methods/[methodId]/page.tsx",
+      "services/[id]/bossing/page.tsx",
+      "services/[id]/bossing/bosses/new/page.tsx",
+      "services/[id]/bossing/bosses/[bossId]/page.tsx",
+      "services/[id]/bossing/methods/new/page.tsx",
+      "services/[id]/bossing/methods/[methodId]/page.tsx",
     ];
     for (const route of routes) {
       const source = readFileSync(

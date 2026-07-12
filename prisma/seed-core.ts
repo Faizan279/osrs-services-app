@@ -125,6 +125,11 @@ export const defaultFeatureFlags = [
     "Public skilling calculator estimates",
     false,
   ],
+  [
+    "bossing_calculator_enabled",
+    "Public bossing and PvM calculator estimates",
+    false,
+  ],
 ] as const;
 
 export async function seedDatabase(

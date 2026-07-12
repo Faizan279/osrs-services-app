@@ -1,0 +1,66 @@
+Branch: codex/task-006-bossing-pvm-engine
+Starting main SHA: 2899a540cd56009cb222ef19c7cf15865ea5ccdf
+Final head SHA: recorded in final handoff after local commit
+
+Migration:
+- prisma/migrations/20260712180000_task006_bossing_pvm_engine/migration.sql
+
+New models/enums:
+- BossingPriceMode
+- BossingCalculatorRule
+- BossingBossConfig
+- BossingMethod
+- BossingStatRequirement
+- BossingGearRequirement
+
+Extended models:
+- CatalogueService bossing relations
+- FeatureFlag seed defaults and preservation for bossing_calculator_enabled
+- Staged catalogue aggregate snapshot schema version 4 with bossing config
+
+Public routes/API:
+- /services/[categorySlug]/[serviceSlug] renders the bossing calculator for published BOSSING_ENGINE services when enabled
+- POST /api/bossing/estimate calculates server-side estimates from published catalogue data
+
+Admin routes:
+- /admin/catalogue/services/[id]/bossing
+- /admin/catalogue/services/[id]/bossing/bosses/new
+- /admin/catalogue/services/[id]/bossing/bosses/[bossId]
+- /admin/catalogue/services/[id]/bossing/methods/new
+- /admin/catalogue/services/[id]/bossing/methods/[methodId]
+- /admin/catalogue/services/[id]/preview includes staged PvM calculator configuration
+
+Feature flags:
+- bossing_calculator_enabled defaults to false and is preserved on seed rerun
+
+Estimate rules:
+- Direct kills and current KC to target KC are validated server-side
+- Method min/max kill ranges are enforced
+- Per-kill or fixed package base price is applied
+- Minimum price, setup fee, account-mode multipliers, gear adjustment, supplies, Discord Stream and delivery speed can affect estimates
+- Client-submitted prices are ignored
+
+Permissions:
+- products.view required for admin bossing pages
+- products.edit required for all bossing mutations
+
+Test totals:
+- pnpm exec prisma format: passed
+- pnpm db:generate: passed
+- pnpm lint: passed
+- pnpm typecheck: passed
+- pnpm test: 20 files, 105 tests passed
+- pnpm test:seed: 1 file, 2 tests passed
+- pnpm format:check: passed
+- pnpm build: passed
+- pnpm test:e2e: 61 passed, 15 skipped, 76 total
+- pnpm screenshots:task006: passed
+
+MySQL validation:
+- Fresh task006_fresh_validation: 8 migrations, 6 services, 1 bossing rule, 3 bosses, 3 methods, 8 stat requirements, 6 gear requirements, flag disabled, Standard delivery enabled, Priority/Express disabled
+- Existing task006_existing_validation copied from task005_existing_validation: applied only Task 006 migration; repeated seed preserved admin hash, bossing flag, edited method/rate, edited delivery flags, staged rows, revisions and audit logs
+
+Known limitations:
+- Seeded rates and rules need client review before public rollout
+- Public rollout remains gated by bossing_calculator_enabled
+- Cart, checkout, orders, payments, premium configurators, quote creation, deployment and Task 007 were not started
