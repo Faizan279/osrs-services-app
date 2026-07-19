@@ -1,69 +1,43 @@
 Branch: codex/task-007-premium-service-configurators
 Starting main SHA: 2631c2dd53a19e17596bf3a3ee0b40669d009c5f
-Final head SHA: returned in the final handoff because a commit cannot embed its own SHA
+Original implementation commit: d07674043535e25ccedd784b0e2a6777e659d533
+Correction implementation commit: 8c4802379c55789499cfc669f0d87681cc59426c
 
 Migration:
 - prisma/migrations/20260719190000_task007_premium_service_configurators/migration.sql
 
-New models/enums:
-- PremiumOptionType
-- PremiumOptionPricingMode
-- PremiumServiceConfig
-- PremiumPackage
-- PremiumOption
-- PremiumRequirementGroup
-- PremiumRequirement
-- PremiumFaq
+Correction summary:
+- Added PremiumConfiguratorType and seeded FIRE_CAPE.
+- Added premium config enabled and supportsManualStatFallback.
+- Added PremiumRequirementType and comparisonOperator.
+- Added server-side manual-stat fallback with allow-listed metrics only.
+- Added public choices for RSN lookup, manual stat entry or no stat check.
+- Official RSN results take precedence when lookup succeeds.
+- Manual results are labelled Customer-entered / not independently verified.
+- Gear, quests, unlocks, ownership, bank, inventory, membership and diaries remain non-automatic.
+- Updated admin editing, staging, revision snapshots, seeds, route tests, staging tests, E2E selectors and screenshot selectors.
 
-Extended models:
-- CatalogueService premium config/package/option/requirement/FAQ relations
-
-Public routes/API:
-- /services/[categorySlug]/[serviceSlug]
-- POST /api/premium/estimate
-- Seeded premium route /services/premium-services/fire-cape-premium-service
-
-Admin routes:
-- /admin/catalogue/services/[id]/premium
-- /admin/catalogue/services/[id]/premium/packages/new
-- /admin/catalogue/services/[id]/premium/packages/[packageId]
-- /admin/catalogue/services/[id]/premium/options/new
-- /admin/catalogue/services/[id]/premium/options/[optionId]
-- /admin/catalogue/services/[id]/preview
-
-Feature flags:
-- premium_configurator_enabled defaults false and is preserved by seed reruns
-- rsn_eligibility_enabled remains separate and optional
-
-Estimate rules:
-- Package base/minimum/setup
-- Account-mode basis-point adjustments
-- Customer gear adjustment only when configured and unconfirmed
-- Fixed, percentage and per-unit premium options
-- Discord Stream when enabled
-- Delivery multiplier/fixed fee when enabled
-- Server-side prices only; client prices ignored
-
-Permissions:
-- products.view required for admin premium pages
-- products.edit required inside premium mutations
-
-Tests:
+Validation completed locally:
 - pnpm exec prisma format: passed
 - pnpm db:generate: passed
 - pnpm lint: passed
 - pnpm typecheck: passed
-- pnpm test: 22 files / 116 tests passed
+- pnpm test: 22 files / 123 tests passed
 - pnpm test:seed: 1 file / 2 tests passed
 - pnpm format:check: passed
-- pnpm test:e2e: blocked locally by missing MySQL service on 127.0.0.1:3306
-- pnpm screenshots:task007: blocked locally by missing MySQL/admin-session environment
+- pnpm build: passed
 
-MySQL validation:
-- Not completed locally because Docker is unavailable and no MySQL/MariaDB service is installed or listening on 127.0.0.1:3306.
+Environment gate not satisfied:
+- docker/mysql/mysqld/mariadbd unavailable on PATH.
+- No Docker/MySQL/MariaDB service found.
+- 127.0.0.1:3306 is not reachable.
+- Free disk was below 100 MB after build.
 
-Known limitations:
-- Seeded premium values need client review.
-- Public rollout remains feature-flagged off.
-- Priority/Express delivery remain disabled by default.
-- No cart, checkout, quote, order, payment, deployment or Task 008 work was done.
+Not completed after correction commit:
+- pnpm test:e2e
+- Fresh MySQL validation
+- Existing Task 006 MySQL validation
+- pnpm screenshots:task007
+- task-007-final-review-pack.zip
+
+No push, PR, merge, deployment or Task 008 work was done.

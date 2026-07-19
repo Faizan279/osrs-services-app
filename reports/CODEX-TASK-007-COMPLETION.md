@@ -1,123 +1,86 @@
-# Task 007 completion report - Premium Service Configurators
+# Task 007 correction status - Premium Service Configurators
 
-## Branch and baseline
+## Branch and commits
 
-- Repository: `Faizan279/osrs-services-app`
 - Branch: `codex/task-007-premium-service-configurators`
-- Starting main commit: `2631c2dd53a19e17596bf3a3ee0b40669d009c5f`
-- Final local commit: returned in the final handoff; a commit cannot embed
-  its own SHA without changing that SHA.
+- Starting main SHA: `2631c2dd53a19e17596bf3a3ee0b40669d009c5f`
+- Original implementation commit: `d07674043535e25ccedd784b0e2a6777e659d533`
+- Correction implementation commit: `8c4802379c55789499cfc669f0d87681cc59426c`
 - Migration:
   `prisma/migrations/20260719190000_task007_premium_service_configurators/migration.sql`
-- Delivery boundary honored: no push, pull request, merge, deployment or Task 008 work.
+- No push, pull request, merge, deployment or Task 008 work was done.
 
-## Implemented scope
+## Correction Scope
 
-- Implemented the existing `PREMIUM_SERVICE_CONFIGURATOR` enum value as a reusable premium-service configurator.
-- Added `PremiumOptionType`, `PremiumOptionPricingMode`, `PremiumServiceConfig`, `PremiumPackage`, `PremiumOption`, `PremiumRequirementGroup`, `PremiumRequirement` and `PremiumFaq`.
-- Extended `CatalogueService` relations for premium config, packages, options, requirement groups and FAQs.
-- Added `premium_configurator_enabled`, seeded disabled by default and preserved on seed rerun.
-- Added representative Fire Cape premium seed content: 1 premium service config, 2 packages, 4 requirement groups, 11 premium requirements, 3 FAQs and 3 options, all marked for client review.
-- Added pure premium estimate utilities for package base/minimum/setup, account mode, customer gear adjustment, fixed/percentage/per-unit options, Discord Stream and delivery speed.
-- Added `POST /api/premium/estimate` with Zod validation, server-side published catalogue lookup, no-store responses and safe generic errors.
-- Added public premium configurator rendering on published `PREMIUM_SERVICE_CONFIGURATOR` pages only when the feature flag is enabled.
-- Added admin premium overview, package create/edit, option create/edit and staged preview routes under `/admin/catalogue/services/[id]/premium`.
-- Extended staged snapshots to schema version 5 with `premium`, while upgrading older Task 003-006 snapshots with `premium: null`.
-- Extended duplicate, discard, republish and revision snapshots so premium aggregates are applied atomically with the rest of the catalogue service.
-- Added audit actions for premium rule/package/option/requirements/FAQ changes, premium republish and premium discard.
-- Added Task 007 unit, route, seed, staging, security and Playwright coverage plus screenshot capture script.
+- Added `PremiumConfiguratorType` with the seeded Fire Cape premium service set to `FIRE_CAPE`.
+- Added premium config `enabled` and `supportsManualStatFallback` fields.
+- Added `PremiumRequirementType` and per-requirement `comparisonOperator`.
+- Added server-side manual-stat fallback using only allow-listed premium public metrics.
+- Added public stat-check choices: RSN lookup, manual entry, or no stat check.
+- Preserved official RSN precedence when a public lookup succeeds.
+- Ensured manual results are labelled `Customer-entered / not independently verified.`
+- Kept gear, quests, unlocks, account ownership, inventory, bank contents, membership and diaries out of automatic verification.
+- Updated admin rule editing and compact requirement rows for configurator type, manual fallback, requirement type and operator.
+- Updated staged snapshots, revision snapshots, publish, duplicate and older premium snapshot normalization.
+- Updated Fire Cape seeds and Task 007 route/staging/E2E/screenshot coverage for the new fields.
 
-## Public routes and API
+## Safety Status
 
-- Public page integration:
-  `/services/[categorySlug]/[serviceSlug]`
-- Estimate endpoint:
-  `POST /api/premium/estimate`
-- Seeded public validation route:
-  `/services/premium-services/fire-cape-premium-service`
+- `premium_configurator_enabled` still defaults off.
+- Seeded premium values remain marked `Needs client review`.
+- Standard delivery defaults enabled.
+- Priority and Express delivery default disabled.
+- Public estimates ignore client-submitted prices.
+- Disabled premium configs are rejected.
+- Public responses do not expose internal rule IDs, client-review state, internal notes or Prisma errors.
+- No RuneScape password, email login, bank PIN or authenticator field was added.
+- RSN and manual stats are submitted by POST body, not URL query strings.
+- No cart, checkout, quote, order, payment, deployment or Task 008 work was done.
 
-The endpoint confirms the feature flag, publication status, `PREMIUM_SERVICE_CONFIGURATOR`, enabled package, enabled options, supported game mode and enabled delivery/add-ons before estimating. Public responses do not expose internal rule IDs, client-review state, internal notes or Prisma errors.
-
-## Admin routes
-
-- `/admin/catalogue/services/[id]/premium`
-- `/admin/catalogue/services/[id]/premium/packages/new`
-- `/admin/catalogue/services/[id]/premium/packages/[packageId]`
-- `/admin/catalogue/services/[id]/premium/options/new`
-- `/admin/catalogue/services/[id]/premium/options/[optionId]`
-- `/admin/catalogue/services/[id]/preview`
-
-Admin reads require `products.view`; mutations require `products.edit` server-side through the existing action guard pattern.
-
-## Estimate formula rules
-
-1. Validate selected package is enabled.
-2. Calculate base price from package base cents and minimum cents.
-3. Add setup fee.
-4. Add account-mode basis-point adjustment.
-5. Add configured gear adjustment when customer gear is required but not confirmed.
-6. Add selected enabled options:
-   fixed fee, percent of current subtotal or per-unit quantity.
-7. Add Discord Stream percentage only when the rule enables it.
-8. Add enabled delivery percentage and fixed fee.
-
-The result is an estimate preview only. It does not create cart, checkout, quote, order, payment or order price snapshot records.
-
-## RSN and requirements behavior
-
-- Optional RSN lookup is reused only for allow-listed public premium stats: Attack, Strength, Defence, Ranged, Prayer, Magic, Hitpoints and Total level.
-- The configurator works without an RSN.
-- Gear ownership, bank contents, inventory contents, quests, diaries, membership and account ownership are not inferred.
-- The UI never asks for a RuneScape password and the route uses POST bodies, not URL query strings.
-- Automatic public-stat requirements, customer-confirmed requirements and support-verified requirements are shown separately.
-
-## Staging and revision behavior
-
-- Published premium edits create or update `CatalogueServiceStage` snapshots and remain private until republish.
-- Public pages and `/api/premium/estimate` continue using the last published premium config until republish.
-- Admin preview shows staged premium config.
-- Republish deletes/recreates dependent premium rows inside the existing transaction.
-- Discard removes staged premium changes without touching live rows.
-- Revision snapshots include premium rule, package, requirement group, requirement, FAQ and option data.
-- Optimistic version checks protect premium rule, package and option saves.
-
-## Seed behavior
-
-- Fresh seed creates the premium feature flag disabled, 1 config, 2 packages, 4 requirement groups, 11 requirements, 3 FAQs and 3 options.
-- Standard delivery is enabled by default; Priority and Express are disabled by default.
-- Existing seed reruns preserve administrator password hash, feature flag state, edited premium rules, edited package/option content, staged aggregates, revisions and audit logs.
-
-## Validation results
+## Validation Completed Locally
 
 - `pnpm exec prisma format`: passed.
-- `pnpm db:generate`: passed, Prisma Client 7.8.0 generated to `src/generated/prisma`.
-- `pnpm lint`: passed, `eslint . --max-warnings=0`.
-- `pnpm typecheck`: passed, `tsc --noEmit`.
-- `pnpm test`: passed, 22 files and 116 tests.
-- `pnpm test:seed`: passed, 1 file and 2 tests.
-- `pnpm format:check`: passed, all matched files use Prettier style.
-- `pnpm build`: Next build completed as part of the Playwright webServer startup after required local secrets were supplied; a standalone rerun was not attempted because the drive had only about 72 MB free.
-- `pnpm test:e2e`: blocked locally. The app built and started, then all Task 007 E2E tests failed before page interaction with `ECONNREFUSED 127.0.0.1:3306` because no MySQL service was running and Docker was unavailable.
-- `pnpm screenshots:task007`: blocked locally for the same unavailable MySQL/admin-session environment.
+- `pnpm db:generate`: passed.
+- `pnpm lint`: passed.
+- `pnpm typecheck`: passed.
+- `pnpm test`: passed, 22 files / 123 tests.
+- `pnpm test:seed`: passed, 1 file / 2 tests.
+- `pnpm format:check`: passed.
+- `pnpm build`: passed after full database environment variables were supplied.
 
-## MySQL validation
+## Environment Gate Not Satisfied
 
-Not completed in this local environment.
+The review stop condition is not reached in this local environment because the required MySQL runtime is unavailable.
 
-- `docker` is not available in PATH.
-- No MySQL or MariaDB service/binary is available locally.
-- `Test-NetConnection 127.0.0.1:3306` returned `TcpTestSucceeded: False`.
+- `docker`, `mysql`, `mysqld` and `mariadbd` are not available on PATH.
+- No Docker, MySQL or MariaDB service was found.
+- `Test-NetConnection 127.0.0.1 -Port 3306` returned `TcpTestSucceeded: False`.
+- `C:` had less than 100 MB free after the successful Next build.
+- Recursive deletion of generated `.next` output was blocked by local command policy, so free space could not be recovered from that artifact.
 
-Required follow-up when MySQL is available:
+Because the preflight requirements failed, `pnpm test:e2e`, fresh MySQL validation, existing Task 006 MySQL validation and `pnpm screenshots:task007` were not completed after the correction commit.
 
-- Fresh DB: apply migrations, seed, confirm 9 migrations, 7 services, 1 premium rule, 2 packages, 4 groups, 11 requirements, 3 FAQs, 3 options and `premium_configurator_enabled = false`.
-- Existing Task 006 DB: apply only Task 007 migration, rerun seeds, confirm admin hash, feature flags, edited premium package/option/rule rows, staged rows, revisions and audit logs are preserved.
+## Required DB Validation When MySQL Is Available
 
-## Screenshot evidence
+Fresh DB:
 
-The capture script is implemented as `pnpm screenshots:task007`, but screenshots were not generated locally because the required MySQL service is unavailable.
+- Apply all migrations without reset.
+- Run seeds.
+- Confirm premium feature flag defaults disabled.
+- Confirm representative premium config exists with `configuratorType = FIRE_CAPE`.
+- Confirm manual fallback configuration exists.
+- Confirm packages, options, requirements and FAQs exist.
+- Confirm Standard enabled, Priority disabled and Express disabled.
+- Confirm no unexpected staged rows.
 
-Expected screenshot paths:
+Existing Task 006 DB:
+
+- Apply only the Task 007 migration from the Task 006 baseline.
+- Do not reset.
+- Preserve users, sessions, admin hash, roles, permissions, feature flags, catalogue content, Task 005 skilling data, Task 006 bossing data, staged aggregates, revisions and audit logs.
+- Confirm repeated seeds preserve premium config/package/option edits.
+
+## Screenshot Paths To Generate
 
 - `artifacts/task-007/public-premium-configurator-1440.png`
 - `artifacts/task-007/public-premium-estimate-1440.png`
@@ -130,22 +93,9 @@ Expected screenshot paths:
 - `artifacts/task-007/admin-premium-preview-1440.png`
 - `artifacts/task-007/admin-premium-mobile-390.png`
 
-Responsive checks are covered in the Task 007 Playwright spec for 320px, 390px, 768px, 1024px and 1440px, pending execution against a running MySQL-backed app.
+## Known Limitations
 
-## Review artifacts
-
-- `changed-files.txt` lists source, test, documentation and migration files included for review.
-- `task-007-review-summary.txt` summarizes the implementation and validation result.
-- `task-007-review-pack.zip` is the path-safe review archive generated for handoff.
-
-## Known limitations
-
-- Seeded premium prices and delivery estimates are representative defaults and remain marked `Needs client review`.
+- Final Task 007 handoff is blocked until a MySQL 8 compatible database is reachable on the configured host and port.
+- The final path-safe review ZIP must be regenerated after DB validation and screenshots are complete.
+- Seeded premium prices and delivery estimates are representative defaults and remain marked for client review.
 - Public rollout remains gated by `premium_configurator_enabled`.
-- Priority and Express delivery are seeded for admin configuration but disabled until approved.
-- The premium configurator is an estimate preview only; cart, checkout, quote creation, order creation, payment processing and price snapshots remain later tasks.
-- Local DB-backed validation and screenshots require Docker/MySQL to be available.
-
-## Explicit exclusions
-
-Global pricing, cart, checkout, payments, order creation, quote creation, customer dashboard, marketplaces, inventory reservation, capacity reservation, fake reviews, fake availability, live chat, deployment and Task 008 were not started.
