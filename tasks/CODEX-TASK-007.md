@@ -4,6 +4,15 @@
 
 Make the existing `PREMIUM_SERVICE_CONFIGURATOR` catalogue engine functional for high-value configured services such as Fire Cape, Infernal Cape, Colosseum and raids.
 
+## Clean Publication History
+
+- Starting main SHA: `2631c2dd53a19e17596bf3a3ee0b40669d009c5f`
+- Clean reconstructed implementation commit: `4615b8230287e0ba996afea57c0097ecbf9e0a7c`
+- Clean reconstructed correction commit: `74adb8775c24aaedc11f44f0dc1a734925c5e8cd`
+- Clean reconstructed documentation status commit: `ff2e082ef92e0a80ba5dda717158e57c2aa924c9`
+- Pre-cleanup local commits are retained only in the local backup branch and verified backup bundle.
+- Git history was reconstructed before the first GitHub push to remove a generated Task 007 review ZIP from the publishable branch.
+
 ## Implemented Scope
 
 - Add additive premium configurator Prisma models and enums.
@@ -26,7 +35,7 @@ Make the existing `PREMIUM_SERVICE_CONFIGURATOR` catalogue engine functional for
 - No cart, checkout, quote, order, payment, dashboard, inventory reservation or capacity reservation records.
 - No fake reviews, fake availability, fake sales counts or fake guarantees.
 - No Task 008 work.
-- No deployment, push, pull request or merge.
+- No deployment or merge; repository handoff uses a draft pull request only.
 
 ## Safety Notes
 

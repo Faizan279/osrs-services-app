@@ -1,7 +1,12 @@
 Branch: codex/task-007-premium-service-configurators
 Starting main SHA: 2631c2dd53a19e17596bf3a3ee0b40669d009c5f
-Original implementation commit: d07674043535e25ccedd784b0e2a6777e659d533
-Correction implementation commit: 8c4802379c55789499cfc669f0d87681cc59426c
+Clean reconstructed implementation commit: 4615b8230287e0ba996afea57c0097ecbf9e0a7c
+Clean reconstructed correction commit: 74adb8775c24aaedc11f44f0dc1a734925c5e8cd
+Clean reconstructed documentation status commit: ff2e082ef92e0a80ba5dda717158e57c2aa924c9
+Pre-cleanup local implementation commit retained in local backup bundle: d07674043535e25ccedd784b0e2a6777e659d533
+Pre-cleanup local correction commit retained in local backup bundle: 8c4802379c55789499cfc669f0d87681cc59426c
+Pre-cleanup local documentation status commit retained in local backup bundle: 567ae0bb07ba4e924ab7da1426f918bac7e67e3b
+Git history was reconstructed before the first GitHub push to remove a generated Task 007 review ZIP from the publishable branch.
 
 Migration:
 - prisma/migrations/20260719190000_task007_premium_service_configurators/migration.sql
@@ -40,4 +45,4 @@ Not completed after correction commit:
 - pnpm screenshots:task007
 - task-007-final-review-pack.zip
 
-No push, PR, merge, deployment or Task 008 work was done.
+No merge, deployment or Task 008 work was done.
