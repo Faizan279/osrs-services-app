@@ -186,6 +186,8 @@ function eligibilityRuleFields(formData: FormData) {
 function skillingRuleInput(formData: FormData, serviceId: string) {
   return skillingRuleInputSchema.parse({
     serviceId,
+    configuratorType: formData.get("configuratorType"),
+    enabled: checked(formData, "enabled"),
     normalModeMultiplierBps: formData.get("normalModeMultiplierBps"),
     ironmanMultiplierBps: formData.get("ironmanMultiplierBps"),
     hardcoreIronmanMultiplierBps: formData.get("hardcoreIronmanMultiplierBps"),
@@ -394,6 +396,7 @@ function premiumRuleInput(formData: FormData, serviceId: string) {
     discordStreamEnabled: checked(formData, "discordStreamEnabled"),
     discordStreamPercentBps: formData.get("discordStreamPercentBps"),
     rsnEligibilityEnabled: checked(formData, "rsnEligibilityEnabled"),
+    supportsManualStatFallback: checked(formData, "supportsManualStatFallback"),
     standardDeliveryEnabled: checked(formData, "standardDeliveryEnabled"),
     standardDeliveryLabel: formData.get("standardDeliveryLabel"),
     standardDeliveryDescription: formData.get("standardDeliveryDescription"),
@@ -440,16 +443,33 @@ function premiumRequirementGroups(formData: FormData) {
     .map((row) => row.trim())
     .filter(Boolean)
     .forEach((row, index) => {
+      const parts = row.split("|").map((value) => value?.trim());
       const [
         groupTitle,
         groupDescription,
         label,
         description,
+        requirementType,
         verificationMode,
         metricKey,
+        comparisonOperator,
         requiredValue,
         customerGuidance,
-      ] = row.split("|").map((value) => value?.trim());
+      ] =
+        parts.length >= 10
+          ? parts
+          : [
+              parts[0],
+              parts[1],
+              parts[2],
+              parts[3],
+              parts[4] === "AUTOMATIC" ? "SKILL" : "OTHER",
+              parts[4],
+              parts[5],
+              parts[4] === "AUTOMATIC" ? "GREATER_THAN_OR_EQUAL" : "",
+              parts[6],
+              parts[7],
+            ];
       const title = groupTitle || "Requirements";
       const group = groups.get(title) ?? {
         title,
@@ -462,10 +482,12 @@ function premiumRequirementGroups(formData: FormData) {
         premiumRequirementInputSchema.parse({
           label,
           description,
+          requirementType,
           isRequired: true,
           displayOrder: (index + 1) * 10,
           verificationMode,
           metricKey,
+          comparisonOperator,
           requiredValue,
           customerGuidance,
           needsClientReview: true,

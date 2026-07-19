@@ -46,6 +46,62 @@ export const premiumOptionPricingModeLabels: Record<
   PER_UNIT: "Per unit",
 };
 
+export const premiumConfiguratorTypes = [
+  "FIRE_CAPE",
+  "INFERNAL_CAPE",
+  "COLOSSEUM",
+  "YAMA",
+  "ROYAL_TITANS",
+  "CORRUPTED_GAUNTLET",
+  "DOOM_OF_MOKHAIOTL",
+  "RAIDS",
+  "CUSTOM",
+] as const;
+
+export type PremiumConfiguratorType = (typeof premiumConfiguratorTypes)[number];
+
+export const premiumConfiguratorTypeLabels: Record<
+  PremiumConfiguratorType,
+  string
+> = {
+  FIRE_CAPE: "Fire Cape",
+  INFERNAL_CAPE: "Infernal Cape",
+  COLOSSEUM: "Colosseum",
+  YAMA: "Yama",
+  ROYAL_TITANS: "Royal Titans",
+  CORRUPTED_GAUNTLET: "Corrupted Gauntlet",
+  DOOM_OF_MOKHAIOTL: "Doom of Mokhaiotl",
+  RAIDS: "Raids",
+  CUSTOM: "Custom",
+};
+
+export const premiumRequirementTypes = [
+  "SKILL",
+  "QUEST",
+  "ITEM",
+  "ACTIVITY",
+  "ACCOUNT",
+  "GEAR",
+  "UNLOCK",
+  "OTHER",
+] as const;
+
+export type PremiumRequirementType = (typeof premiumRequirementTypes)[number];
+
+export const premiumRequirementTypeLabels: Record<
+  PremiumRequirementType,
+  string
+> = {
+  SKILL: "Skill",
+  QUEST: "Quest",
+  ITEM: "Item",
+  ACTIVITY: "Activity",
+  ACCOUNT: "Account",
+  GEAR: "Gear",
+  UNLOCK: "Unlock",
+  OTHER: "Other",
+};
+
 export const premiumPublicStatMetricKeys = [
   "skill.attack.level",
   "skill.strength.level",

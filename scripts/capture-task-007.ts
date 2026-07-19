@@ -142,7 +142,8 @@ async function estimate(page: Page) {
 }
 
 async function validationError(page: Page) {
-  await page.getByLabel("Optional RSN public stat check").fill("bad_name!");
+  await page.getByLabel("Check public stats using RSN").check();
+  await page.getByLabel("RuneScape name").fill("bad_name!");
   await page.getByRole("button", { name: "Estimate total" }).click();
   await page.locator("#premium-configurator-status").waitFor();
   await page

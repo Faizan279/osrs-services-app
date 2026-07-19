@@ -163,6 +163,8 @@ function livePremiumService() {
     ],
     premiumConfig: {
       id: "premium-rule-1",
+      configuratorType: "FIRE_CAPE" as const,
+      enabled: true,
       normalModeMultiplierBps: 0,
       ironmanMultiplierBps: 1000,
       hardcoreIronmanMultiplierBps: 2000,
@@ -170,6 +172,7 @@ function livePremiumService() {
       discordStreamEnabled: true,
       discordStreamPercentBps: 200,
       rsnEligibilityEnabled: true,
+      supportsManualStatFallback: true,
       standardDeliveryEnabled: true,
       standardDeliveryLabel: "Standard",
       standardDeliveryDescription: "Standard queue.",
@@ -226,10 +229,12 @@ function livePremiumService() {
                 seededKey: null,
                 label: "Ranged level",
                 description: "Recommended public Ranged level.",
+                requirementType: "SKILL" as const,
                 isRequired: true,
                 displayOrder: 10,
                 verificationMode: "AUTOMATIC" as const,
                 metricKey: "skill.ranged.level",
+                comparisonOperator: "GREATER_THAN_OR_EQUAL" as const,
                 requiredValue: 70,
                 customerGuidance:
                   "This public stat can be checked by RSN when enabled.",
@@ -240,10 +245,12 @@ function livePremiumService() {
                 seededKey: null,
                 label: "Gear confirmation",
                 description: "Customer confirms gear without sharing secrets.",
+                requirementType: "GEAR" as const,
                 isRequired: true,
                 displayOrder: 20,
                 verificationMode: "CUSTOMER_CONFIRMED" as const,
                 metricKey: null,
+                comparisonOperator: null,
                 requiredValue: null,
                 customerGuidance: "Do not provide a RuneScape password.",
                 needsClientReview: true,
@@ -591,6 +598,8 @@ describe("catalogue publication staging", () => {
     const aggregate = snapshotFromService(livePremiumService() as never);
 
     expect(aggregate.schemaVersion).toBe(5);
+    expect(aggregate.premium?.rule?.configuratorType).toBe("FIRE_CAPE");
+    expect(aggregate.premium?.rule?.supportsManualStatFallback).toBe(true);
     expect(aggregate.premium?.rule?.rsnEligibilityEnabled).toBe(true);
     expect(aggregate.premium?.packages[0]?.name).toBe("Standard Fire Cape run");
     expect(
@@ -598,12 +607,71 @@ describe("catalogue publication staging", () => {
     ).toEqual(
       expect.objectContaining({
         verificationMode: "AUTOMATIC",
+        requirementType: "SKILL",
         metricKey: "skill.ranged.level",
+        comparisonOperator: "GREATER_THAN_OR_EQUAL",
         requiredValue: 70,
       }),
     );
     expect(aggregate.premium?.options[0]?.packageId).toBe("premium-package-1");
+    const revision = revisionSnapshot(livePremiumService()) as unknown as {
+      premiumConfig: { configuratorType: string };
+    };
+    expect(revision.premiumConfig.configuratorType).toBe("FIRE_CAPE");
     expect(() => JSON.stringify(aggregate)).not.toThrow();
+  });
+
+  it("normalizes older premium snapshots with safe defaults", () => {
+    const aggregate = snapshotFromService(livePremiumService() as never);
+    const premiumPackage = aggregate.premium?.packages[0];
+    const requirementGroup = premiumPackage?.requirementGroups[0];
+    const requirement = requirementGroup?.requirements[0];
+    if (
+      !aggregate.premium?.rule ||
+      !premiumPackage ||
+      !requirementGroup ||
+      !requirement
+    ) {
+      throw new Error("Expected premium aggregate data.");
+    }
+    const legacyRule: Record<string, unknown> = { ...aggregate.premium.rule };
+    delete legacyRule.configuratorType;
+    delete legacyRule.enabled;
+    delete legacyRule.supportsManualStatFallback;
+    const legacyRequirement: Record<string, unknown> = { ...requirement };
+    delete legacyRequirement.requirementType;
+    delete legacyRequirement.comparisonOperator;
+
+    const parsed = stagedCatalogueAggregateSchema.parse({
+      ...aggregate,
+      premium: {
+        ...aggregate.premium,
+        rule: legacyRule,
+        packages: [
+          {
+            ...premiumPackage,
+            requirementGroups: [
+              {
+                ...requirementGroup,
+                requirements: [legacyRequirement],
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(parsed.premium?.rule?.configuratorType).toBe("CUSTOM");
+    expect(parsed.premium?.rule?.enabled).toBe(true);
+    expect(parsed.premium?.rule?.supportsManualStatFallback).toBe(true);
+    expect(
+      parsed.premium?.packages[0]?.requirementGroups[0]?.requirements[0],
+    ).toEqual(
+      expect.objectContaining({
+        requirementType: "SKILL",
+        comparisonOperator: "GREATER_THAN_OR_EQUAL",
+      }),
+    );
   });
 
   it("preserves premium snapshots only while the premium engine is selected", () => {

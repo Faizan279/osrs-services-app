@@ -130,6 +130,29 @@ enum PremiumOptionPricingMode {
   PER_UNIT
 }
 
+enum PremiumConfiguratorType {
+  FIRE_CAPE
+  INFERNAL_CAPE
+  COLOSSEUM
+  YAMA
+  ROYAL_TITANS
+  CORRUPTED_GAUNTLET
+  DOOM_OF_MOKHAIOTL
+  RAIDS
+  CUSTOM
+}
+
+enum PremiumRequirementType {
+  SKILL
+  QUEST
+  ITEM
+  ACTIVITY
+  ACCOUNT
+  GEAR
+  UNLOCK
+  OTHER
+}
+
 model User {
   id                 String                  @id @default(cuid()) @db.VarChar(30)
   email              String                  @unique @db.VarChar(191)
@@ -723,6 +746,8 @@ model BossingGearRequirement {
 model PremiumServiceConfig {
   id                            String                    @id @default(cuid()) @db.VarChar(30)
   serviceId                     String                    @unique @db.VarChar(30)
+  configuratorType              PremiumConfiguratorType   @default(CUSTOM)
+  enabled                       Boolean                   @default(true)
   normalModeMultiplierBps       Int                       @default(0)
   ironmanMultiplierBps          Int                       @default(1000)
   hardcoreIronmanMultiplierBps  Int                       @default(2000)
@@ -730,6 +755,7 @@ model PremiumServiceConfig {
   discordStreamEnabled          Boolean                   @default(true)
   discordStreamPercentBps       Int                       @default(200)
   rsnEligibilityEnabled         Boolean                   @default(true)
+  supportsManualStatFallback    Boolean                   @default(true)
   standardDeliveryEnabled       Boolean                   @default(true)
   standardDeliveryLabel         String                    @default("Standard") @db.VarChar(80)
   standardDeliveryDescription   String?                   @db.VarChar(240)
@@ -848,21 +874,23 @@ model PremiumRequirementGroup {
 }
 
 model PremiumRequirement {
-  id                String                      @id @default(cuid()) @db.VarChar(30)
-  groupId           String                      @db.VarChar(30)
-  label             String                      @db.VarChar(160)
-  description       String                      @db.Text
-  isRequired        Boolean                     @default(true)
-  displayOrder      Int                         @default(0)
-  verificationMode  RequirementVerificationMode @default(CUSTOMER_CONFIRMED)
-  metricKey         String?                     @db.VarChar(120)
-  requiredValue     Int?
-  customerGuidance  String?                     @db.Text
-  needsClientReview Boolean                     @default(true)
-  seededKey         String?                     @unique @db.VarChar(220)
-  createdAt         DateTime                    @default(now())
-  updatedAt         DateTime                    @updatedAt
-  group             PremiumRequirementGroup     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  id                 String                       @id @default(cuid()) @db.VarChar(30)
+  groupId            String                       @db.VarChar(30)
+  label              String                       @db.VarChar(160)
+  description        String                       @db.Text
+  requirementType    PremiumRequirementType       @default(OTHER)
+  isRequired         Boolean                      @default(true)
+  displayOrder       Int                          @default(0)
+  verificationMode   RequirementVerificationMode  @default(CUSTOMER_CONFIRMED)
+  metricKey          String?                      @db.VarChar(120)
+  comparisonOperator CatalogueComparisonOperator?
+  requiredValue      Int?
+  customerGuidance   String?                      @db.Text
+  needsClientReview  Boolean                      @default(true)
+  seededKey          String?                      @unique @db.VarChar(220)
+  createdAt          DateTime                     @default(now())
+  updatedAt          DateTime                     @updatedAt
+  group              PremiumRequirementGroup      @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@index([groupId, displayOrder])
 }

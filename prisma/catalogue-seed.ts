@@ -376,8 +376,24 @@ export type CatalogueSeedClient = {
         displayOrder: number;
         verificationMode:
           "AUTOMATIC" | "CUSTOMER_CONFIRMED" | "SUPPORT_VERIFIED";
-        metricKey?: string;
-        requiredValue?: number;
+        requirementType:
+          | "SKILL"
+          | "QUEST"
+          | "ITEM"
+          | "ACTIVITY"
+          | "ACCOUNT"
+          | "GEAR"
+          | "UNLOCK"
+          | "OTHER";
+        metricKey?: string | null;
+        comparisonOperator?:
+          | "GREATER_THAN_OR_EQUAL"
+          | "GREATER_THAN"
+          | "EQUAL"
+          | "LESS_THAN_OR_EQUAL"
+          | "LESS_THAN"
+          | null;
+        requiredValue?: number | null;
         customerGuidance: string;
         needsClientReview: boolean;
       }>;
@@ -461,7 +477,19 @@ type BossingPriceMode = "PER_KILL" | "FIXED_PACKAGE";
 type BossingRuleSeedCreate = SkillingRuleSeedCreate;
 
 type PremiumRuleSeedCreate = SkillingRuleSeedCreate & {
+  configuratorType:
+    | "FIRE_CAPE"
+    | "INFERNAL_CAPE"
+    | "COLOSSEUM"
+    | "YAMA"
+    | "ROYAL_TITANS"
+    | "CORRUPTED_GAUNTLET"
+    | "DOOM_OF_MOKHAIOTL"
+    | "RAIDS"
+    | "CUSTOM";
+  enabled: boolean;
   rsnEligibilityEnabled: boolean;
+  supportsManualStatFallback: boolean;
 };
 
 export const catalogueCategorySeeds = [
@@ -1732,6 +1760,8 @@ export async function seedCatalogue(prisma: CatalogueSeedClient) {
       where: { serviceId: premiumServiceId },
       create: {
         serviceId: premiumServiceId,
+        configuratorType: "FIRE_CAPE",
+        enabled: true,
         normalModeMultiplierBps: 0,
         ironmanMultiplierBps: 1000,
         hardcoreIronmanMultiplierBps: 2000,
@@ -1739,6 +1769,7 @@ export async function seedCatalogue(prisma: CatalogueSeedClient) {
         discordStreamEnabled: true,
         discordStreamPercentBps: 200,
         rsnEligibilityEnabled: true,
+        supportsManualStatFallback: true,
         standardDeliveryEnabled: true,
         standardDeliveryLabel: "Standard",
         standardDeliveryDescription: "Standard review queue for premium work.",
@@ -1822,10 +1853,12 @@ export async function seedCatalogue(prisma: CatalogueSeedClient) {
                   groupId: groupRecord.id,
                   label,
                   description,
+                  requirementType: "SKILL" as const,
                   isRequired: true,
                   displayOrder: (index + 1) * 10,
                   verificationMode: "AUTOMATIC" as const,
                   metricKey,
+                  comparisonOperator: "GREATER_THAN_OR_EQUAL" as const,
                   requiredValue,
                   customerGuidance:
                     "This public stat can be checked by RSN when eligibility is enabled.",
@@ -1841,9 +1874,15 @@ export async function seedCatalogue(prisma: CatalogueSeedClient) {
                   groupId: groupRecord.id,
                   label,
                   description,
+                  requirementType: label.toLowerCase().includes("gear")
+                    ? ("GEAR" as const)
+                    : ("UNLOCK" as const),
                   isRequired: true,
                   displayOrder: (index + 1) * 10,
                   verificationMode,
+                  metricKey: null,
+                  comparisonOperator: null,
+                  requiredValue: null,
                   customerGuidance:
                     verificationMode === "CUSTOMER_CONFIRMED"
                       ? "Confirm this before requesting review. Do not provide a RuneScape password."

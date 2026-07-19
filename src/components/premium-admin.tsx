@@ -9,6 +9,7 @@ import type {
   StagedPremiumRule,
 } from "@/lib/catalogue/staging";
 import {
+  premiumConfiguratorTypeLabels,
   premiumOptionPricingModeLabels,
   premiumOptionTypeLabels,
 } from "@/lib/premium/constants";
@@ -29,6 +30,41 @@ export function PremiumRuleForm({
     <form action={action} className="grid gap-6">
       <input type="hidden" name="serviceId" value={serviceId} />
       <input type="hidden" name="expectedVersion" value={version} />
+      <fieldset className="grid gap-4 border-0 p-0 md:grid-cols-3">
+        <legend className="display-type mb-2 text-2xl">Configurator</legend>
+        <label className={labelClass}>
+          Service type
+          <select
+            className={fieldClass}
+            name="configuratorType"
+            defaultValue={current.configuratorType}
+          >
+            {Object.entries(premiumConfiguratorTypeLabels).map(
+              ([value, label]) => (
+                <option value={value} key={value}>
+                  {label}
+                </option>
+              ),
+            )}
+          </select>
+        </label>
+        <label className="text-text-secondary flex items-center gap-3 pt-8 text-sm font-semibold">
+          <input
+            type="checkbox"
+            name="enabled"
+            defaultChecked={current.enabled}
+          />
+          Config enabled
+        </label>
+        <label className="text-text-secondary flex items-center gap-3 pt-8 text-sm font-semibold">
+          <input
+            type="checkbox"
+            name="supportsManualStatFallback"
+            defaultChecked={current.supportsManualStatFallback}
+          />
+          Manual stat fallback
+        </label>
+      </fieldset>
       <fieldset className="grid gap-4 border-0 p-0 md:grid-cols-2">
         <legend className="display-type mb-2 text-2xl">
           Account mode multipliers
@@ -262,7 +298,7 @@ export function PremiumPackageForm({
             className={`${fieldClass} min-h-36 font-mono text-xs`}
             name="requirementGroups"
             defaultValue={requirementGroupText(premiumPackage)}
-            placeholder="Stats|Public stats|Attack level|60 Attack required|AUTOMATIC|skill.attack.level|60|Optional guidance"
+            placeholder="Stats|Public stats|Attack level|60 Attack required|SKILL|AUTOMATIC|skill.attack.level|GREATER_THAN_OR_EQUAL|60|Optional guidance"
           />
         </label>
         <label className={`${labelClass} md:col-span-2`}>
@@ -591,8 +627,10 @@ function requirementGroupText(premiumPackage?: StagedPremiumPackage) {
             group.description ?? "",
             requirement.label,
             requirement.description,
+            requirement.requirementType,
             requirement.verificationMode,
             requirement.metricKey ?? "",
+            requirement.comparisonOperator ?? "",
             requirement.requiredValue ?? "",
             requirement.customerGuidance ?? "",
           ].join("|"),
@@ -712,6 +750,8 @@ function DeliveryFields({
 function defaultRule(): StagedPremiumRule {
   return {
     id: "new",
+    configuratorType: "FIRE_CAPE",
+    enabled: true,
     normalModeMultiplierBps: 0,
     ironmanMultiplierBps: 1000,
     hardcoreIronmanMultiplierBps: 2000,
@@ -719,6 +759,7 @@ function defaultRule(): StagedPremiumRule {
     discordStreamEnabled: true,
     discordStreamPercentBps: 200,
     rsnEligibilityEnabled: true,
+    supportsManualStatFallback: true,
     standardDeliveryEnabled: true,
     standardDeliveryLabel: "Standard",
     standardDeliveryDescription: "Standard review queue for premium work.",

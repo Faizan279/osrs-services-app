@@ -723,9 +723,11 @@ export async function getPublicPremiumConfiguratorService({
               select: {
                 label: true,
                 description: true,
+                requirementType: true,
                 isRequired: true,
                 verificationMode: true,
                 metricKey: true,
+                comparisonOperator: true,
                 requiredValue: true,
                 customerGuidance: true,
               },
@@ -760,11 +762,14 @@ export async function getPublicPremiumConfiguratorService({
         customerInputRequired: true,
       },
     }),
-    prisma.premiumServiceConfig.findUnique({
-      where: { serviceId: service.id },
+    prisma.premiumServiceConfig.findFirst({
+      where: { serviceId: service.id, enabled: true },
       select: {
+        configuratorType: true,
+        enabled: true,
         discordStreamEnabled: true,
         rsnEligibilityEnabled: true,
+        supportsManualStatFallback: true,
         standardDeliveryEnabled: true,
         standardDeliveryLabel: true,
         standardDeliveryDescription: true,

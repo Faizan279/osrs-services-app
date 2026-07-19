@@ -608,6 +608,8 @@ export async function publishService(
       if (snapshot.premium) {
         const rule = snapshot.premium.rule ?? {
           id: stagedId(),
+          configuratorType: "CUSTOM" as const,
+          enabled: true,
           normalModeMultiplierBps: 0,
           ironmanMultiplierBps: 1000,
           hardcoreIronmanMultiplierBps: 2000,
@@ -615,6 +617,7 @@ export async function publishService(
           discordStreamEnabled: true,
           discordStreamPercentBps: 200,
           rsnEligibilityEnabled: true,
+          supportsManualStatFallback: true,
           standardDeliveryEnabled: true,
           standardDeliveryLabel: "Standard",
           standardDeliveryDescription:
@@ -685,10 +688,12 @@ export async function publishService(
                       seededKey: requirement.seededKey,
                       label: requirement.label,
                       description: requirement.description,
+                      requirementType: requirement.requirementType,
                       isRequired: requirement.isRequired,
                       displayOrder: requirement.displayOrder,
                       verificationMode: requirement.verificationMode,
                       metricKey: requirement.metricKey,
+                      comparisonOperator: requirement.comparisonOperator,
                       requiredValue: requirement.requiredValue,
                       customerGuidance: requirement.customerGuidance,
                       needsClientReview: requirement.needsClientReview,
@@ -1452,10 +1457,12 @@ export async function duplicateService(id: string, actorId: string) {
                 create: group.requirements.map((requirement) => ({
                   label: requirement.label,
                   description: requirement.description,
+                  requirementType: requirement.requirementType,
                   isRequired: requirement.isRequired,
                   displayOrder: requirement.displayOrder,
                   verificationMode: requirement.verificationMode,
                   metricKey: requirement.metricKey,
+                  comparisonOperator: requirement.comparisonOperator,
                   requiredValue: requirement.requiredValue,
                   customerGuidance: requirement.customerGuidance,
                   needsClientReview: true,

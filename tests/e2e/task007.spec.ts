@@ -73,6 +73,9 @@ test("public premium configurator renders and returns a server estimate", async 
   await expect(page.getByLabel("Package")).toBeVisible();
   await expect(page.getByLabel("Account game mode")).toBeVisible();
   await expect(page.getByLabel("Delivery speed")).toBeVisible();
+  await expect(page.getByLabel("Check public stats using RSN")).toBeVisible();
+  await expect(page.getByLabel("Enter stats manually")).toBeVisible();
+  await expect(page.getByLabel("Continue without a stat check")).toBeVisible();
   await expect(page.getByText("Public stat requirements")).toBeVisible();
   await expect(page.getByText("Gear and unlock requirements")).toBeVisible();
   await expect(page.getByText("FAQ")).toBeVisible();

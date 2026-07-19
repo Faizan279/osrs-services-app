@@ -8,6 +8,7 @@ import {
   CatalogueConflictError,
   CatalogueTransitionError,
 } from "@/lib/catalogue/errors";
+import { catalogueComparisonOperators } from "@/lib/catalogue/constants";
 import { normalizeSlug } from "@/lib/catalogue/validation";
 import {
   editableSnapshot,
@@ -26,9 +27,11 @@ import {
 } from "@/lib/catalogue/staging";
 import { prisma } from "@/lib/db/prisma";
 import {
+  premiumConfiguratorTypes,
   premiumOptionPricingModes,
   premiumOptionTypes,
   premiumPublicStatMetricKeys,
+  premiumRequirementTypes,
 } from "@/lib/premium/constants";
 
 const optionalTrimmedString = (maximum: number) =>
@@ -50,6 +53,8 @@ const bpsSchema = z.coerce.number().int().min(0).max(100_000);
 
 export const premiumRuleInputSchema = z.object({
   serviceId: z.string().min(1).max(30),
+  configuratorType: z.enum(premiumConfiguratorTypes),
+  enabled: z.boolean(),
   normalModeMultiplierBps: bpsSchema,
   ironmanMultiplierBps: bpsSchema,
   hardcoreIronmanMultiplierBps: bpsSchema,
@@ -57,6 +62,7 @@ export const premiumRuleInputSchema = z.object({
   discordStreamEnabled: z.boolean(),
   discordStreamPercentBps: bpsSchema,
   rsnEligibilityEnabled: z.boolean(),
+  supportsManualStatFallback: z.boolean(),
   standardDeliveryEnabled: z.boolean(),
   standardDeliveryLabel: z.string().trim().min(2).max(80),
   standardDeliveryDescription: optionalTrimmedString(240),
@@ -82,6 +88,7 @@ export const premiumRequirementInputSchema = z
   .object({
     label: z.string().trim().min(2).max(160),
     description: z.string().trim().min(5).max(10_000),
+    requirementType: z.enum(premiumRequirementTypes),
     isRequired: z.boolean(),
     displayOrder: z.coerce.number().int().min(0).max(100_000),
     verificationMode: z.enum([
@@ -90,12 +97,24 @@ export const premiumRequirementInputSchema = z
       "SUPPORT_VERIFIED",
     ]),
     metricKey: optionalTrimmedString(120),
+    comparisonOperator: z.preprocess(
+      (value) => (value === "" || value == null ? undefined : value),
+      z.enum(catalogueComparisonOperators).optional(),
+    ),
     requiredValue: optionalInt(1, 2_277),
     customerGuidance: optionalTrimmedString(10_000),
     needsClientReview: z.boolean(),
   })
   .superRefine((value, context) => {
     if (value.verificationMode === "AUTOMATIC") {
+      if (!["SKILL", "ACCOUNT"].includes(value.requirementType)) {
+        context.addIssue({
+          code: "custom",
+          path: ["requirementType"],
+          message:
+            "Only skill or account public-stat requirements can be automatic.",
+        });
+      }
       if (
         !value.metricKey ||
         !premiumPublicStatMetricKeys.includes(value.metricKey as never)
@@ -113,10 +132,19 @@ export const premiumRequirementInputSchema = z
           message: "Automatic requirements need a required level.",
         });
       }
+      if (!value.comparisonOperator) {
+        context.addIssue({
+          code: "custom",
+          path: ["comparisonOperator"],
+          message: "Automatic requirements need a comparison operator.",
+        });
+      }
     }
     if (
       value.verificationMode !== "AUTOMATIC" &&
-      (value.metricKey || value.requiredValue != null)
+      (value.metricKey ||
+        value.comparisonOperator ||
+        value.requiredValue != null)
     ) {
       context.addIssue({
         code: "custom",
@@ -319,11 +347,16 @@ function requirementFromInput(
     seededKey: existing?.seededKey ?? null,
     label: input.label,
     description: input.description,
+    requirementType: input.requirementType,
     isRequired: input.isRequired,
     displayOrder: input.displayOrder,
     verificationMode: input.verificationMode,
     metricKey:
       input.verificationMode === "AUTOMATIC" ? (input.metricKey ?? null) : null,
+    comparisonOperator:
+      input.verificationMode === "AUTOMATIC"
+        ? (input.comparisonOperator ?? null)
+        : null,
     requiredValue:
       input.verificationMode === "AUTOMATIC"
         ? (input.requiredValue ?? null)
@@ -703,10 +736,12 @@ export async function savePremiumPackage(
               seededKey: requirement.seededKey,
               label: requirement.label,
               description: requirement.description,
+              requirementType: requirement.requirementType,
               isRequired: requirement.isRequired,
               displayOrder: requirement.displayOrder,
               verificationMode: requirement.verificationMode,
               metricKey: requirement.metricKey,
+              comparisonOperator: requirement.comparisonOperator,
               requiredValue: requirement.requiredValue,
               customerGuidance: requirement.customerGuidance,
               needsClientReview: requirement.needsClientReview,

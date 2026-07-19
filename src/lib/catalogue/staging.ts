@@ -11,6 +11,7 @@ import type {
 } from "@/generated/prisma/client";
 import {
   catalogueAvailabilityStates,
+  catalogueComparisonOperators,
   catalogueEngineTypes,
   catalogueGameModes,
   catalogueRequirementTypes,
@@ -27,9 +28,11 @@ import {
   bossingPublicStatMetricKeys,
 } from "@/lib/bossing/constants";
 import {
+  premiumConfiguratorTypes,
   premiumOptionPricingModes,
   premiumOptionTypes,
   premiumPublicStatMetricKeys,
+  premiumRequirementTypes,
 } from "@/lib/premium/constants";
 import { skillingSkillKeys } from "@/lib/skilling/constants";
 
@@ -496,22 +499,61 @@ export const stagedBossingConfigSchema = z
     }
   });
 
+function normalizePremiumRequirement(value: unknown) {
+  if (!value || typeof value !== "object") return value;
+  const requirement = value as Record<string, unknown>;
+  if (requirement.verificationMode !== "AUTOMATIC") {
+    return {
+      requirementType: "OTHER",
+      comparisonOperator: null,
+      ...requirement,
+    };
+  }
+  return {
+    requirementType:
+      requirement.requirementType ??
+      (requirement.metricKey === "total.level" ? "ACCOUNT" : "SKILL"),
+    comparisonOperator:
+      requirement.comparisonOperator ?? "GREATER_THAN_OR_EQUAL",
+    ...requirement,
+  };
+}
+
 export const stagedPremiumRequirementSchema = z
-  .object({
-    id: z.string().min(1).max(30),
-    seededKey: z.string().max(220).nullable(),
-    label: z.string().min(2).max(160),
-    description: z.string().min(5).max(10_000),
-    isRequired: z.boolean(),
-    displayOrder: z.number().int().min(0).max(100_000),
-    verificationMode: z.enum(requirementVerificationModes),
-    metricKey: z.string().max(120).nullable(),
-    requiredValue: z.number().int().min(1).max(2_277).nullable(),
-    customerGuidance: z.string().max(10_000).nullable(),
-    needsClientReview: z.boolean(),
-  })
+  .preprocess(
+    normalizePremiumRequirement,
+    z.object({
+      id: z.string().min(1).max(30),
+      seededKey: z.string().max(220).nullable(),
+      label: z.string().min(2).max(160),
+      description: z.string().min(5).max(10_000),
+      requirementType: z.enum(premiumRequirementTypes).default("OTHER"),
+      isRequired: z.boolean(),
+      displayOrder: z.number().int().min(0).max(100_000),
+      verificationMode: z.enum(requirementVerificationModes),
+      metricKey: z.string().max(120).nullable(),
+      comparisonOperator: z
+        .enum(catalogueComparisonOperators)
+        .nullable()
+        .default(null),
+      requiredValue: z.number().int().min(1).max(2_277).nullable(),
+      customerGuidance: z.string().max(10_000).nullable(),
+      needsClientReview: z.boolean(),
+    }),
+  )
   .superRefine((requirement, context) => {
     const automatic = requirement.verificationMode === "AUTOMATIC";
+    if (
+      automatic &&
+      !["SKILL", "ACCOUNT"].includes(requirement.requirementType)
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["requirementType"],
+        message:
+          "Only skill or account public-stat requirements can be automatic.",
+      });
+    }
     if (
       automatic &&
       !premiumPublicStatMetricKeys.includes(requirement.metricKey as never)
@@ -529,9 +571,18 @@ export const stagedPremiumRequirementSchema = z
         message: "Automatic premium requirements need a required level.",
       });
     }
+    if (automatic && !requirement.comparisonOperator) {
+      context.addIssue({
+        code: "custom",
+        path: ["comparisonOperator"],
+        message: "Automatic premium requirements need a comparison operator.",
+      });
+    }
     if (
       !automatic &&
-      (requirement.metricKey || requirement.requiredValue != null)
+      (requirement.metricKey ||
+        requirement.comparisonOperator ||
+        requirement.requiredValue != null)
     ) {
       context.addIssue({
         code: "custom",
@@ -704,7 +755,10 @@ export const stagedPremiumOptionSchema = z
   });
 
 export const stagedPremiumRuleSchema = stagedSkillingRuleSchema.extend({
+  configuratorType: z.enum(premiumConfiguratorTypes).default("CUSTOM"),
+  enabled: z.boolean().default(true),
   rsnEligibilityEnabled: z.boolean(),
+  supportsManualStatFallback: z.boolean().default(true),
 });
 
 export const stagedPremiumConfigSchema = z
@@ -1275,6 +1329,14 @@ type AggregateSource = CatalogueService & {
         displayOrder: number;
         verificationMode: RequirementVerificationMode;
         metricKey: string | null;
+        requirementType?: (typeof premiumRequirementTypes)[number];
+        comparisonOperator?:
+          | "GREATER_THAN_OR_EQUAL"
+          | "GREATER_THAN"
+          | "EQUAL"
+          | "LESS_THAN_OR_EQUAL"
+          | "LESS_THAN"
+          | null;
         requiredValue: number | null;
         customerGuidance: string | null;
         needsClientReview: boolean;
@@ -1553,10 +1615,12 @@ export function snapshotFromService(
                 seededKey: requirement.seededKey,
                 label: requirement.label,
                 description: requirement.description,
+                requirementType: requirement.requirementType ?? "OTHER",
                 isRequired: requirement.isRequired,
                 displayOrder: requirement.displayOrder,
                 verificationMode: requirement.verificationMode,
                 metricKey: requirement.metricKey,
+                comparisonOperator: requirement.comparisonOperator ?? null,
                 requiredValue: requirement.requiredValue,
                 customerGuidance: requirement.customerGuidance,
                 needsClientReview: requirement.needsClientReview,

@@ -18,13 +18,34 @@ import {
   requestIdentity,
 } from "@/lib/eligibility/rate-limit";
 import { rsnSchema } from "@/lib/eligibility/rsn";
-import { premiumDeliverySpeeds } from "@/lib/premium/constants";
+import {
+  premiumDeliverySpeeds,
+  premiumPublicStatMetricKeys,
+} from "@/lib/premium/constants";
 import {
   calculatePremiumEstimate,
   PremiumValidationError,
 } from "@/lib/premium/estimate";
 
 export const dynamic = "force-dynamic";
+
+const statCheckModes = ["RSN", "MANUAL", "NONE"] as const;
+
+const manualStatSchema = z
+  .object({
+    metricKey: z.enum(premiumPublicStatMetricKeys),
+    value: z.number().int().min(0).max(2_277),
+  })
+  .superRefine((stat, context) => {
+    const maximum = stat.metricKey === "total.level" ? 2_277 : 99;
+    if (stat.value > maximum) {
+      context.addIssue({
+        code: "custom",
+        path: ["value"],
+        message: "Manual stat value is outside the supported range.",
+      });
+    }
+  });
 
 const estimateInputSchema = z.object({
   serviceId: z.string().trim().min(1).max(30),
@@ -43,6 +64,21 @@ const estimateInputSchema = z.object({
   includeDiscordStream: z.boolean().default(false),
   deliverySpeed: z.enum(premiumDeliverySpeeds),
   rsn: rsnSchema.optional(),
+  statCheckMode: z.enum(statCheckModes).default("NONE"),
+  manualStats: z
+    .array(manualStatSchema)
+    .max(premiumPublicStatMetricKeys.length)
+    .default([])
+    .superRefine((stats, context) => {
+      const metricKeys = stats.map(({ metricKey }) => metricKey);
+      if (new Set(metricKeys).size !== metricKeys.length) {
+        context.addIssue({
+          code: "custom",
+          path: ["manualStats"],
+          message: "Manual stat metrics must be unique.",
+        });
+      }
+    }),
 });
 
 function json(
@@ -113,24 +149,43 @@ function premiumRequirementsForEvaluation(
   >["premiumPackages"][number],
 ) {
   return premiumPackage.requirementGroups.flatMap((group) =>
-    group.requirements.map((requirement) => ({
-      id: requirement.id,
-      title: requirement.label,
-      description: requirement.description,
-      isRequired: requirement.isRequired,
-      verificationMode: requirement.verificationMode,
-      customerGuidance: requirement.customerGuidance,
-      metricKey: requirement.metricKey,
-      comparisonOperator:
-        requirement.verificationMode === "AUTOMATIC"
-          ? ("GREATER_THAN_OR_EQUAL" as const)
-          : null,
-      requiredValue:
-        requirement.verificationMode === "AUTOMATIC"
-          ? requirement.requiredValue
-          : null,
-      recommendedService: null,
-    })),
+    group.requirements.map((requirement) => {
+      const automatic =
+        requirement.verificationMode === "AUTOMATIC" &&
+        ["SKILL", "ACCOUNT"].includes(requirement.requirementType) &&
+        premiumPublicStatMetricKeys.includes(requirement.metricKey as never);
+      return {
+        id: requirement.id,
+        title: requirement.label,
+        description: requirement.description,
+        isRequired: requirement.isRequired,
+        verificationMode: automatic
+          ? ("AUTOMATIC" as const)
+          : requirement.verificationMode === "AUTOMATIC"
+            ? ("SUPPORT_VERIFIED" as const)
+            : requirement.verificationMode,
+        customerGuidance: requirement.customerGuidance,
+        metricKey: automatic ? requirement.metricKey : null,
+        comparisonOperator: automatic ? requirement.comparisonOperator : null,
+        requiredValue: automatic ? requirement.requiredValue : null,
+        recommendedService: null,
+      };
+    }),
+  );
+}
+
+function automaticMetricKeys(
+  premiumPackage: NonNullable<
+    Awaited<ReturnType<typeof loadPremiumEstimateService>>
+  >["premiumPackages"][number],
+) {
+  return new Set(
+    premiumRequirementsForEvaluation(premiumPackage)
+      .filter(
+        (requirement) =>
+          requirement.verificationMode === "AUTOMATIC" && requirement.metricKey,
+      )
+      .map((requirement) => requirement.metricKey!),
   );
 }
 
@@ -195,6 +250,8 @@ async function maybeEvaluateRsn(
           provider: lookup.profile.provider,
           cached: lookup.cached,
         },
+        source: "OFFICIAL_PUBLIC_STATS" as const,
+        verificationLabel: "Official public Hiscores lookup.",
         ...evaluation,
       },
     };
@@ -211,6 +268,70 @@ async function maybeEvaluateRsn(
       eligibility: { ok: false, message },
     };
   }
+}
+
+function manualStatsProfile(
+  stats: Array<{ metricKey: string; value: number }>,
+) {
+  const skillLevels: Record<string, number> = {};
+  let totalLevel = 0;
+  for (const stat of stats) {
+    if (stat.metricKey === "total.level") {
+      totalLevel = stat.value;
+      continue;
+    }
+    const [, skill, kind] = stat.metricKey.split(".");
+    if (skill && kind === "level") skillLevels[skill] = stat.value;
+  }
+  return {
+    normalizedRsn: "manual-entry",
+    displayName: null,
+    fetchedAt: new Date().toISOString(),
+    provider: "customer-entered",
+    totalLevel,
+    totalXp: 0,
+    skillLevels,
+    skillXp: {},
+    activityScores: {},
+  };
+}
+
+function evaluateManualStats(
+  input: z.infer<typeof estimateInputSchema>,
+  premiumPackage: NonNullable<
+    Awaited<ReturnType<typeof loadPremiumEstimateService>>
+  >["premiumPackages"][number],
+  supportsManualStatFallback: boolean,
+) {
+  if (input.statCheckMode !== "MANUAL" || input.manualStats.length === 0) {
+    return null;
+  }
+  if (!supportsManualStatFallback) {
+    return {
+      ok: false,
+      message:
+        "Manual stat entry is not enabled for this premium service. You can continue without a stat check.",
+    };
+  }
+  const allowedMetricKeys = automaticMetricKeys(premiumPackage);
+  const unexpectedMetric = input.manualStats.find(
+    ({ metricKey }) => !allowedMetricKeys.has(metricKey),
+  );
+  if (unexpectedMetric) {
+    throw new PremiumValidationError(
+      "Manual stats must match configured package requirements.",
+    );
+  }
+  const evaluation = evaluateRequirements(
+    manualStatsProfile(input.manualStats),
+    premiumRequirementsForEvaluation(premiumPackage),
+  );
+  return {
+    ok: true,
+    source: "MANUAL_STATS" as const,
+    verificationLabel: "Customer-entered / not independently verified.",
+    ...evaluation,
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -240,7 +361,12 @@ export async function POST(request: NextRequest) {
 
     const service = await loadPremiumEstimateService(input);
     const premiumPackage = service?.premiumPackages[0];
-    if (!service || !premiumPackage || !service.premiumConfig) {
+    if (
+      !service ||
+      !premiumPackage ||
+      !service.premiumConfig ||
+      !service.premiumConfig.enabled
+    ) {
       return json(
         { ok: false, message: "Choose an available premium package." },
         400,
@@ -284,6 +410,14 @@ export async function POST(request: NextRequest) {
       premiumPackage,
       service.premiumConfig.rsnEligibilityEnabled,
     );
+    const manualEligibility =
+      rsn.eligibility?.ok === true
+        ? null
+        : evaluateManualStats(
+            input,
+            premiumPackage,
+            service.premiumConfig.supportsManualStatFallback,
+          );
 
     return json(
       {
@@ -301,7 +435,9 @@ export async function POST(request: NextRequest) {
           estimatedTotal: estimate.estimatedTotal,
           finalPriceNote: estimate.finalPriceNote,
         },
-        eligibility: rsn.eligibility,
+        eligibility: rsn.eligibility?.ok
+          ? rsn.eligibility
+          : (manualEligibility ?? rsn.eligibility),
       },
       200,
       rsn.cookie,

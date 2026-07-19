@@ -42,9 +42,11 @@ type PremiumService = {
 type PremiumRequirement = {
   label: string;
   description: string;
+  requirementType: string;
   isRequired: boolean;
   verificationMode: string;
   metricKey: string | null;
+  comparisonOperator: string | null;
   requiredValue: number | null;
   customerGuidance: string | null;
 };
@@ -83,8 +85,11 @@ type PremiumOption = {
 };
 
 type PremiumRule = {
+  configuratorType: string;
+  enabled: boolean;
   discordStreamEnabled: boolean;
   rsnEligibilityEnabled: boolean;
+  supportsManualStatFallback: boolean;
   standardDeliveryEnabled: boolean;
   standardDeliveryLabel: string;
   standardDeliveryDescription: string | null;
@@ -123,10 +128,14 @@ type EstimateResponse = {
   eligibility?: {
     ok: boolean;
     message?: string;
+    source?: "OFFICIAL_PUBLIC_STATS" | "MANUAL_STATS";
+    verificationLabel?: string;
     profile?: { displayName: string };
     results?: Array<{ id: string; title: string; status: string }>;
   } | null;
 };
+
+type StatCheckMode = "RSN" | "MANUAL" | "NONE";
 
 export function PremiumConfiguratorEngine({
   service,
@@ -146,6 +155,7 @@ export function PremiumConfiguratorEngine({
   const [packageSlug, setPackageSlug] = useState(packages[0]?.slug ?? "");
   const [deliverySpeed, setDeliverySpeed] =
     useState<PremiumDeliverySpeed>("STANDARD");
+  const [statCheckMode, setStatCheckMode] = useState<StatCheckMode>("NONE");
   const [customerGearConfirmed, setCustomerGearConfirmed] = useState(false);
   const [includeDiscordStream, setIncludeDiscordStream] = useState(false);
   const [selectedOptions, setSelectedOptions] = useState<
@@ -169,9 +179,14 @@ export function PremiumConfiguratorEngine({
     [options, selectedPackage],
   );
   const delivery = deliveryOptions(rule);
+  const manualMetricRequirements = useMemo(
+    () => automaticManualRequirements(selectedPackage),
+    [selectedPackage],
+  );
 
   function changePackage(value: string) {
     setPackageSlug(value);
+    setStatCheckMode("NONE");
     setCustomerGearConfirmed(false);
     setSelectedOptions([]);
     setResult(null);
@@ -209,6 +224,21 @@ export function PremiumConfiguratorEngine({
   function submit(formData: FormData) {
     const packageValue = selectedPackage?.slug;
     if (!packageValue) return;
+    const manualStats =
+      statCheckMode === "MANUAL"
+        ? manualMetricRequirements.flatMap((requirement) => {
+            const rawValue = String(
+              formData.get(`manualStat:${requirement.metricKey}`) ?? "",
+            ).trim();
+            if (!rawValue || !requirement.metricKey) return [];
+            return [
+              {
+                metricKey: requirement.metricKey,
+                value: Number(rawValue),
+              },
+            ];
+          })
+        : [];
     startTransition(async () => {
       const response = await fetch("/api/premium/estimate", {
         method: "POST",
@@ -221,7 +251,12 @@ export function PremiumConfiguratorEngine({
           customerGearConfirmed,
           includeDiscordStream,
           deliverySpeed,
-          rsn: String(formData.get("rsn") ?? "").trim() || undefined,
+          statCheckMode,
+          rsn:
+            statCheckMode === "RSN"
+              ? String(formData.get("rsn") ?? "").trim() || undefined
+              : undefined,
+          manualStats,
         }),
       });
       const body = (await response.json()) as EstimateResponse;
@@ -385,18 +420,96 @@ export function PremiumConfiguratorEngine({
                     ))}
                   </select>
                 </label>
-                {eligibilityEnabled && rule.rsnEligibilityEnabled && (
-                  <label className="text-sm font-bold">
-                    Optional RSN public stat check
-                    <input
-                      className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
-                      name="rsn"
-                      maxLength={12}
-                      placeholder="Do not enter a password"
-                    />
-                  </label>
-                )}
               </div>
+
+              <fieldset className="border-border bg-background/35 mt-5 grid gap-3 rounded-2xl border p-4">
+                <legend className="px-2 text-sm font-bold">Stat check</legend>
+                <div className="grid gap-3 md:grid-cols-3">
+                  {eligibilityEnabled && rule.rsnEligibilityEnabled && (
+                    <label className="border-border bg-background/45 flex min-h-12 items-center gap-3 rounded-xl border px-4 text-sm font-semibold">
+                      <input
+                        type="radio"
+                        name="statCheckMode"
+                        checked={statCheckMode === "RSN"}
+                        onChange={() => {
+                          setStatCheckMode("RSN");
+                          setResult(null);
+                        }}
+                      />
+                      Check public stats using RSN
+                    </label>
+                  )}
+                  {rule.supportsManualStatFallback &&
+                    manualMetricRequirements.length > 0 && (
+                      <label className="border-border bg-background/45 flex min-h-12 items-center gap-3 rounded-xl border px-4 text-sm font-semibold">
+                        <input
+                          type="radio"
+                          name="statCheckMode"
+                          checked={statCheckMode === "MANUAL"}
+                          onChange={() => {
+                            setStatCheckMode("MANUAL");
+                            setResult(null);
+                          }}
+                        />
+                        Enter stats manually
+                      </label>
+                    )}
+                  <label className="border-border bg-background/45 flex min-h-12 items-center gap-3 rounded-xl border px-4 text-sm font-semibold">
+                    <input
+                      type="radio"
+                      name="statCheckMode"
+                      checked={statCheckMode === "NONE"}
+                      onChange={() => {
+                        setStatCheckMode("NONE");
+                        setResult(null);
+                      }}
+                    />
+                    Continue without a stat check
+                  </label>
+                </div>
+                {statCheckMode === "RSN" &&
+                  eligibilityEnabled &&
+                  rule.rsnEligibilityEnabled && (
+                    <label className="text-sm font-bold">
+                      RuneScape name
+                      <input
+                        className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
+                        name="rsn"
+                        maxLength={12}
+                        placeholder="No password, PIN or authenticator code"
+                      />
+                    </label>
+                  )}
+                {statCheckMode === "MANUAL" &&
+                  rule.supportsManualStatFallback &&
+                  manualMetricRequirements.length > 0 && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {manualMetricRequirements.map((requirement) => (
+                        <label
+                          className="text-sm font-bold"
+                          key={requirement.metricKey}
+                        >
+                          {requirement.label}
+                          <input
+                            className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
+                            name={`manualStat:${requirement.metricKey}`}
+                            type="number"
+                            min={0}
+                            max={
+                              requirement.metricKey === "total.level"
+                                ? 2277
+                                : 99
+                            }
+                            step={1}
+                          />
+                        </label>
+                      ))}
+                      <p className="text-text-muted text-xs leading-5 sm:col-span-2">
+                        Customer-entered / not independently verified.
+                      </p>
+                    </div>
+                  )}
+              </fieldset>
 
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
                 {selectedPackage?.customerGearRequired && (
@@ -568,7 +681,7 @@ function RequirementPanels({
                     requirement.metricKey as PremiumPublicStatMetricKey
                   ] ?? requirement.label}
                 </span>
-                <strong>{requirement.requiredValue}+</strong>
+                <strong>{formatRequirementTarget(requirement)}</strong>
               </li>
             ))}
           </ul>
@@ -713,11 +826,19 @@ function EligibilityPanel({ result }: { result: EstimateResponse }) {
       </div>
     );
   }
+  const manual = result.eligibility.source === "MANUAL_STATS";
   return (
     <div className="border-primary/30 bg-primary/10 mt-5 rounded-xl border p-4">
       <h3 className="text-sm font-bold">
-        Public stat check: {result.eligibility.profile?.displayName}
+        {manual
+          ? "Manual stat check"
+          : `Public stat check: ${result.eligibility.profile?.displayName ?? "RSN"}`}
       </h3>
+      {result.eligibility.verificationLabel && (
+        <p className="text-text-secondary mt-2 text-xs leading-5">
+          {result.eligibility.verificationLabel}
+        </p>
+      )}
       <ul className="mt-3 space-y-2 text-sm">
         {result.eligibility.results?.map((item) => (
           <li
@@ -767,4 +888,45 @@ function deliveryOptions(rule: PremiumRule | null) {
       estimate: rule.expressDeliveryEstimate,
     },
   ].filter((option) => option.enabled);
+}
+
+function automaticManualRequirements(premiumPackage: PremiumPackage | null) {
+  if (!premiumPackage) return [];
+  const seen = new Set<string>();
+  return premiumPackage.requirementGroups.flatMap((group) =>
+    group.requirements.filter((requirement) => {
+      if (
+        requirement.verificationMode !== "AUTOMATIC" ||
+        !["SKILL", "ACCOUNT"].includes(requirement.requirementType) ||
+        !requirement.metricKey ||
+        !premiumPublicStatLabels[
+          requirement.metricKey as PremiumPublicStatMetricKey
+        ] ||
+        seen.has(requirement.metricKey)
+      ) {
+        return false;
+      }
+      seen.add(requirement.metricKey);
+      return true;
+    }),
+  );
+}
+
+function formatRequirementTarget(requirement: PremiumRequirement) {
+  const value = requirement.requiredValue;
+  if (value == null) return "Review";
+  switch (requirement.comparisonOperator) {
+    case "GREATER_THAN_OR_EQUAL":
+      return `${value}+`;
+    case "GREATER_THAN":
+      return `>${value}`;
+    case "EQUAL":
+      return `${value}`;
+    case "LESS_THAN_OR_EQUAL":
+      return `<=${value}`;
+    case "LESS_THAN":
+      return `<${value}`;
+    default:
+      return `${value}+`;
+  }
 }
