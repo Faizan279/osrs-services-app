@@ -31,5 +31,12 @@
         "percent": null
       }
     }
+  },
+  "feature_flags": {
+    "catalogue_card_engine_enabled": true,
+    "rsn_eligibility_enabled": false,
+    "skilling_calculator_enabled": false,
+    "bossing_calculator_enabled": false,
+    "premium_configurator_enabled": false
   }
 }

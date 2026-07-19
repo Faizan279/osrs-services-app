@@ -306,6 +306,83 @@ export default async function ServicePreviewPage({
           </div>
         </section>
       )}
+      {service.engineType === "PREMIUM_SERVICE_CONFIGURATOR" && (
+        <section className="mt-8">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-primary kicker-type">Premium preview</p>
+              <h2 className="display-type mt-3 text-3xl">
+                Staged premium configurator configuration
+              </h2>
+            </div>
+            <Badge variant="info">
+              {
+                service.premiumPackages.filter(
+                  (premiumPackage) => premiumPackage.enabled,
+                ).length
+              }{" "}
+              enabled packages
+            </Badge>
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {service.premiumPackages.map((premiumPackage) => (
+              <article
+                className="border-border bg-surface-1 rounded-2xl border p-5"
+                key={premiumPackage.id}
+              >
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <span
+                    className={
+                      premiumPackage.enabled ? "text-success" : "text-warning"
+                    }
+                  >
+                    {premiumPackage.enabled ? "Enabled" : "Disabled"}
+                  </span>
+                  <span className="text-text-muted">
+                    Order {premiumPackage.displayOrder}
+                  </span>
+                </div>
+                <h3 className="mt-3 text-lg font-bold">
+                  {premiumPackage.name}
+                </h3>
+                <p className="text-text-secondary mt-2 text-sm leading-6">
+                  {premiumPackage.shortDescription}
+                </p>
+                <p className="text-text-muted mt-3 text-xs">
+                  {premiumPackage.requirementGroups.length} requirement group
+                  {premiumPackage.requirementGroups.length === 1
+                    ? ""
+                    : "s"} - {premiumPackage.faqs.length} FAQ
+                  {premiumPackage.faqs.length === 1 ? "" : "s"}
+                </p>
+              </article>
+            ))}
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {service.premiumOptions.map((option) => (
+              <article
+                className="border-border bg-background/55 rounded-2xl border p-5"
+                key={option.id}
+              >
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <span
+                    className={option.enabled ? "text-success" : "text-warning"}
+                  >
+                    {option.enabled ? "Enabled" : "Disabled"}
+                  </span>
+                  <span className="text-text-muted">
+                    {option.pricingMode.replaceAll("_", " ")}
+                  </span>
+                </div>
+                <h3 className="mt-3 text-lg font-bold">{option.name}</h3>
+                <p className="text-text-secondary mt-2 text-sm leading-6">
+                  {option.description}
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
       <section className="border-danger/30 bg-danger/5 mt-8 rounded-2xl border p-5">
         <h2 className="text-danger text-sm font-bold">
           Internal notes — admin only

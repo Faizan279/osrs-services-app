@@ -117,6 +117,19 @@ enum BossingPriceMode {
   FIXED_PACKAGE
 }
 
+enum PremiumOptionType {
+  ADDON
+  SUPPLIES
+  GEAR_SUPPORT
+  UNLOCK_SUPPORT
+}
+
+enum PremiumOptionPricingMode {
+  FIXED_FEE
+  PERCENT_OF_BASE
+  PER_UNIT
+}
+
 model User {
   id                 String                  @id @default(cuid()) @db.VarChar(30)
   email              String                  @unique @db.VarChar(191)
@@ -289,6 +302,11 @@ model CatalogueService {
   bossingRule                       BossingCalculatorRule?
   bossingBosses                     BossingBossConfig[]
   bossingMethods                    BossingMethod[]
+  premiumConfig                     PremiumServiceConfig?
+  premiumPackages                   PremiumPackage[]
+  premiumOptions                    PremiumOption[]
+  premiumRequirementGroups          PremiumRequirementGroup[]
+  premiumFaqs                       PremiumFaq[]
 
   @@unique([categoryId, slug])
   @@index([publicationStatus, publishAt, unpublishAt])
@@ -700,4 +718,173 @@ model BossingGearRequirement {
   method            BossingMethod               @relation(fields: [methodId], references: [id], onDelete: Cascade)
 
   @@index([methodId, displayOrder])
+}
+
+model PremiumServiceConfig {
+  id                            String                    @id @default(cuid()) @db.VarChar(30)
+  serviceId                     String                    @unique @db.VarChar(30)
+  normalModeMultiplierBps       Int                       @default(0)
+  ironmanMultiplierBps          Int                       @default(1000)
+  hardcoreIronmanMultiplierBps  Int                       @default(2000)
+  ultimateIronmanMultiplierBps  Int                       @default(3000)
+  discordStreamEnabled          Boolean                   @default(true)
+  discordStreamPercentBps       Int                       @default(200)
+  rsnEligibilityEnabled         Boolean                   @default(true)
+  standardDeliveryEnabled       Boolean                   @default(true)
+  standardDeliveryLabel         String                    @default("Standard") @db.VarChar(80)
+  standardDeliveryDescription   String?                   @db.VarChar(240)
+  standardDeliveryEstimate      String?                   @db.VarChar(120)
+  standardDeliveryMultiplierBps Int                       @default(0)
+  standardDeliveryFixedFeeCents Int                       @default(0)
+  priorityDeliveryEnabled       Boolean                   @default(false)
+  priorityDeliveryLabel         String                    @default("Priority") @db.VarChar(80)
+  priorityDeliveryDescription   String?                   @db.VarChar(240)
+  priorityDeliveryEstimate      String?                   @db.VarChar(120)
+  priorityDeliveryMultiplierBps Int                       @default(1500)
+  priorityDeliveryFixedFeeCents Int                       @default(0)
+  expressDeliveryEnabled        Boolean                   @default(false)
+  expressDeliveryLabel          String                    @default("Express") @db.VarChar(80)
+  expressDeliveryDescription    String?                   @db.VarChar(240)
+  expressDeliveryEstimate       String?                   @db.VarChar(120)
+  expressDeliveryMultiplierBps  Int                       @default(3000)
+  expressDeliveryFixedFeeCents  Int                       @default(0)
+  needsClientReview             Boolean                   @default(true)
+  createdAt                     DateTime                  @default(now())
+  updatedAt                     DateTime                  @updatedAt
+  service                       CatalogueService          @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  packages                      PremiumPackage[]
+  options                       PremiumOption[]
+  requirementGroups             PremiumRequirementGroup[]
+  faqs                          PremiumFaq[]
+}
+
+model PremiumPackage {
+  id                             String                    @id @default(cuid()) @db.VarChar(30)
+  serviceId                      String                    @db.VarChar(30)
+  configId                       String                    @db.VarChar(30)
+  slug                           String                    @db.VarChar(180)
+  name                           String                    @db.VarChar(160)
+  shortDescription               String                    @db.VarChar(500)
+  enabled                        Boolean                   @default(true)
+  displayOrder                   Int                       @default(0)
+  basePriceCents                 Int                       @default(0)
+  minimumPriceCents              Int                       @default(0)
+  setupFeeCents                  Int                       @default(0)
+  estimatedHours                 Int?
+  difficultyTierLabel            String?                   @db.VarChar(120)
+  requirementsSummary            String?                   @db.VarChar(500)
+  gearNotes                      String?                   @db.Text
+  unlockNotes                    String?                   @db.Text
+  customerGearRequired           Boolean                   @default(false)
+  customerGearLabel              String?                   @db.VarChar(160)
+  gearUnconfirmedAdjustmentCents Int                       @default(0)
+  needsClientReview              Boolean                   @default(true)
+  seededKey                      String?                   @unique @db.VarChar(180)
+  createdAt                      DateTime                  @default(now())
+  updatedAt                      DateTime                  @updatedAt
+  service                        CatalogueService          @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  config                         PremiumServiceConfig      @relation(fields: [configId], references: [id], onDelete: Cascade)
+  options                        PremiumOption[]
+  requirementGroups              PremiumRequirementGroup[]
+  faqs                           PremiumFaq[]
+
+  @@unique([configId, slug])
+  @@index([serviceId, enabled, displayOrder])
+  @@index([configId, enabled, displayOrder])
+}
+
+model PremiumOption {
+  id                    String                   @id @default(cuid()) @db.VarChar(30)
+  serviceId             String                   @db.VarChar(30)
+  configId              String                   @db.VarChar(30)
+  packageId             String?                  @db.VarChar(30)
+  slug                  String                   @db.VarChar(180)
+  name                  String                   @db.VarChar(160)
+  description           String                   @db.VarChar(500)
+  enabled               Boolean                  @default(true)
+  displayOrder          Int                      @default(0)
+  optionType            PremiumOptionType        @default(ADDON)
+  pricingMode           PremiumOptionPricingMode @default(FIXED_FEE)
+  fixedPriceCents       Int                      @default(0)
+  percentBps            Int                      @default(0)
+  perUnitPriceCents     Int                      @default(0)
+  minimumQuantity       Int                      @default(1)
+  maximumQuantity       Int                      @default(1)
+  defaultQuantity       Int                      @default(1)
+  customerInputRequired Boolean                  @default(false)
+  needsClientReview     Boolean                  @default(true)
+  seededKey             String?                  @unique @db.VarChar(200)
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  service               CatalogueService         @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  config                PremiumServiceConfig     @relation(fields: [configId], references: [id], onDelete: Cascade)
+  package               PremiumPackage?          @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@unique([configId, slug])
+  @@index([serviceId, enabled, displayOrder])
+  @@index([packageId, enabled, displayOrder])
+}
+
+model PremiumRequirementGroup {
+  id                String               @id @default(cuid()) @db.VarChar(30)
+  serviceId         String               @db.VarChar(30)
+  configId          String               @db.VarChar(30)
+  packageId         String?              @db.VarChar(30)
+  title             String               @db.VarChar(160)
+  description       String?              @db.Text
+  displayOrder      Int                  @default(0)
+  needsClientReview Boolean              @default(true)
+  seededKey         String?              @unique @db.VarChar(200)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  service           CatalogueService     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  config            PremiumServiceConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+  package           PremiumPackage?      @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  requirements      PremiumRequirement[]
+
+  @@index([serviceId, displayOrder])
+  @@index([configId, displayOrder])
+  @@index([packageId, displayOrder])
+}
+
+model PremiumRequirement {
+  id                String                      @id @default(cuid()) @db.VarChar(30)
+  groupId           String                      @db.VarChar(30)
+  label             String                      @db.VarChar(160)
+  description       String                      @db.Text
+  isRequired        Boolean                     @default(true)
+  displayOrder      Int                         @default(0)
+  verificationMode  RequirementVerificationMode @default(CUSTOMER_CONFIRMED)
+  metricKey         String?                     @db.VarChar(120)
+  requiredValue     Int?
+  customerGuidance  String?                     @db.Text
+  needsClientReview Boolean                     @default(true)
+  seededKey         String?                     @unique @db.VarChar(220)
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+  group             PremiumRequirementGroup     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, displayOrder])
+}
+
+model PremiumFaq {
+  id                String               @id @default(cuid()) @db.VarChar(30)
+  serviceId         String               @db.VarChar(30)
+  configId          String               @db.VarChar(30)
+  packageId         String?              @db.VarChar(30)
+  question          String               @db.VarChar(240)
+  answer            String               @db.Text
+  enabled           Boolean              @default(true)
+  displayOrder      Int                  @default(0)
+  needsClientReview Boolean              @default(true)
+  seededKey         String?              @unique @db.VarChar(200)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  service           CatalogueService     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  config            PremiumServiceConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+  package           PremiumPackage?      @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId, enabled, displayOrder])
+  @@index([configId, enabled, displayOrder])
+  @@index([packageId, enabled, displayOrder])
 }

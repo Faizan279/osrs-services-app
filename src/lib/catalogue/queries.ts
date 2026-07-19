@@ -414,6 +414,26 @@ export async function getAdminService(id: string) {
           },
         },
       },
+      premiumConfig: true,
+      premiumPackages: {
+        orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+        include: {
+          requirementGroups: {
+            orderBy: [{ displayOrder: "asc" }, { title: "asc" }],
+            include: {
+              requirements: {
+                orderBy: [{ displayOrder: "asc" }, { label: "asc" }],
+              },
+            },
+          },
+          faqs: {
+            orderBy: [{ displayOrder: "asc" }, { question: "asc" }],
+          },
+        },
+      },
+      premiumOptions: {
+        orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+      },
       revisions: {
         orderBy: { revisionNumber: "desc" },
         include: { actor: { select: { name: true, email: true } } },
@@ -471,6 +491,14 @@ export async function getAdminService(id: string) {
         ...boss,
         methods: boss.methods,
       })) ?? [],
+    premiumConfig: snapshot.premium?.rule ?? null,
+    premiumPackages:
+      snapshot.premium?.packages.map((premiumPackage) => ({
+        ...premiumPackage,
+        requirementGroups: premiumPackage.requirementGroups,
+        faqs: premiumPackage.faqs,
+      })) ?? [],
+    premiumOptions: snapshot.premium?.options ?? [],
     version: service.stage.version,
     updatedAt: service.stage.updatedAt,
     hasPendingChanges: true as const,
@@ -502,6 +530,7 @@ export async function getCatalogueFeatureFlags() {
           "rsn_eligibility_enabled",
           "skilling_calculator_enabled",
           "bossing_calculator_enabled",
+          "premium_configurator_enabled",
         ],
       },
     },
@@ -653,4 +682,103 @@ export async function getPublicBossingCalculatorService({
     }),
   ]);
   return { service, bosses, rule };
+}
+
+export async function getPublicPremiumConfiguratorService({
+  categorySlug,
+  serviceSlug,
+  now = new Date(),
+}: {
+  categorySlug: string;
+  serviceSlug: string;
+  now?: Date;
+}) {
+  const service = await getPublicService(categorySlug, serviceSlug, now);
+  if (!service || service.engineType !== "PREMIUM_SERVICE_CONFIGURATOR") {
+    return null;
+  }
+  const [packages, options, rule] = await Promise.all([
+    prisma.premiumPackage.findMany({
+      where: { serviceId: service.id, enabled: true },
+      orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+      select: {
+        slug: true,
+        name: true,
+        shortDescription: true,
+        displayOrder: true,
+        estimatedHours: true,
+        difficultyTierLabel: true,
+        requirementsSummary: true,
+        gearNotes: true,
+        unlockNotes: true,
+        customerGearRequired: true,
+        customerGearLabel: true,
+        requirementGroups: {
+          orderBy: [{ displayOrder: "asc" }, { title: "asc" }],
+          select: {
+            title: true,
+            description: true,
+            requirements: {
+              orderBy: [{ displayOrder: "asc" }, { label: "asc" }],
+              select: {
+                label: true,
+                description: true,
+                isRequired: true,
+                verificationMode: true,
+                metricKey: true,
+                requiredValue: true,
+                customerGuidance: true,
+              },
+            },
+          },
+        },
+        faqs: {
+          where: { enabled: true },
+          orderBy: [{ displayOrder: "asc" }, { question: "asc" }],
+          select: {
+            question: true,
+            answer: true,
+          },
+        },
+      },
+    }),
+    prisma.premiumOption.findMany({
+      where: { serviceId: service.id, enabled: true },
+      orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+      select: {
+        packageId: true,
+        package: { select: { slug: true } },
+        slug: true,
+        name: true,
+        description: true,
+        displayOrder: true,
+        optionType: true,
+        pricingMode: true,
+        minimumQuantity: true,
+        maximumQuantity: true,
+        defaultQuantity: true,
+        customerInputRequired: true,
+      },
+    }),
+    prisma.premiumServiceConfig.findUnique({
+      where: { serviceId: service.id },
+      select: {
+        discordStreamEnabled: true,
+        rsnEligibilityEnabled: true,
+        standardDeliveryEnabled: true,
+        standardDeliveryLabel: true,
+        standardDeliveryDescription: true,
+        standardDeliveryEstimate: true,
+        priorityDeliveryEnabled: true,
+        priorityDeliveryLabel: true,
+        priorityDeliveryDescription: true,
+        priorityDeliveryEstimate: true,
+        expressDeliveryEnabled: true,
+        expressDeliveryLabel: true,
+        expressDeliveryDescription: true,
+        expressDeliveryEstimate: true,
+      },
+    }),
+  ]);
+  return { service, packages, options, rule };
 }

@@ -58,7 +58,27 @@ This engine does not create carts, checkout sessions, orders, payment records, q
 
 ## Premium Service Configurator
 
-Used for Fire Cape, Infernal Cape, Colosseum, Yama, Royal Titans, Corrupted Gauntlet, Doom of Mokhaiotl, and Raids. Includes RSN lookup, stats, gear, package selection, live estimate, requirements, FAQs, reviews, and order summary.
+Task 007 implements `PREMIUM_SERVICE_CONFIGURATOR` for high-value configured services such as Fire Cape, Infernal Cape, Colosseum, Yama, Royal Titans, Corrupted Gauntlet, Doom of Mokhaiotl, and Raids.
+
+The public engine supports:
+
+- enabled package selection from service-scoped premium packages
+- account game mode
+- optional RSN public-stat checks for allow-listed stats
+- manual/no-RSN operation
+- public-stat, customer-confirmed and support-verified requirement summaries
+- customer gear/unlock confirmation without inferring bank, inventory, quest or diary state
+- optional service-scoped add-ons with fixed, percentage or per-unit pricing
+- optional Discord Stream add-on when configured on the service rule
+- configured delivery speed choices
+- FAQ display
+- a server-authoritative estimated total and clear final-price disclaimer
+
+Normal seed runs keep the public premium configurator feature flag disabled until the client reviews the representative premium package prices and rules. Standard delivery is enabled by default, while Priority and Express are present for admin configuration but disabled until approved.
+
+The admin engine supports service-scoped premium rules, package create/edit, option create/edit, package requirement groups, package FAQs, client-review markers, staged preview, optimistic concurrency, audit logging and Task 003 publication staging. Published premium edits stay private until republish; public pages keep using the last published rules. Older staged snapshots without premium data upgrade safely with `premium: null`.
+
+This engine does not create carts, checkout sessions, orders, payment records, quote records, fake reviews, global discounts or global price history. Estimate values are preview-only and remain scoped to premium services.
 
 ## Gold Engine
 

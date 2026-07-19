@@ -59,3 +59,20 @@ Before enabling the calculator outside local validation:
 - verify public estimates, admin bossing pages and mobile screenshots against staging data
 
 Rollback is manual. First disable `bossing_calculator_enabled`, then export any admin-edited bossing rows and staged aggregates that must be retained. Remove dependent bossing stat and gear requirements, methods, bosses and rules before removing the Task 006 tables. Do not use `prisma migrate reset` against shared or production data.
+
+## Premium configurator deployment notes
+
+Task 007 adds migration `20260719190000_task007_premium_service_configurators`. It is additive and creates premium configurator tables for rules, packages, options, requirement groups, requirements and FAQs. It uses the existing `CatalogueService.engineType = PREMIUM_SERVICE_CONFIGURATOR` enum value.
+
+Normal seed runs create `premium_configurator_enabled` disabled because the representative premium package prices and rules are still marked `Needs client review`. Staging or screenshot validation may enable the flag deliberately, but public rollout should wait for client-approved package pricing, requirement wording, option availability and delivery configuration.
+
+Before enabling the configurator outside local validation:
+
+- run `pnpm db:migrate` without reset
+- run `pnpm db:seed` and confirm seed reruns preserve edited premium rules, packages, options, feature flags, staged aggregates and revisions
+- confirm the database feature flag `premium_configurator_enabled` is intentionally enabled
+- review every seeded premium package, option and rule marked `Needs client review`
+- keep Priority and Express delivery disabled until the client approves those fees and estimates
+- verify public estimates, admin premium pages and mobile screenshots against staging data
+
+Rollback is manual. First disable `premium_configurator_enabled`, then export any admin-edited premium rows and staged aggregates that must be retained. Remove dependent premium requirements, requirement groups, FAQs, options, packages and config before removing the Task 007 tables. Do not use `prisma migrate reset` against shared or production data.

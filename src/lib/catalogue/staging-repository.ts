@@ -65,6 +65,32 @@ export const stagedAggregateInclude = {
       },
     },
   },
+  premiumConfig: true,
+  premiumPackages: {
+    orderBy: [{ displayOrder: "asc" as const }, { name: "asc" as const }],
+    include: {
+      requirementGroups: {
+        orderBy: [{ displayOrder: "asc" as const }, { title: "asc" as const }],
+        include: {
+          requirements: {
+            orderBy: [
+              { displayOrder: "asc" as const },
+              { label: "asc" as const },
+            ],
+          },
+        },
+      },
+      faqs: {
+        orderBy: [
+          { displayOrder: "asc" as const },
+          { question: "asc" as const },
+        ],
+      },
+    },
+  },
+  premiumOptions: {
+    orderBy: [{ displayOrder: "asc" as const }, { name: "asc" as const }],
+  },
 } satisfies Prisma.CatalogueServiceInclude;
 
 export async function loadServiceAggregate(
