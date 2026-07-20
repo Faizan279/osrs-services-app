@@ -222,7 +222,8 @@ test("admin premium package edits stay staged until republish", async ({
       { timeout: 30_000 },
     );
     await packageForm.evaluate((form: HTMLFormElement) => form.requestSubmit());
-    await responsePromise;
+    const response = await responsePromise;
+    expect(response.headers()["x-action-redirect"]).toContain("state=saved");
     await expect
       .poll(async () => (await stageState()).stageCount, { timeout: 30_000 })
       .toBe(1);
@@ -451,11 +452,13 @@ async function createPremiumFixture() {
   await databaseRows(
     `INSERT INTO PremiumRequirement
       (id, groupId, label, description, isRequired, displayOrder,
-       verificationMode, metricKey, comparisonOperator, requiredValue,
-       customerGuidance, needsClientReview, seededKey, createdAt, updatedAt)
+       requirementType, verificationMode, metricKey, comparisonOperator,
+       requiredValue, customerGuidance, needsClientReview, seededKey,
+       createdAt, updatedAt)
      VALUES (?, ?, 'Ranged level',
        'Disposable public stat requirement for Task 007 validation.',
-       1, 10, 'AUTOMATIC', 'skill.ranged.level', 'GREATER_THAN_OR_EQUAL', 70,
+       1, 10, 'SKILL', 'AUTOMATIC', 'skill.ranged.level',
+       'GREATER_THAN_OR_EQUAL', 70,
        'This public stat can be checked by RSN when enabled.', 1, ?,
        NOW(), NOW())`,
     [

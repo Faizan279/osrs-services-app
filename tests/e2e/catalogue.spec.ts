@@ -84,6 +84,16 @@ async function submitFormAndWaitForPost(
   await responsePromise;
 }
 
+async function setFormFieldValue(field: Locator, value: string) {
+  await field.evaluate((element, nextValue) => {
+    const input = element as HTMLInputElement | HTMLTextAreaElement;
+    input.value = nextValue;
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, value);
+  await expect(field).toHaveValue(value);
+}
+
 const graphCycleSeedKeys = [
   "e2e-task004-graph-a",
   "e2e-task004-graph-b",
@@ -599,10 +609,7 @@ test("published edits, children and media stay staged until atomic republish", a
 
   await page.goto(`/admin/catalogue/services/${service.id}`);
   const summaryField = page.locator('textarea[name="shortSummary"]');
-  await summaryField.fill("");
-  await expect(summaryField).toHaveValue("");
-  await summaryField.fill(service.shortSummary);
-  await expect(summaryField).toHaveValue(service.shortSummary);
+  await setFormFieldValue(summaryField, service.shortSummary);
   await page
     .locator('input[name="gameModes"][value="ULTIMATE_IRONMAN"]')
     .check();
