@@ -69,4 +69,12 @@ Environment gate not satisfied:
 - Port `127.0.0.1:3306` is closed.
 - Free disk was below 100 MB after the successful build.
 
-The Task 007 stop condition still requires MySQL-backed E2E tests, fresh/existing MySQL validation, screenshot generation and a final review ZIP.
+The Task 007 stop condition still requires MySQL-backed E2E tests, fresh/existing MySQL validation, screenshot generation and a final review ZIP. Those final handoff checks are configured to run in GitHub Actions rather than on the user's local machine.
+
+GitHub Actions validation path:
+
+- `.github/workflows/task007-validation.yml` runs the full Task 007 validation suite on GitHub-hosted runners.
+- Local MySQL is optional for handoff validation; the workflow uses temporary MySQL 8.4 service containers and CI-only credentials.
+- Screenshots, validation reports, Playwright output and the final review pack are uploaded as workflow artifacts.
+- Production still requires a real persistent MySQL database at deployment time.
+- This document does not claim the workflow has passed until the GitHub Actions run completes successfully.

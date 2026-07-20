@@ -1,4 +1,5 @@
-﻿.env.example
+.github/workflows/task007-validation.yml
+.env.example
 changed-files.txt
 docs/DEPLOYMENT.md
 docs/PRICING-ENGINE.md
@@ -12,7 +13,10 @@ prisma/seed-core.ts
 project-manifest.json
 README.md
 reports/CODEX-TASK-007-COMPLETION.md
+scripts/build-task007-review-pack.ts
 scripts/capture-task-007.ts
+scripts/validate-task007-existing-db.ts
+scripts/validate-task007-fresh-db.ts
 src/app/(admin)/admin/catalogue/actions.ts
 src/app/(admin)/admin/catalogue/services/[id]/page.tsx
 src/app/(admin)/admin/catalogue/services/[id]/premium/options/[optionId]/page.tsx

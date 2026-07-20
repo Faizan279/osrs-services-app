@@ -44,5 +44,13 @@ Not completed after correction commit:
 - Existing Task 006 MySQL validation
 - pnpm screenshots:task007
 - task-007-final-review-pack.zip
+These final handoff checks are configured to run in GitHub Actions rather than on the user's local machine.
+
+GitHub Actions validation path:
+- .github/workflows/task007-validation.yml runs full Task 007 validation on GitHub-hosted MySQL 8.4 service containers.
+- Local MySQL is optional for handoff validation.
+- Screenshots, validation reports, Playwright output and the final review pack are uploaded as workflow artifacts.
+- Production still requires a real persistent MySQL database.
+- This summary does not claim the workflow has passed until the GitHub Actions run completes successfully.
 
 No merge, deployment or Task 008 work was done.

@@ -10,6 +10,8 @@
 
 Build locally first. Keep the current website live. Use separate development data and no live payment configuration.
 
+Local MySQL is optional for Task 007 validation handoff. The draft PR workflow `.github/workflows/task007-validation.yml` runs the full Task 007 validation suite on GitHub-hosted runners with temporary MySQL 8.4 service containers, then uploads screenshots, validation reports and the final review pack as workflow artifacts. These CI databases and credentials are disposable and must not be reused for production.
+
 ## Staging
 
 Create a staging environment before production. Test Hostinger's Node.js application support first. Use an alternative managed Node environment or VPS if the required custom server or real-time connections are limited.
@@ -70,9 +72,12 @@ Before enabling the configurator outside local validation:
 
 - run `pnpm db:migrate` without reset
 - run `pnpm db:seed` and confirm seed reruns preserve edited premium rules, packages, options, feature flags, staged aggregates and revisions
+- review the GitHub Actions Task 007 validation artifacts when using PR-based handoff validation
 - confirm the database feature flag `premium_configurator_enabled` is intentionally enabled
 - review every seeded premium package, option and rule marked `Needs client review`
 - keep Priority and Express delivery disabled until the client approves those fees and estimates
 - verify public estimates, admin premium pages and mobile screenshots against staging data
+
+Production still requires a real persistent MySQL database at deployment time. Do not point production at the temporary GitHub Actions MySQL service or any CI-only credentials.
 
 Rollback is manual. First disable `premium_configurator_enabled`, then export any admin-edited premium rows and staged aggregates that must be retained. Remove dependent premium requirements, requirement groups, FAQs, options, packages and config before removing the Task 007 tables. Do not use `prisma migrate reset` against shared or production data.

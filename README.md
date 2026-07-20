@@ -82,7 +82,7 @@ Admin users with `products.view` can view premium configuration under `/admin/ca
 
 - Node.js 24 LTS
 - pnpm 11.7+
-- Docker with Docker Compose
+- Docker with Docker Compose, only when running the local MySQL stack
 
 Node 24 is selected because it is the current LTS line and is supported by Hostinger managed Node.js hosting.
 
@@ -97,6 +97,8 @@ Set `AUTH_SECRET` to at least 32 random characters. To seed a local Super Admin,
 Normal seed runs preserve an existing administrator password. Set `ADMIN_SEED_RESET_PASSWORD=true` only for a deliberate password reset, with both administrator seed credentials supplied; return it to `false` immediately afterward. Seed reruns also preserve feature-flag activation states and existing role-permission assignments while adding any missing defaults.
 
 `DATABASE_ALLOW_PUBLIC_KEY_RETRIEVAL=true` supports the non-TLS Docker MySQL account locally. Leave it disabled in production and use the database provider's TLS configuration.
+
+Local MySQL is optional for Task 007 handoff validation. The draft pull request includes `.github/workflows/task007-validation.yml`, which runs migrations, seeds, unit tests, E2E tests, screenshots and review-pack generation against temporary GitHub-hosted MySQL 8.4 service containers. Those CI credentials are disposable validation-only values and are not production secrets.
 
 ```bash
 pnpm install --frozen-lockfile
@@ -136,6 +138,8 @@ pnpm build
 ```
 
 Task 002 through Task 007 screenshot capture expects the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
+
+For Task 007, the GitHub Actions workflow uploads Playwright results, screenshots, validation reports and the final review ZIP as workflow artifacts. Production deployment still requires a real persistent MySQL database and must not use the temporary CI service container.
 
 ### Database commands
 
