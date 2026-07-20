@@ -11,6 +11,13 @@ const webServerCommand =
 export default defineConfig({
   testDir: "./tests/e2e",
   outputDir: "test-results",
+  reporter: process.env.CI
+    ? [
+        ["list"],
+        ["html", { open: "never", outputFolder: "playwright-report" }],
+        ["junit", { outputFile: "test-results/e2e-junit.xml" }],
+      ]
+    : "list",
   workers: 2,
   use: {
     baseURL: "http://127.0.0.1:3000",
