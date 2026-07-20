@@ -86,7 +86,9 @@ test("public premium configurator renders and returns a server estimate", async 
   await expect(page.getByRole("heading", { name: /^\$/ })).toBeVisible({
     timeout: 30_000,
   });
-  await expect(page.getByText("Estimated total")).toBeVisible();
+  await expect(
+    page.getByText("Estimated total", { exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByText("Final price is confirmed before checkout."),
   ).toBeVisible();
@@ -439,11 +441,11 @@ async function createPremiumFixture() {
   await databaseRows(
     `INSERT INTO PremiumRequirement
       (id, groupId, label, description, isRequired, displayOrder,
-       verificationMode, metricKey, requiredValue, customerGuidance,
-       needsClientReview, seededKey, createdAt, updatedAt)
+       verificationMode, metricKey, comparisonOperator, requiredValue,
+       customerGuidance, needsClientReview, seededKey, createdAt, updatedAt)
      VALUES (?, ?, 'Ranged level',
        'Disposable public stat requirement for Task 007 validation.',
-       1, 10, 'AUTOMATIC', 'skill.ranged.level', 70,
+       1, 10, 'AUTOMATIC', 'skill.ranged.level', 'GREATER_THAN_OR_EQUAL', 70,
        'This public stat can be checked by RSN when enabled.', 1, ?,
        NOW(), NOW())`,
     [

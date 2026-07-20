@@ -215,7 +215,12 @@ test("homepage has no horizontal overflow at target widths", async ({
 
   for (const width of [320, 390, 768, 1024, 1440]) {
     await page.setViewportSize({ width, height: width < 700 ? 844 : 1000 });
-    await page.goto("/");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await expect(
+      page.getByRole("heading", {
+        name: "Your next OSRS milestone, handled with care.",
+      }),
+    ).toBeVisible();
     const sizes = await page.evaluate(() => ({
       clientWidth: document.documentElement.clientWidth,
       scrollWidth: document.documentElement.scrollWidth,

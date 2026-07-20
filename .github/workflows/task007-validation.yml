@@ -131,13 +131,15 @@ jobs:
 
       - name: E2E tests
         env:
-          RSN_DEVELOPMENT_FIXTURE: "false"
+          PLAYWRIGHT_USE_DEV_SERVER: "true"
+          RSN_DEVELOPMENT_FIXTURE: "true"
         run: pnpm test:e2e
 
       - name: Capture Task 007 screenshots
         env:
           RSN_DEVELOPMENT_FIXTURE: "false"
         run: |
+          pnpm build
           pnpm start > next-task007-screenshots.log 2>&1 &
           app_pid=$!
           trap 'kill "$app_pid" 2>/dev/null || true' EXIT

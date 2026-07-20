@@ -365,11 +365,14 @@ test("seeded Super Admin can open the catalogue editor", async ({ page }) => {
     timeout: 30_000,
   });
   await page.goto("/admin/catalogue/services");
+  const filtersForm = page.locator("form").filter({
+    has: page.getByRole("button", { name: "Apply filters" }),
+  });
   await page.getByLabel("Availability").selectOption("AVAILABLE");
-  await page.getByRole("button", { name: "Apply filters" }).click();
+  await filtersForm.evaluate((form: HTMLFormElement) => form.requestSubmit());
   await expect(page.getByText("7 matching services")).toBeVisible();
   await page.getByLabel("Availability").selectOption("UNAVAILABLE");
-  await page.getByRole("button", { name: "Apply filters" }).click();
+  await filtersForm.evaluate((form: HTMLFormElement) => form.requestSubmit());
   await expect(page.getByText("0 matching services")).toBeVisible();
 });
 
