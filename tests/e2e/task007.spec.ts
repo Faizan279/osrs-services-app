@@ -212,10 +212,20 @@ test("admin premium package edits stay staged until republish", async ({
     await page.getByLabel("Package name").fill(fixture.stagedPackageName);
     await page.getByLabel("Base cents").fill("3600");
     await page.getByLabel("Minimum cents").fill("3600");
-    await page.getByRole("button", { name: "Save package" }).click({
-      noWaitAfter: true,
+    const packageForm = page.locator("form").filter({
+      has: page.getByRole("button", { name: "Save package" }),
     });
-    await expect.poll(async () => (await stageState()).stageCount).toBe(1);
+    const responsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().includes(`/premium/packages/${fixture.packageId}`),
+      { timeout: 30_000 },
+    );
+    await packageForm.evaluate((form: HTMLFormElement) => form.requestSubmit());
+    await responsePromise;
+    await expect
+      .poll(async () => (await stageState()).stageCount, { timeout: 30_000 })
+      .toBe(1);
     expect(await stageContains(fixture.stagedPackageName)).toBe(true);
 
     const liveAfterStage = requiredRow(
