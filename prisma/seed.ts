@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { PrismaClient } from "../src/generated/prisma/client";
 import { seedCatalogue, type CatalogueSeedClient } from "./catalogue-seed";
+import { seedPricing } from "./pricing-seed";
 import { seedDatabase, type SeedClient } from "./seed-core";
 
 const seedEnvironmentSchema = z
@@ -63,6 +64,7 @@ async function main() {
     (password) => argon2.hash(password, { type: argon2.argon2id }),
   );
   await seedCatalogue(prisma as unknown as CatalogueSeedClient);
+  await seedPricing(prisma);
 }
 
 main()

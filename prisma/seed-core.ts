@@ -135,6 +135,7 @@ export const defaultFeatureFlags = [
     "Public premium service configurator estimates",
     false,
   ],
+  ["global_pricing_enabled", "Published global pricing adjustments", false],
 ] as const;
 
 export async function seedDatabase(

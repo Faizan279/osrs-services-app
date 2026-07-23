@@ -65,6 +65,45 @@ The public route never trusts client-submitted prices and does not expose intern
 
 Task 007 intentionally does not add checkout/order price snapshots, quote creation, cart items, global discount stacking, taxes, payment-provider logic or the full pricing administration workflow for every engine.
 
+## Task 008 global pricing foundation
+
+Task 008 adds a global pricing layer above the existing skilling, bossing and premium preview engines. Service engines still calculate the base subtotal first; the global layer can then apply a published pricing revision when `global_pricing_enabled` is enabled.
+
+The global pricing feature flag is seeded disabled. With the flag off, Task 005-007 estimate behavior and response totals remain unchanged.
+
+Published revision snapshots use schema version `1` and include immutable rule data only. Public estimate responses include a `priceSnapshot` only when global pricing is enabled and a published revision is loaded. Route snapshots store selected service/configuration references but intentionally do not store RSN values or manual stat entries.
+
+Supported rule types:
+
+- `FIXED_ADDITION`
+- `PERCENTAGE_ADDITION`
+- `MINIMUM_TOTAL`
+- `MAXIMUM_TOTAL`
+
+Supported applicability scopes:
+
+- `GLOBAL`
+- `ENGINE_TYPE`
+- `CATEGORY`
+- `SERVICE`
+
+Rule selection:
+
+1. Only enabled rules inside their effective date window are considered.
+2. Applicability must match the estimate source.
+3. Rules sort by priority ascending, then specificity descending (`SERVICE`, `CATEGORY`, `ENGINE_TYPE`, `GLOBAL`), then stable rule id.
+4. Rules sharing an `exclusiveGroupKey` collapse to the first selected rule by the same sort order.
+
+Calculation order:
+
+1. Service engine base subtotal.
+2. Fixed global additions.
+3. Percentage global additions, rounded half up to whole cents.
+4. Minimum total adjustments.
+5. Maximum total adjustments.
+
+Admin routes under `/admin/pricing` require `pricing.view` for read access, `pricing.edit` for draft rule edits and `pricing.publish` for publish, discard and restore actions. Draft edits use optimistic `draftVersion` checks; published `PricingRevision` rows are immutable snapshots.
+
 ## Initial prices
 
 - Existing WooCommerce prices are migration input.
@@ -107,9 +146,10 @@ Each delivery option stores its label, description, fee rule, estimated time, an
 5. Secure 100+ Combat fee
 6. Discord Stream fee
 7. Delivery fee
-8. Discounts according to stacking rules
-9. Taxes if later applicable
-10. Final total
+8. Task 008 global pricing additions, minimums and maximums when enabled
+9. Discounts according to stacking rules
+10. Taxes if later applicable
+11. Final total
 
 ## Admin requirements
 

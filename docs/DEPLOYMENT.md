@@ -12,6 +12,8 @@ Build locally first. Keep the current website live. Use separate development dat
 
 Local MySQL is optional for Task 007 validation handoff. The draft PR workflow `.github/workflows/task007-validation.yml` runs the full Task 007 validation suite on GitHub-hosted runners with temporary MySQL 8.4 service containers, then uploads screenshots, validation reports and the final review pack as workflow artifacts. These CI databases and credentials are disposable and must not be reused for production.
 
+Local MySQL is also optional for Task 008 handoff validation. `.github/workflows/task008-validation.yml` runs fresh MySQL validation, Task 007-to-Task 008 upgrade validation, tests, screenshots and review-pack generation on GitHub-hosted MySQL 8.4 service containers.
+
 ## Staging
 
 Create a staging environment before production. Test Hostinger's Node.js application support first. Use an alternative managed Node environment or VPS if the required custom server or real-time connections are limited.
@@ -81,3 +83,25 @@ Before enabling the configurator outside local validation:
 Production still requires a real persistent MySQL database at deployment time. Do not point production at the temporary GitHub Actions MySQL service or any CI-only credentials.
 
 Rollback is manual. First disable `premium_configurator_enabled`, then export any admin-edited premium rows and staged aggregates that must be retained. Remove dependent premium requirements, requirement groups, FAQs, options, packages and config before removing the Task 007 tables. Do not use `prisma migrate reset` against shared or production data.
+
+## Global pricing deployment notes
+
+Task 008 adds migration `20260723160000_task008_global_pricing_foundation`. It is additive and creates pricing rule sets, draft rules, applicability rows and immutable published pricing revisions.
+
+Normal seed runs create:
+
+- `global_pricing_enabled` disabled
+- one neutral draft pricing rule set
+- one neutral published pricing revision with zero rules
+- `pricing.publish` permission for Super Admin through the default permission set
+
+Before enabling global pricing outside validation:
+
+- run `pnpm db:migrate` without reset
+- run `pnpm db:seed` twice and confirm edited feature flags are preserved
+- review `/admin/pricing` and publish a client-approved pricing revision
+- confirm `global_pricing_enabled` is intentionally enabled
+- verify public estimates for skilling, bossing and premium services
+- review Task 008 validation artifacts when using PR-based handoff validation
+
+Rollback is manual. First disable `global_pricing_enabled`, then export any admin-edited pricing rule sets, rules, revisions and audit rows that must be retained. Remove applicability rows, rules, revisions and rule sets in dependency order only after review. Do not use `prisma migrate reset` against shared or production data.

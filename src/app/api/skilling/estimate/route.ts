@@ -4,6 +4,8 @@ import { z } from "zod";
 import { catalogueGameModes } from "@/lib/catalogue/constants";
 import { publicCatalogueWhere } from "@/lib/catalogue/queries";
 import { prisma } from "@/lib/db/prisma";
+import { publicPricingPayload } from "@/lib/pricing/public-response";
+import { applyPublishedPricingIfEnabled } from "@/lib/pricing/server";
 import {
   skillingDeliverySpeeds,
   skillingInputModes,
@@ -167,6 +169,30 @@ export async function POST(request: Request) {
       includeDiscordStream: input.includeDiscordStream,
       deliverySpeed: input.deliverySpeed,
     });
+    const priced = await applyPublishedPricingIfEnabled({
+      source: {
+        serviceId: service.id,
+        serviceSlug: service.slug,
+        categoryId: service.categoryId,
+        categorySlug: null,
+        engineType: service.engineType,
+        currency: "USD",
+        baseSubtotalCents: estimate.estimatedTotalCents,
+        basePricingLines: estimate.lineItems,
+        selectedReferences: {
+          skillKey: input.skillKey,
+          methodSlug: input.methodSlug,
+          inputMode: input.inputMode,
+          gameMode: input.gameMode,
+          deliverySpeed: input.deliverySpeed,
+        },
+        engineConfigurationRevision: {
+          id: service.skillingRule.id,
+          version: service.version,
+        },
+      },
+    });
+    const publicPricing = publicPricingPayload(priced);
 
     return json({
       ok: true,
@@ -182,9 +208,14 @@ export async function POST(request: Request) {
         xpRequired: estimate.xpRequired,
         estimatedHours: estimate.estimatedHours,
         delivery: estimate.delivery,
-        lineItems: estimate.lineItems,
-        estimatedTotalCents: estimate.estimatedTotalCents,
-        estimatedTotal: estimate.estimatedTotal,
+        lineItems: publicPricing.lineItems,
+        globalAdjustmentLines: publicPricing.globalAdjustmentLines,
+        minimumMaximumAdjustmentLines:
+          publicPricing.minimumMaximumAdjustmentLines,
+        pricingRevision: publicPricing.pricingRevision,
+        priceSnapshot: publicPricing.priceSnapshot,
+        estimatedTotalCents: publicPricing.estimatedTotalCents,
+        estimatedTotal: publicPricing.estimatedTotal,
         finalPriceNote: estimate.finalPriceNote,
       },
     });

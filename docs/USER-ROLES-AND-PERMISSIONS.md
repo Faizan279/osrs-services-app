@@ -24,6 +24,7 @@ Use server-enforced capabilities rather than role-name checks alone, including:
 - `products.edit`
 - `pricing.view`
 - `pricing.edit`
+- `pricing.publish`
 - `orders.view`
 - `orders.update`
 - `orders.refund`

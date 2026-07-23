@@ -146,6 +146,9 @@ describe("database seed idempotence", () => {
     const premiumFlag = state.featureFlags.get("premium_configurator_enabled")!;
     expect(premiumFlag.enabled).toBe(false);
     premiumFlag.enabled = true;
+    const globalPricingFlag = state.featureFlags.get("global_pricing_enabled")!;
+    expect(globalPricingFlag.enabled).toBe(false);
+    globalPricingFlag.enabled = true;
 
     const editor = state.roles.get("EDITOR")!;
     const manualPermission = state.permissions.get("orders.view")!;
@@ -169,8 +172,18 @@ describe("database seed idempotence", () => {
     expect(skillingFlag.enabled).toBe(true);
     expect(bossingFlag.enabled).toBe(true);
     expect(premiumFlag.enabled).toBe(true);
+    expect(globalPricingFlag.enabled).toBe(true);
     expect(state.rolePermissions.has(manualAssignment)).toBe(true);
     expect(state.rolePermissions.has(missingDefaultAssignment)).toBe(true);
+    const superAdmin = state.roles.get("SUPER_ADMIN")!;
+    const supportAgent = state.roles.get("SUPPORT_AGENT")!;
+    const pricingPublish = state.permissions.get("pricing.publish")!;
+    expect(
+      state.rolePermissions.has(`${superAdmin.id}:${pricingPublish.id}`),
+    ).toBe(true);
+    expect(
+      state.rolePermissions.has(`${supportAgent.id}:${pricingPublish.id}`),
+    ).toBe(false);
     expect(administrator.passwordHash).toBe(originalPasswordHash);
   });
 

@@ -27,6 +27,8 @@ import {
   requestIdentity,
 } from "@/lib/eligibility/rate-limit";
 import { rsnSchema } from "@/lib/eligibility/rsn";
+import { publicPricingPayload } from "@/lib/pricing/public-response";
+import { applyPublishedPricingIfEnabled } from "@/lib/pricing/server";
 
 export const dynamic = "force-dynamic";
 
@@ -293,6 +295,30 @@ export async function POST(request: NextRequest) {
       includeDiscordStream: input.includeDiscordStream,
       deliverySpeed: input.deliverySpeed,
     });
+    const priced = await applyPublishedPricingIfEnabled({
+      source: {
+        serviceId: service.id,
+        serviceSlug: service.slug,
+        categoryId: service.categoryId,
+        categorySlug: null,
+        engineType: service.engineType,
+        currency: "USD",
+        baseSubtotalCents: estimate.estimatedTotalCents,
+        basePricingLines: estimate.lineItems,
+        selectedReferences: {
+          bossKey: input.bossKey,
+          methodSlug: input.methodSlug,
+          killMode: input.killMode,
+          gameMode: input.gameMode,
+          deliverySpeed: input.deliverySpeed,
+        },
+        engineConfigurationRevision: {
+          id: service.bossingRule.id,
+          version: service.version,
+        },
+      },
+    });
+    const publicPricing = publicPricingPayload(priced);
     const rsn = await maybeEvaluateRsn(request, input.rsn, method);
 
     return json(
@@ -311,9 +337,14 @@ export async function POST(request: NextRequest) {
           includesDiscordStream: estimate.includesDiscordStream,
           estimatedHours: estimate.estimatedHours,
           delivery: estimate.delivery,
-          lineItems: estimate.lineItems,
-          estimatedTotalCents: estimate.estimatedTotalCents,
-          estimatedTotal: estimate.estimatedTotal,
+          lineItems: publicPricing.lineItems,
+          globalAdjustmentLines: publicPricing.globalAdjustmentLines,
+          minimumMaximumAdjustmentLines:
+            publicPricing.minimumMaximumAdjustmentLines,
+          pricingRevision: publicPricing.pricingRevision,
+          priceSnapshot: publicPricing.priceSnapshot,
+          estimatedTotalCents: publicPricing.estimatedTotalCents,
+          estimatedTotal: publicPricing.estimatedTotal,
           finalPriceNote: estimate.finalPriceNote,
         },
         eligibility: rsn.eligibility,
