@@ -67,10 +67,11 @@ test("RSN eligibility uses a private POST flow and never requests a password", a
   await expect(
     page.getByRole("heading", { name: "Results for Sample Adventurer" }),
   ).toBeVisible();
-  await expect(page.getByText("Met", { exact: true })).toBeVisible();
-  await expect(page.getByText("Not Met", { exact: true })).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Recommended: Skill training request" }),
+    page.getByText("Customer Confirmation Required", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Support Verification Required", { exact: true }),
   ).toBeVisible();
 });
 

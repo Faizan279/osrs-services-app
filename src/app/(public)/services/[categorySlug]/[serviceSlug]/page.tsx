@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { CatalogueBreadcrumbs } from "@/components/catalogue-public";
 import { BossingCalculatorEngine } from "@/components/bossing-calculator-engine";
 import { CatalogueCardEngine } from "@/components/catalogue-card-engine";
+import { PremiumConfiguratorEngine } from "@/components/premium-configurator-engine";
 import { SkillingCalculatorEngine } from "@/components/skilling-calculator-engine";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import {
   getCatalogueFeatureFlags,
   getPublicBossingCalculatorService,
   getPublicCatalogueCardService,
+  getPublicPremiumConfiguratorService,
   getPublicSkillingCalculatorService,
   getPublicService,
 } from "@/lib/catalogue/queries";
@@ -261,6 +263,62 @@ export default async function ServiceDetailPage({
               gameModes: engine.service.gameModes,
             }}
             bosses={engine.bosses}
+            rule={engine.rule}
+            requestHref={discordHref}
+            eligibilityEnabled={Boolean(flags.rsn_eligibility_enabled)}
+          />
+        </main>
+      );
+    }
+  }
+  if (service.engineType === "PREMIUM_SERVICE_CONFIGURATOR") {
+    const [engine, flags] = await Promise.all([
+      getPublicPremiumConfiguratorService({ categorySlug, serviceSlug }),
+      getCatalogueFeatureFlags(),
+    ]);
+    if (engine && flags.premium_configurator_enabled) {
+      return (
+        <main id="main-content" className="min-h-[70vh]">
+          <section className="border-border bg-surface-1 border-b py-14 sm:py-20">
+            <div className="mx-auto max-w-7xl px-5 sm:px-8">
+              <CatalogueBreadcrumbs
+                items={[
+                  { label: "Home", href: "/" },
+                  { label: "Services", href: "/services" },
+                  {
+                    label: service.category.name,
+                    href: `/services/${service.category.slug}`,
+                  },
+                  { label: service.name },
+                ]}
+              />
+              <div className="mt-8 flex flex-wrap gap-2">
+                <Badge variant="info">Premium configurator</Badge>
+                {service.isQuoteOnly && (
+                  <Badge variant="warning">Quote only</Badge>
+                )}
+              </div>
+              <p className="text-gold kicker-type mt-8">
+                {service.category.name}
+              </p>
+              <h1 className="display-type mt-4 max-w-4xl text-4xl sm:text-6xl">
+                {service.name}
+              </h1>
+              <p className="text-text-secondary mt-5 max-w-3xl text-lg leading-8">
+                {service.shortSummary}
+              </p>
+            </div>
+          </section>
+          <PremiumConfiguratorEngine
+            service={{
+              id: engine.service.id,
+              name: engine.service.name,
+              content: engine.service.content,
+              requirements: engine.service.requirements,
+              gameModes: engine.service.gameModes,
+            }}
+            packages={engine.packages}
+            options={engine.options}
             rule={engine.rule}
             requestHref={discordHref}
             eligibilityEnabled={Boolean(flags.rsn_eligibility_enabled)}

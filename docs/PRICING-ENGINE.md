@@ -48,6 +48,23 @@ The public route never trusts client-submitted prices and does not expose intern
 
 Task 006 intentionally does not add checkout/order price snapshots, global discount stacking, taxes, payment-provider logic, premium configurators, cart, checkout, orders or the full pricing administration workflow for every engine.
 
+## Task 007 premium estimate preview
+
+Task 007 adds a premium-service-specific preview engine only. It calculates an `Estimated total` from service-scoped premium rules, enabled packages and enabled options, then tells the customer that final price is confirmed before checkout.
+
+Inputs handled by the premium preview:
+
+- package base cents, minimum cents and setup fee
+- account-mode basis-point adjustments
+- customer gear adjustment when gear confirmation is required but not confirmed
+- fixed-fee, percentage-of-current-subtotal and per-unit options
+- optional Discord Stream percentage
+- configured delivery percentage and fixed fee
+
+The public route never trusts client-submitted prices and does not expose internal rule IDs, client-review state or arbitrary formulas. Seeded premium rates are representative defaults only and are marked `Needs client review`, so the public `premium_configurator_enabled` feature flag is seeded off until client approval.
+
+Task 007 intentionally does not add checkout/order price snapshots, quote creation, cart items, global discount stacking, taxes, payment-provider logic or the full pricing administration workflow for every engine.
+
 ## Initial prices
 
 - Existing WooCommerce prices are migration input.

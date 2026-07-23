@@ -30,7 +30,11 @@ export type CatalogueSeedClient = {
         shortSummary: string;
         content: string;
         serviceType: "SERVICE";
-        engineType: "CATALOGUE_CARD" | "SKILLING_CALCULATOR" | "BOSSING_ENGINE";
+        engineType:
+          | "CATALOGUE_CARD"
+          | "SKILLING_CALCULATOR"
+          | "BOSSING_ENGINE"
+          | "PREMIUM_SERVICE_CONFIGURATOR";
         publicationStatus: "PUBLISHED";
         availabilityState: "AVAILABLE";
         isFeatured: boolean;
@@ -279,6 +283,139 @@ export type CatalogueSeedClient = {
       skipDuplicates: true;
     }): Promise<unknown>;
   };
+  premiumServiceConfig: {
+    upsert(args: {
+      where: { serviceId: string };
+      create: PremiumRuleSeedCreate;
+      update: Record<string, never>;
+      select?: { id: true };
+    }): Promise<{ id: string }>;
+  };
+  premiumPackage: {
+    upsert(args: {
+      where: { seededKey: string };
+      create: {
+        seededKey: string;
+        serviceId: string;
+        configId: string;
+        slug: string;
+        name: string;
+        shortDescription: string;
+        enabled: true;
+        displayOrder: number;
+        basePriceCents: number;
+        minimumPriceCents: number;
+        setupFeeCents: number;
+        estimatedHours: number;
+        difficultyTierLabel: string;
+        requirementsSummary: string;
+        gearNotes: string;
+        unlockNotes: string;
+        customerGearRequired: boolean;
+        customerGearLabel: string;
+        gearUnconfirmedAdjustmentCents: number;
+        needsClientReview: boolean;
+      };
+      update: Record<string, never>;
+      select: { id: true };
+    }): Promise<{ id: string }>;
+  };
+  premiumOption: {
+    upsert(args: {
+      where: { seededKey: string };
+      create: {
+        seededKey: string;
+        serviceId: string;
+        configId: string;
+        packageId?: string;
+        slug: string;
+        name: string;
+        description: string;
+        enabled: true;
+        displayOrder: number;
+        optionType: "ADDON" | "SUPPLIES" | "GEAR_SUPPORT" | "UNLOCK_SUPPORT";
+        pricingMode: "FIXED_FEE" | "PERCENT_OF_BASE" | "PER_UNIT";
+        fixedPriceCents: number;
+        percentBps: number;
+        perUnitPriceCents: number;
+        minimumQuantity: number;
+        maximumQuantity: number;
+        defaultQuantity: number;
+        customerInputRequired: boolean;
+        needsClientReview: boolean;
+      };
+      update: Record<string, never>;
+      select: { id: true };
+    }): Promise<{ id: string }>;
+  };
+  premiumRequirementGroup: {
+    upsert(args: {
+      where: { seededKey: string };
+      create: {
+        seededKey: string;
+        serviceId: string;
+        configId: string;
+        packageId: string;
+        title: string;
+        description: string;
+        displayOrder: number;
+        needsClientReview: true;
+      };
+      update: Record<string, never>;
+      select: { id: true };
+    }): Promise<{ id: string }>;
+  };
+  premiumRequirement: {
+    createMany(args: {
+      data: Array<{
+        seededKey: string;
+        groupId: string;
+        label: string;
+        description: string;
+        isRequired: boolean;
+        displayOrder: number;
+        verificationMode:
+          "AUTOMATIC" | "CUSTOMER_CONFIRMED" | "SUPPORT_VERIFIED";
+        requirementType:
+          | "SKILL"
+          | "QUEST"
+          | "ITEM"
+          | "ACTIVITY"
+          | "ACCOUNT"
+          | "GEAR"
+          | "UNLOCK"
+          | "OTHER";
+        metricKey?: string | null;
+        comparisonOperator?:
+          | "GREATER_THAN_OR_EQUAL"
+          | "GREATER_THAN"
+          | "EQUAL"
+          | "LESS_THAN_OR_EQUAL"
+          | "LESS_THAN"
+          | null;
+        requiredValue?: number | null;
+        customerGuidance: string;
+        needsClientReview: boolean;
+      }>;
+      skipDuplicates: true;
+    }): Promise<unknown>;
+  };
+  premiumFaq: {
+    createMany(args: {
+      data: Array<{
+        seededKey: string;
+        serviceId: string;
+        configId: string;
+        packageId: string;
+        question: string;
+        answer: string;
+        enabled: true;
+        displayOrder: number;
+        needsClientReview: true;
+      }>;
+      skipDuplicates: true;
+    }): Promise<unknown>;
+  };
 };
 
 type SkillingSkillKey =
@@ -338,6 +475,22 @@ type SkillingRuleSeedCreate = {
 type BossingPriceMode = "PER_KILL" | "FIXED_PACKAGE";
 
 type BossingRuleSeedCreate = SkillingRuleSeedCreate;
+
+type PremiumRuleSeedCreate = SkillingRuleSeedCreate & {
+  configuratorType:
+    | "FIRE_CAPE"
+    | "INFERNAL_CAPE"
+    | "COLOSSEUM"
+    | "YAMA"
+    | "ROYAL_TITANS"
+    | "CORRUPTED_GAUNTLET"
+    | "DOOM_OF_MOKHAIOTL"
+    | "RAIDS"
+    | "CUSTOM";
+  enabled: boolean;
+  rsnEligibilityEnabled: boolean;
+  supportsManualStatFallback: boolean;
+};
 
 export const catalogueCategorySeeds = [
   ["power-levelling", "Power Levelling", "activity"],
@@ -424,6 +577,31 @@ const catalogueServiceSeeds = [
         key: "pvm-preparation",
         title: "Encounter preparation",
         description: "Share relevant stats, unlocks and preparation details.",
+        type: "ACTIVITY" as const,
+        required: true,
+        verification: "SUPPORT_VERIFIED" as const,
+      },
+    ],
+  },
+  {
+    key: "fire-cape-premium",
+    categoryKey: "premium-services",
+    name: "Fire Cape premium service",
+    slug: "fire-cape-premium-service",
+    summary:
+      "Configure a reviewed Fire Cape request around package, account mode, gear confirmation and optional add-ons.",
+    content:
+      "Premium Fire Cape requests are scoped around the selected package, public combat stats, account mode, customer-confirmed gear and support-verified unlocks. Representative package prices are seeded for validation only and require client review before public launch.",
+    engineType: "PREMIUM_SERVICE_CONFIGURATOR" as const,
+    featured: true,
+    order: 35,
+    modes: ["NORMAL", "IRONMAN", "HARDCORE_IRONMAN"] as const,
+    requirements: [
+      {
+        key: "fire-cape-account-context",
+        title: "Account and gear context",
+        description:
+          "Confirm account mode, public combat stats and available gear before staff review.",
         type: "ACTIVITY" as const,
         required: true,
         verification: "SUPPORT_VERIFIED" as const,
@@ -988,6 +1166,220 @@ const bossingBossSeeds = [
   },
 ] as const;
 
+const premiumPackageSeeds = [
+  {
+    key: "standard-fire-cape",
+    slug: "standard-fire-cape",
+    name: "Standard Fire Cape run",
+    summary:
+      "Representative Jad completion package using reviewed combat stats and customer-confirmed gear.",
+    order: 10,
+    baseCents: 2499,
+    minimumCents: 2499,
+    setupCents: 0,
+    hours: 2,
+    tier: "Standard",
+    requirements:
+      "Public Ranged, Defence, Prayer and Hitpoints levels can be checked. Gear, unlocks and supplies remain customer/support confirmed.",
+    gearNotes:
+      "Customer confirms a suitable ranged setup, food, prayer potions and teleports. Gear ownership is not inferred from RSN.",
+    unlockNotes:
+      "Fight Caves access, membership and wave-route preferences are reviewed by support without requesting passwords.",
+    gear: {
+      label: "Customer provides Fire Cape-ready gear",
+      adjustmentCents: 700,
+    },
+    groups: [
+      {
+        key: "stats",
+        title: "Public combat stats",
+        description:
+          "Allow-listed public stats that can be checked by RSN when enabled.",
+        requirements: [
+          [
+            "skill.ranged.level",
+            "Ranged level",
+            "Recommended 70 Ranged for this representative package.",
+            70,
+          ],
+          [
+            "skill.defence.level",
+            "Defence level",
+            "Recommended 40 Defence for this representative package.",
+            40,
+          ],
+          [
+            "skill.prayer.level",
+            "Prayer level",
+            "Recommended 43 Prayer for protection prayers.",
+            43,
+          ],
+          [
+            "skill.hitpoints.level",
+            "Hitpoints level",
+            "Recommended 60 Hitpoints for safer wave handling.",
+            60,
+          ],
+        ] as const,
+      },
+      {
+        key: "gear-unlocks",
+        title: "Gear and unlock review",
+        description:
+          "Non-public requirements that must be confirmed by the customer or support.",
+        requirements: [
+          [
+            "Gear confirmation",
+            "Confirm ranged weapon, armour, food, prayer potion and teleport availability.",
+            "CUSTOMER_CONFIRMED",
+          ],
+          [
+            "Access review",
+            "Membership, Fight Caves access and non-public unlock context are support verified.",
+            "SUPPORT_VERIFIED",
+          ],
+        ] as const,
+      },
+    ],
+    faqs: [
+      [
+        "Can RSN lookup confirm my gear?",
+        "No. Public stats can be checked when enabled, but gear, bank, inventory, quests and diary completion are never inferred.",
+      ],
+      [
+        "Do you need my RuneScape password?",
+        "No. This configurator never asks for a RuneScape password, bank PIN or authentication code.",
+      ],
+    ] as const,
+  },
+  {
+    key: "prepared-fire-cape",
+    slug: "prepared-fire-cape",
+    name: "Prepared account Fire Cape run",
+    summary:
+      "Representative package for accounts that already confirm stronger stats, unlocks and supplies.",
+    order: 20,
+    baseCents: 1999,
+    minimumCents: 1999,
+    setupCents: 0,
+    hours: 1,
+    tier: "Prepared",
+    requirements:
+      "Higher public combat stats can be checked, while account unlocks and gear remain review-only.",
+    gearNotes:
+      "Customer confirms stronger ranged gear and adequate supplies before final review.",
+    unlockNotes:
+      "Support reviews non-public unlocks and route preferences before confirming scope.",
+    gear: {
+      label: "Customer confirms prepared gear and supplies",
+      adjustmentCents: 400,
+    },
+    groups: [
+      {
+        key: "stats",
+        title: "Prepared public stats",
+        description:
+          "Allow-listed public stats for the prepared account representative package.",
+        requirements: [
+          [
+            "skill.ranged.level",
+            "Ranged level",
+            "Recommended 75 Ranged for the prepared package.",
+            75,
+          ],
+          [
+            "skill.prayer.level",
+            "Prayer level",
+            "Recommended 43 Prayer for protection prayers.",
+            43,
+          ],
+          [
+            "skill.hitpoints.level",
+            "Hitpoints level",
+            "Recommended 70 Hitpoints for safer wave handling.",
+            70,
+          ],
+        ] as const,
+      },
+      {
+        key: "gear-unlocks",
+        title: "Prepared gear review",
+        description:
+          "Customer and support confirmation for gear and non-public readiness.",
+        requirements: [
+          [
+            "Prepared gear confirmation",
+            "Confirm stronger ranged gear, supplies and teleports are available.",
+            "CUSTOMER_CONFIRMED",
+          ],
+          [
+            "Support readiness review",
+            "Support verifies non-public access and route context without inferring it from RSN.",
+            "SUPPORT_VERIFIED",
+          ],
+        ] as const,
+      },
+    ],
+    faqs: [
+      [
+        "Why is this package lower?",
+        "The representative prepared package assumes stronger confirmed readiness, but all seeded values still need client review.",
+      ],
+    ] as const,
+  },
+] as const;
+
+const premiumOptionSeeds = [
+  {
+    key: "supply-support",
+    slug: "supply-support",
+    name: "Supply support",
+    description:
+      "Representative reviewed supply support for food, potions and teleports.",
+    order: 10,
+    type: "SUPPLIES" as const,
+    pricingMode: "FIXED_FEE" as const,
+    fixedCents: 500,
+    percentBps: 0,
+    unitCents: 0,
+    min: 1,
+    max: 1,
+    defaultQuantity: 1,
+  },
+  {
+    key: "gear-gap-review",
+    slug: "gear-gap-review",
+    name: "Gear gap support review",
+    description:
+      "Representative support review when customer gear confirmation needs extra preparation.",
+    order: 20,
+    type: "GEAR_SUPPORT" as const,
+    pricingMode: "PERCENT_OF_BASE" as const,
+    fixedCents: 0,
+    percentBps: 1000,
+    unitCents: 0,
+    min: 1,
+    max: 1,
+    defaultQuantity: 1,
+  },
+  {
+    key: "extra-attempt-window",
+    slug: "extra-attempt-window",
+    name: "Extra attempt window",
+    description:
+      "Representative per-attempt planning buffer for accounts that may need additional review.",
+    order: 30,
+    type: "ADDON" as const,
+    pricingMode: "PER_UNIT" as const,
+    fixedCents: 0,
+    percentBps: 0,
+    unitCents: 650,
+    min: 1,
+    max: 3,
+    defaultQuantity: 1,
+  },
+] as const;
+
 export async function seedCatalogue(prisma: CatalogueSeedClient) {
   const categoryIds = new Map<string, string>();
   const serviceIds = new Map<string, string>();
@@ -1227,134 +1619,329 @@ export async function seedCatalogue(prisma: CatalogueSeedClient) {
   }
 
   const bossingServiceId = serviceIds.get("pvm-support");
-  if (!bossingServiceId) return;
-
-  await prisma.bossingCalculatorRule.upsert({
-    where: { serviceId: bossingServiceId },
-    create: {
-      serviceId: bossingServiceId,
-      normalModeMultiplierBps: 0,
-      ironmanMultiplierBps: 1000,
-      hardcoreIronmanMultiplierBps: 2000,
-      ultimateIronmanMultiplierBps: 3000,
-      discordStreamEnabled: true,
-      discordStreamPercentBps: 200,
-      standardDeliveryEnabled: true,
-      standardDeliveryLabel: "Standard",
-      standardDeliveryDescription: "Standard review queue for PvM work.",
-      standardDeliveryEstimate: "Estimate confirmed before checkout",
-      standardDeliveryMultiplierBps: 0,
-      standardDeliveryFixedFeeCents: 0,
-      priorityDeliveryEnabled: false,
-      priorityDeliveryLabel: "Priority",
-      priorityDeliveryDescription: "Faster queue when staff capacity allows.",
-      priorityDeliveryEstimate: "Faster estimate, client review required",
-      priorityDeliveryMultiplierBps: 1500,
-      priorityDeliveryFixedFeeCents: 0,
-      expressDeliveryEnabled: false,
-      expressDeliveryLabel: "Express",
-      expressDeliveryDescription: "Fastest configured queue for eligible PvM.",
-      expressDeliveryEstimate: "Fastest estimate, client review required",
-      expressDeliveryMultiplierBps: 3000,
-      expressDeliveryFixedFeeCents: 0,
-      needsClientReview: true,
-    },
-    update: {},
-  });
-
-  for (const [bossIndex, boss] of bossingBossSeeds.entries()) {
-    const bossRecord = await prisma.bossingBossConfig.upsert({
-      where: { seededKey: `pvm-support:${boss.key}` },
+  if (bossingServiceId) {
+    await prisma.bossingCalculatorRule.upsert({
+      where: { serviceId: bossingServiceId },
       create: {
-        seededKey: `pvm-support:${boss.key}`,
         serviceId: bossingServiceId,
-        bossKey: boss.key,
-        name: boss.name,
-        enabled: boss.enabled,
-        displayOrder: boss.order || (bossIndex + 1) * 10,
-        groupLabel: boss.group,
-        iconKey: boss.icon,
-        description: boss.description,
+        normalModeMultiplierBps: 0,
+        ironmanMultiplierBps: 1000,
+        hardcoreIronmanMultiplierBps: 2000,
+        ultimateIronmanMultiplierBps: 3000,
+        discordStreamEnabled: true,
+        discordStreamPercentBps: 200,
+        standardDeliveryEnabled: true,
+        standardDeliveryLabel: "Standard",
+        standardDeliveryDescription: "Standard review queue for PvM work.",
+        standardDeliveryEstimate: "Estimate confirmed before checkout",
+        standardDeliveryMultiplierBps: 0,
+        standardDeliveryFixedFeeCents: 0,
+        priorityDeliveryEnabled: false,
+        priorityDeliveryLabel: "Priority",
+        priorityDeliveryDescription: "Faster queue when staff capacity allows.",
+        priorityDeliveryEstimate: "Faster estimate, client review required",
+        priorityDeliveryMultiplierBps: 1500,
+        priorityDeliveryFixedFeeCents: 0,
+        expressDeliveryEnabled: false,
+        expressDeliveryLabel: "Express",
+        expressDeliveryDescription:
+          "Fastest configured queue for eligible PvM.",
+        expressDeliveryEstimate: "Fastest estimate, client review required",
+        expressDeliveryMultiplierBps: 3000,
+        expressDeliveryFixedFeeCents: 0,
         needsClientReview: true,
       },
       update: {},
-      select: { id: true },
     });
 
-    for (const method of boss.methods) {
-      const methodRecord = await prisma.bossingMethod.upsert({
-        where: { seededKey: `pvm-support:${boss.key}:${method.key}` },
+    for (const [bossIndex, boss] of bossingBossSeeds.entries()) {
+      const bossRecord = await prisma.bossingBossConfig.upsert({
+        where: { seededKey: `pvm-support:${boss.key}` },
         create: {
-          seededKey: `pvm-support:${boss.key}:${method.key}`,
+          seededKey: `pvm-support:${boss.key}`,
           serviceId: bossingServiceId,
-          bossId: bossRecord.id,
-          slug: method.slug,
-          name: method.name,
-          shortDescription: method.summary,
-          enabled: true,
-          displayOrder: method.order,
-          priceMode: method.priceMode,
-          minimumKillCount: method.minKills,
-          maximumKillCount: method.maxKills,
-          basePriceCentsPerKill: method.centsPerKill,
-          fixedPackagePriceCents: method.packageCents,
-          minimumPriceCents: method.minimumCents,
-          setupFeeCents: method.setupCents,
-          difficultyTierLabel: method.tier,
-          expectedRequirementsSummary: method.requirements,
-          gearNotes: method.gearNotes,
-          supplyNotes: method.supplyNotes,
-          suppliesEnabled: Boolean(method.supplies),
-          ...(method.supplies
-            ? {
-                suppliesLabel: method.supplies.label,
-                suppliesFeeCents: method.supplies.cents,
-              }
-            : { suppliesFeeCents: 0 }),
-          customerGearRequired: true,
-          customerGearLabel: method.gear.label,
-          gearAdjustmentCents: method.gear.adjustmentCents,
-          estimatedKillsPerHour: method.killsPerHour,
+          bossKey: boss.key,
+          name: boss.name,
+          enabled: boss.enabled,
+          displayOrder: boss.order || (bossIndex + 1) * 10,
+          groupLabel: boss.group,
+          iconKey: boss.icon,
+          description: boss.description,
           needsClientReview: true,
         },
         update: {},
         select: { id: true },
       });
 
-      await prisma.bossingStatRequirement.createMany({
-        data: method.stats.map(([metricKey, label, requiredLevel], index) => ({
-          seededKey: `pvm-support:${boss.key}:${method.key}:stat:${metricKey}`,
-          methodId: methodRecord.id,
-          metricKey,
-          label,
-          requiredLevel,
+      for (const method of boss.methods) {
+        const methodRecord = await prisma.bossingMethod.upsert({
+          where: { seededKey: `pvm-support:${boss.key}:${method.key}` },
+          create: {
+            seededKey: `pvm-support:${boss.key}:${method.key}`,
+            serviceId: bossingServiceId,
+            bossId: bossRecord.id,
+            slug: method.slug,
+            name: method.name,
+            shortDescription: method.summary,
+            enabled: true,
+            displayOrder: method.order,
+            priceMode: method.priceMode,
+            minimumKillCount: method.minKills,
+            maximumKillCount: method.maxKills,
+            basePriceCentsPerKill: method.centsPerKill,
+            fixedPackagePriceCents: method.packageCents,
+            minimumPriceCents: method.minimumCents,
+            setupFeeCents: method.setupCents,
+            difficultyTierLabel: method.tier,
+            expectedRequirementsSummary: method.requirements,
+            gearNotes: method.gearNotes,
+            supplyNotes: method.supplyNotes,
+            suppliesEnabled: Boolean(method.supplies),
+            ...(method.supplies
+              ? {
+                  suppliesLabel: method.supplies.label,
+                  suppliesFeeCents: method.supplies.cents,
+                }
+              : { suppliesFeeCents: 0 }),
+            customerGearRequired: true,
+            customerGearLabel: method.gear.label,
+            gearAdjustmentCents: method.gear.adjustmentCents,
+            estimatedKillsPerHour: method.killsPerHour,
+            needsClientReview: true,
+          },
+          update: {},
+          select: { id: true },
+        });
+
+        await prisma.bossingStatRequirement.createMany({
+          data: method.stats.map(
+            ([metricKey, label, requiredLevel], index) => ({
+              seededKey: `pvm-support:${boss.key}:${method.key}:stat:${metricKey}`,
+              methodId: methodRecord.id,
+              metricKey,
+              label,
+              requiredLevel,
+              displayOrder: (index + 1) * 10,
+              verificationMode: "AUTOMATIC",
+              customerGuidance:
+                "This public stat can be checked by RSN when eligibility is enabled.",
+              needsClientReview: true,
+            }),
+          ),
+          skipDuplicates: true,
+        });
+
+        await prisma.bossingGearRequirement.createMany({
+          data: method.gearRequirements.map(
+            ([label, description, verificationMode], index) => ({
+              seededKey: `pvm-support:${boss.key}:${method.key}:gear:${index + 1}`,
+              methodId: methodRecord.id,
+              label,
+              description,
+              isRequired: true,
+              displayOrder: (index + 1) * 10,
+              verificationMode,
+              customerGuidance:
+                verificationMode === "CUSTOMER_CONFIRMED"
+                  ? "Confirm this before requesting review. Do not provide a RuneScape password."
+                  : "Support verifies this requirement without inferring it from RSN.",
+              needsClientReview: true,
+            }),
+          ),
+          skipDuplicates: true,
+        });
+      }
+    }
+
+    const premiumServiceId = serviceIds.get("fire-cape-premium");
+    if (!premiumServiceId) return;
+
+    const premiumConfig = await prisma.premiumServiceConfig.upsert({
+      where: { serviceId: premiumServiceId },
+      create: {
+        serviceId: premiumServiceId,
+        configuratorType: "FIRE_CAPE",
+        enabled: true,
+        normalModeMultiplierBps: 0,
+        ironmanMultiplierBps: 1000,
+        hardcoreIronmanMultiplierBps: 2000,
+        ultimateIronmanMultiplierBps: 3000,
+        discordStreamEnabled: true,
+        discordStreamPercentBps: 200,
+        rsnEligibilityEnabled: true,
+        supportsManualStatFallback: true,
+        standardDeliveryEnabled: true,
+        standardDeliveryLabel: "Standard",
+        standardDeliveryDescription: "Standard review queue for premium work.",
+        standardDeliveryEstimate: "Estimate confirmed before checkout",
+        standardDeliveryMultiplierBps: 0,
+        standardDeliveryFixedFeeCents: 0,
+        priorityDeliveryEnabled: false,
+        priorityDeliveryLabel: "Priority",
+        priorityDeliveryDescription: "Faster queue when staff capacity allows.",
+        priorityDeliveryEstimate: "Faster estimate, client review required",
+        priorityDeliveryMultiplierBps: 1500,
+        priorityDeliveryFixedFeeCents: 0,
+        expressDeliveryEnabled: false,
+        expressDeliveryLabel: "Express",
+        expressDeliveryDescription:
+          "Fastest configured queue for eligible premium work.",
+        expressDeliveryEstimate: "Fastest estimate, client review required",
+        expressDeliveryMultiplierBps: 3000,
+        expressDeliveryFixedFeeCents: 0,
+        needsClientReview: true,
+      },
+      update: {},
+      select: { id: true },
+    });
+
+    const premiumPackageIds = new Map<string, string>();
+    for (const premiumPackage of premiumPackageSeeds) {
+      const packageRecord = await prisma.premiumPackage.upsert({
+        where: { seededKey: `fire-cape-premium:${premiumPackage.key}` },
+        create: {
+          seededKey: `fire-cape-premium:${premiumPackage.key}`,
+          serviceId: premiumServiceId,
+          configId: premiumConfig.id,
+          slug: premiumPackage.slug,
+          name: premiumPackage.name,
+          shortDescription: premiumPackage.summary,
+          enabled: true,
+          displayOrder: premiumPackage.order,
+          basePriceCents: premiumPackage.baseCents,
+          minimumPriceCents: premiumPackage.minimumCents,
+          setupFeeCents: premiumPackage.setupCents,
+          estimatedHours: premiumPackage.hours,
+          difficultyTierLabel: premiumPackage.tier,
+          requirementsSummary: premiumPackage.requirements,
+          gearNotes: premiumPackage.gearNotes,
+          unlockNotes: premiumPackage.unlockNotes,
+          customerGearRequired: true,
+          customerGearLabel: premiumPackage.gear.label,
+          gearUnconfirmedAdjustmentCents: premiumPackage.gear.adjustmentCents,
+          needsClientReview: true,
+        },
+        update: {},
+        select: { id: true },
+      });
+      premiumPackageIds.set(premiumPackage.key, packageRecord.id);
+
+      for (const [groupIndex, group] of premiumPackage.groups.entries()) {
+        const groupRecord = await prisma.premiumRequirementGroup.upsert({
+          where: {
+            seededKey: `fire-cape-premium:${premiumPackage.key}:group:${group.key}`,
+          },
+          create: {
+            seededKey: `fire-cape-premium:${premiumPackage.key}:group:${group.key}`,
+            serviceId: premiumServiceId,
+            configId: premiumConfig.id,
+            packageId: packageRecord.id,
+            title: group.title,
+            description: group.description,
+            displayOrder: (groupIndex + 1) * 10,
+            needsClientReview: true,
+          },
+          update: {},
+          select: { id: true },
+        });
+
+        const automaticRequirements =
+          "requirements" in group && group.key === "stats"
+            ? group.requirements.map(
+                ([metricKey, label, description, requiredValue], index) => ({
+                  seededKey: `fire-cape-premium:${premiumPackage.key}:${group.key}:auto:${metricKey}`,
+                  groupId: groupRecord.id,
+                  label,
+                  description,
+                  requirementType: "SKILL" as const,
+                  isRequired: true,
+                  displayOrder: (index + 1) * 10,
+                  verificationMode: "AUTOMATIC" as const,
+                  metricKey,
+                  comparisonOperator: "GREATER_THAN_OR_EQUAL" as const,
+                  requiredValue,
+                  customerGuidance:
+                    "This public stat can be checked by RSN when eligibility is enabled.",
+                  needsClientReview: true,
+                }),
+              )
+            : [];
+        const manualRequirements =
+          "requirements" in group && group.key !== "stats"
+            ? group.requirements.map(
+                ([label, description, verificationMode], index) => ({
+                  seededKey: `fire-cape-premium:${premiumPackage.key}:${group.key}:manual:${index + 1}`,
+                  groupId: groupRecord.id,
+                  label,
+                  description,
+                  requirementType: label.toLowerCase().includes("gear")
+                    ? ("GEAR" as const)
+                    : ("UNLOCK" as const),
+                  isRequired: true,
+                  displayOrder: (index + 1) * 10,
+                  verificationMode,
+                  metricKey: null,
+                  comparisonOperator: null,
+                  requiredValue: null,
+                  customerGuidance:
+                    verificationMode === "CUSTOMER_CONFIRMED"
+                      ? "Confirm this before requesting review. Do not provide a RuneScape password."
+                      : "Support verifies this requirement without inferring it from RSN.",
+                  needsClientReview: true,
+                }),
+              )
+            : [];
+        await prisma.premiumRequirement.createMany({
+          data: [...automaticRequirements, ...manualRequirements],
+          skipDuplicates: true,
+        });
+      }
+
+      await prisma.premiumFaq.createMany({
+        data: premiumPackage.faqs.map(([question, answer], index) => ({
+          seededKey: `fire-cape-premium:${premiumPackage.key}:faq:${index + 1}`,
+          serviceId: premiumServiceId,
+          configId: premiumConfig.id,
+          packageId: packageRecord.id,
+          question,
+          answer,
+          enabled: true,
           displayOrder: (index + 1) * 10,
-          verificationMode: "AUTOMATIC",
-          customerGuidance:
-            "This public stat can be checked by RSN when eligibility is enabled.",
           needsClientReview: true,
         })),
         skipDuplicates: true,
       });
+    }
 
-      await prisma.bossingGearRequirement.createMany({
-        data: method.gearRequirements.map(
-          ([label, description, verificationMode], index) => ({
-            seededKey: `pvm-support:${boss.key}:${method.key}:gear:${index + 1}`,
-            methodId: methodRecord.id,
-            label,
-            description,
-            isRequired: true,
-            displayOrder: (index + 1) * 10,
-            verificationMode,
-            customerGuidance:
-              verificationMode === "CUSTOMER_CONFIRMED"
-                ? "Confirm this before requesting review. Do not provide a RuneScape password."
-                : "Support verifies this requirement without inferring it from RSN.",
-            needsClientReview: true,
-          }),
-        ),
-        skipDuplicates: true,
+    for (const option of premiumOptionSeeds) {
+      await prisma.premiumOption.upsert({
+        where: { seededKey: `fire-cape-premium:option:${option.key}` },
+        create: {
+          seededKey: `fire-cape-premium:option:${option.key}`,
+          serviceId: premiumServiceId,
+          configId: premiumConfig.id,
+          packageId:
+            option.key === "gear-gap-review"
+              ? premiumPackageIds.get("standard-fire-cape")
+              : undefined,
+          slug: option.slug,
+          name: option.name,
+          description: option.description,
+          enabled: true,
+          displayOrder: option.order,
+          optionType: option.type,
+          pricingMode: option.pricingMode,
+          fixedPriceCents: option.fixedCents,
+          percentBps: option.percentBps,
+          perUnitPriceCents: option.unitCents,
+          minimumQuantity: option.min,
+          maximumQuantity: option.max,
+          defaultQuantity: option.defaultQuantity,
+          customerInputRequired: option.pricingMode === "PER_UNIT",
+          needsClientReview: true,
+        },
+        update: {},
+        select: { id: true },
       });
     }
   }

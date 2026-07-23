@@ -149,6 +149,154 @@ function liveServiceWithBigintOfferingRequirement() {
   };
 }
 
+function livePremiumService() {
+  return {
+    ...liveService,
+    id: "premium-service-1",
+    name: "Premium service",
+    slug: "premium-service",
+    canonicalSlug: "premium-service",
+    engineType: "PREMIUM_SERVICE_CONFIGURATOR" as const,
+    gameModes: [
+      { gameMode: "NORMAL" as const },
+      { gameMode: "IRONMAN" as const },
+    ],
+    premiumConfig: {
+      id: "premium-rule-1",
+      configuratorType: "FIRE_CAPE" as const,
+      enabled: true,
+      normalModeMultiplierBps: 0,
+      ironmanMultiplierBps: 1000,
+      hardcoreIronmanMultiplierBps: 2000,
+      ultimateIronmanMultiplierBps: 3000,
+      discordStreamEnabled: true,
+      discordStreamPercentBps: 200,
+      rsnEligibilityEnabled: true,
+      supportsManualStatFallback: true,
+      standardDeliveryEnabled: true,
+      standardDeliveryLabel: "Standard",
+      standardDeliveryDescription: "Standard queue.",
+      standardDeliveryEstimate: "Confirmed before checkout",
+      standardDeliveryMultiplierBps: 0,
+      standardDeliveryFixedFeeCents: 0,
+      priorityDeliveryEnabled: false,
+      priorityDeliveryLabel: "Priority",
+      priorityDeliveryDescription: "Faster queue.",
+      priorityDeliveryEstimate: "Client review required",
+      priorityDeliveryMultiplierBps: 1500,
+      priorityDeliveryFixedFeeCents: 0,
+      expressDeliveryEnabled: false,
+      expressDeliveryLabel: "Express",
+      expressDeliveryDescription: "Fastest queue.",
+      expressDeliveryEstimate: "Client review required",
+      expressDeliveryMultiplierBps: 3000,
+      expressDeliveryFixedFeeCents: 0,
+      needsClientReview: true,
+    },
+    premiumPackages: [
+      {
+        id: "premium-package-1",
+        seededKey: null,
+        slug: "standard-fire-cape",
+        name: "Standard Fire Cape run",
+        shortDescription:
+          "Representative premium package used to verify staging snapshots.",
+        enabled: true,
+        displayOrder: 10,
+        basePriceCents: 2499,
+        minimumPriceCents: 2499,
+        setupFeeCents: 0,
+        estimatedHours: 2,
+        difficultyTierLabel: "Standard",
+        requirementsSummary: "Public stats plus confirmed gear.",
+        gearNotes: "Gear ownership is customer-confirmed.",
+        unlockNotes: "Unlocks are support verified.",
+        customerGearRequired: true,
+        customerGearLabel: "Customer confirms Fire Cape-ready gear",
+        gearUnconfirmedAdjustmentCents: 700,
+        needsClientReview: true,
+        requirementGroups: [
+          {
+            id: "premium-group-1",
+            seededKey: null,
+            title: "Public combat stats",
+            description: "Allow-listed public stats only.",
+            displayOrder: 10,
+            needsClientReview: true,
+            requirements: [
+              {
+                id: "premium-requirement-1",
+                seededKey: null,
+                label: "Ranged level",
+                description: "Recommended public Ranged level.",
+                requirementType: "SKILL" as const,
+                isRequired: true,
+                displayOrder: 10,
+                verificationMode: "AUTOMATIC" as const,
+                metricKey: "skill.ranged.level",
+                comparisonOperator: "GREATER_THAN_OR_EQUAL" as const,
+                requiredValue: 70,
+                customerGuidance:
+                  "This public stat can be checked by RSN when enabled.",
+                needsClientReview: true,
+              },
+              {
+                id: "premium-requirement-2",
+                seededKey: null,
+                label: "Gear confirmation",
+                description: "Customer confirms gear without sharing secrets.",
+                requirementType: "GEAR" as const,
+                isRequired: true,
+                displayOrder: 20,
+                verificationMode: "CUSTOMER_CONFIRMED" as const,
+                metricKey: null,
+                comparisonOperator: null,
+                requiredValue: null,
+                customerGuidance: "Do not provide a RuneScape password.",
+                needsClientReview: true,
+              },
+            ],
+          },
+        ],
+        faqs: [
+          {
+            id: "premium-faq-1",
+            seededKey: null,
+            question: "Do you need my RuneScape password?",
+            answer:
+              "No. The configurator never asks for passwords, PINs or authentication codes.",
+            enabled: true,
+            displayOrder: 10,
+            needsClientReview: true,
+          },
+        ],
+      },
+    ],
+    premiumOptions: [
+      {
+        id: "premium-option-1",
+        seededKey: null,
+        packageId: "premium-package-1",
+        slug: "supply-support",
+        name: "Supply support",
+        description: "Representative reviewed supply support option.",
+        enabled: true,
+        displayOrder: 10,
+        optionType: "SUPPLIES" as const,
+        pricingMode: "FIXED_FEE" as const,
+        fixedPriceCents: 500,
+        percentBps: 0,
+        perUnitPriceCents: 0,
+        minimumQuantity: 1,
+        maximumQuantity: 1,
+        defaultQuantity: 1,
+        customerInputRequired: false,
+        needsClientReview: true,
+      },
+    ],
+  };
+}
+
 describe("catalogue publication staging", () => {
   it("keeps the live aggregate unchanged while public edits are staged", () => {
     const initial = snapshotFromService(liveService);
@@ -442,6 +590,170 @@ describe("catalogue publication staging", () => {
       stagedCatalogueAggregateSchema.safeParse({
         ...aggregate,
         offerings: [offering],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("snapshots premium configurator data into versioned staged aggregates", () => {
+    const aggregate = snapshotFromService(livePremiumService() as never);
+
+    expect(aggregate.schemaVersion).toBe(5);
+    expect(aggregate.premium?.rule?.configuratorType).toBe("FIRE_CAPE");
+    expect(aggregate.premium?.rule?.supportsManualStatFallback).toBe(true);
+    expect(aggregate.premium?.rule?.rsnEligibilityEnabled).toBe(true);
+    expect(aggregate.premium?.packages[0]?.name).toBe("Standard Fire Cape run");
+    expect(
+      aggregate.premium?.packages[0]?.requirementGroups[0]?.requirements[0],
+    ).toEqual(
+      expect.objectContaining({
+        verificationMode: "AUTOMATIC",
+        requirementType: "SKILL",
+        metricKey: "skill.ranged.level",
+        comparisonOperator: "GREATER_THAN_OR_EQUAL",
+        requiredValue: 70,
+      }),
+    );
+    expect(aggregate.premium?.options[0]?.packageId).toBe("premium-package-1");
+    const revision = revisionSnapshot(livePremiumService()) as unknown as {
+      premiumConfig: { configuratorType: string };
+    };
+    expect(revision.premiumConfig.configuratorType).toBe("FIRE_CAPE");
+    expect(() => JSON.stringify(aggregate)).not.toThrow();
+  });
+
+  it("normalizes older premium snapshots with safe defaults", () => {
+    const aggregate = snapshotFromService(livePremiumService() as never);
+    const premiumPackage = aggregate.premium?.packages[0];
+    const requirementGroup = premiumPackage?.requirementGroups[0];
+    const requirement = requirementGroup?.requirements[0];
+    if (
+      !aggregate.premium?.rule ||
+      !premiumPackage ||
+      !requirementGroup ||
+      !requirement
+    ) {
+      throw new Error("Expected premium aggregate data.");
+    }
+    const legacyRule: Record<string, unknown> = { ...aggregate.premium.rule };
+    delete legacyRule.configuratorType;
+    delete legacyRule.enabled;
+    delete legacyRule.supportsManualStatFallback;
+    const legacyRequirement: Record<string, unknown> = { ...requirement };
+    delete legacyRequirement.requirementType;
+    delete legacyRequirement.comparisonOperator;
+
+    const parsed = stagedCatalogueAggregateSchema.parse({
+      ...aggregate,
+      premium: {
+        ...aggregate.premium,
+        rule: legacyRule,
+        packages: [
+          {
+            ...premiumPackage,
+            requirementGroups: [
+              {
+                ...requirementGroup,
+                requirements: [legacyRequirement],
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(parsed.premium?.rule?.configuratorType).toBe("CUSTOM");
+    expect(parsed.premium?.rule?.enabled).toBe(true);
+    expect(parsed.premium?.rule?.supportsManualStatFallback).toBe(true);
+    expect(
+      parsed.premium?.packages[0]?.requirementGroups[0]?.requirements[0],
+    ).toEqual(
+      expect.objectContaining({
+        requirementType: "SKILL",
+        comparisonOperator: "GREATER_THAN_OR_EQUAL",
+      }),
+    );
+  });
+
+  it("preserves premium snapshots only while the premium engine is selected", () => {
+    const initial = snapshotFromService(livePremiumService() as never);
+    const preserved = applyServiceEdit(initial, {
+      ...initial.service,
+      engineType: "PREMIUM_SERVICE_CONFIGURATOR",
+      gameModes: ["NORMAL"],
+      internalNotes: undefined,
+      publicPreparationNotes:
+        initial.service.publicPreparationNotes ?? undefined,
+      seoTitle: undefined,
+      seoDescription: undefined,
+      publishAt: undefined,
+      unpublishAt: undefined,
+    });
+    const removed = applyServiceEdit(initial, {
+      ...initial.service,
+      engineType: "CATALOGUE_CARD",
+      gameModes: ["NORMAL"],
+      internalNotes: undefined,
+      publicPreparationNotes:
+        initial.service.publicPreparationNotes ?? undefined,
+      seoTitle: undefined,
+      seoDescription: undefined,
+      publishAt: undefined,
+      unpublishAt: undefined,
+    });
+
+    expect(preserved.premium?.packages).toHaveLength(1);
+    expect(removed.premium).toBeNull();
+  });
+
+  it("rejects unsafe premium staged aggregate data", () => {
+    const aggregate = snapshotFromService(livePremiumService() as never);
+    const premium = aggregate.premium;
+    if (!premium) throw new Error("Expected premium aggregate data.");
+    const premiumPackage = premium.packages[0];
+    const premiumOption = premium.options[0];
+    const requirementGroup = premiumPackage?.requirementGroups[0];
+    const requirement = requirementGroup?.requirements[0];
+    if (
+      !premiumPackage ||
+      !premiumOption ||
+      !requirementGroup ||
+      !requirement
+    ) {
+      throw new Error("Expected premium package data.");
+    }
+
+    expect(
+      stagedCatalogueAggregateSchema.safeParse({
+        ...aggregate,
+        premium: {
+          ...premium,
+          options: [{ ...premiumOption, packageId: "missing-package" }],
+        },
+      }).success,
+    ).toBe(false);
+
+    expect(
+      stagedCatalogueAggregateSchema.safeParse({
+        ...aggregate,
+        premium: {
+          ...premium,
+          packages: [
+            {
+              ...premiumPackage,
+              requirementGroups: [
+                {
+                  ...requirementGroup,
+                  requirements: [
+                    {
+                      ...requirement,
+                      metricKey: "quest.fire-cape.complete",
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
       }).success,
     ).toBe(false);
   });

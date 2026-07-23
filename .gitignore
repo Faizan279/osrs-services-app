@@ -18,6 +18,8 @@ test-results/
 # local data and generated files
 *.log
 *.tsbuildinfo
+task-*-review-pack.zip
+task-*-final-review-pack.zip
 .DS_Store
 references/raw/
 src/generated/prisma/

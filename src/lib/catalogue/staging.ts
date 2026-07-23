@@ -11,6 +11,7 @@ import type {
 } from "@/generated/prisma/client";
 import {
   catalogueAvailabilityStates,
+  catalogueComparisonOperators,
   catalogueEngineTypes,
   catalogueGameModes,
   catalogueRequirementTypes,
@@ -26,6 +27,13 @@ import {
   bossingPriceModes,
   bossingPublicStatMetricKeys,
 } from "@/lib/bossing/constants";
+import {
+  premiumConfiguratorTypes,
+  premiumOptionPricingModes,
+  premiumOptionTypes,
+  premiumPublicStatMetricKeys,
+  premiumRequirementTypes,
+} from "@/lib/premium/constants";
 import { skillingSkillKeys } from "@/lib/skilling/constants";
 
 const nullableString = (maximum: number) => z.string().max(maximum).nullable();
@@ -491,6 +499,318 @@ export const stagedBossingConfigSchema = z
     }
   });
 
+function normalizePremiumRequirement(value: unknown) {
+  if (!value || typeof value !== "object") return value;
+  const requirement = value as Record<string, unknown>;
+  if (requirement.verificationMode !== "AUTOMATIC") {
+    return {
+      requirementType: "OTHER",
+      comparisonOperator: null,
+      ...requirement,
+    };
+  }
+  return {
+    requirementType:
+      requirement.requirementType ??
+      (requirement.metricKey === "total.level" ? "ACCOUNT" : "SKILL"),
+    comparisonOperator:
+      requirement.comparisonOperator ?? "GREATER_THAN_OR_EQUAL",
+    ...requirement,
+  };
+}
+
+export const stagedPremiumRequirementSchema = z
+  .preprocess(
+    normalizePremiumRequirement,
+    z.object({
+      id: z.string().min(1).max(30),
+      seededKey: z.string().max(220).nullable(),
+      label: z.string().min(2).max(160),
+      description: z.string().min(5).max(10_000),
+      requirementType: z.enum(premiumRequirementTypes).default("OTHER"),
+      isRequired: z.boolean(),
+      displayOrder: z.number().int().min(0).max(100_000),
+      verificationMode: z.enum(requirementVerificationModes),
+      metricKey: z.string().max(120).nullable(),
+      comparisonOperator: z
+        .enum(catalogueComparisonOperators)
+        .nullable()
+        .default(null),
+      requiredValue: z.number().int().min(1).max(2_277).nullable(),
+      customerGuidance: z.string().max(10_000).nullable(),
+      needsClientReview: z.boolean(),
+    }),
+  )
+  .superRefine((requirement, context) => {
+    const automatic = requirement.verificationMode === "AUTOMATIC";
+    if (
+      automatic &&
+      !["SKILL", "ACCOUNT"].includes(requirement.requirementType)
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["requirementType"],
+        message:
+          "Only skill or account public-stat requirements can be automatic.",
+      });
+    }
+    if (
+      automatic &&
+      !premiumPublicStatMetricKeys.includes(requirement.metricKey as never)
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["metricKey"],
+        message: "Choose a supported public premium statistic.",
+      });
+    }
+    if (automatic && requirement.requiredValue == null) {
+      context.addIssue({
+        code: "custom",
+        path: ["requiredValue"],
+        message: "Automatic premium requirements need a required level.",
+      });
+    }
+    if (automatic && !requirement.comparisonOperator) {
+      context.addIssue({
+        code: "custom",
+        path: ["comparisonOperator"],
+        message: "Automatic premium requirements need a comparison operator.",
+      });
+    }
+    if (
+      !automatic &&
+      (requirement.metricKey ||
+        requirement.comparisonOperator ||
+        requirement.requiredValue != null)
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["verificationMode"],
+        message: "Only automatic premium requirements can use public stats.",
+      });
+    }
+  });
+
+export const stagedPremiumRequirementGroupSchema = z.object({
+  id: z.string().min(1).max(30),
+  seededKey: z.string().max(200).nullable(),
+  title: z.string().min(2).max(160),
+  description: z.string().max(20_000).nullable(),
+  displayOrder: z.number().int().min(0).max(100_000),
+  needsClientReview: z.boolean(),
+  requirements: z.array(stagedPremiumRequirementSchema),
+});
+
+export const stagedPremiumFaqSchema = z.object({
+  id: z.string().min(1).max(30),
+  seededKey: z.string().max(200).nullable(),
+  question: z.string().min(5).max(240),
+  answer: z.string().min(10).max(10_000),
+  enabled: z.boolean(),
+  displayOrder: z.number().int().min(0).max(100_000),
+  needsClientReview: z.boolean(),
+});
+
+export const stagedPremiumPackageSchema = z
+  .object({
+    id: z.string().min(1).max(30),
+    seededKey: z.string().max(180).nullable(),
+    slug: z.string().min(2).max(180),
+    name: z.string().min(2).max(160),
+    shortDescription: z.string().min(10).max(500),
+    enabled: z.boolean(),
+    displayOrder: z.number().int().min(0).max(100_000),
+    basePriceCents: moneyCentsSchema,
+    minimumPriceCents: moneyCentsSchema,
+    setupFeeCents: moneyCentsSchema,
+    estimatedHours: z.number().int().positive().max(100_000).nullable(),
+    difficultyTierLabel: z.string().max(120).nullable(),
+    requirementsSummary: z.string().max(500).nullable(),
+    gearNotes: z.string().max(20_000).nullable(),
+    unlockNotes: z.string().max(20_000).nullable(),
+    customerGearRequired: z.boolean(),
+    customerGearLabel: z.string().max(160).nullable(),
+    gearUnconfirmedAdjustmentCents: moneyCentsSchema,
+    needsClientReview: z.boolean(),
+    requirementGroups: z.array(stagedPremiumRequirementGroupSchema),
+    faqs: z.array(stagedPremiumFaqSchema),
+  })
+  .superRefine((pkg, context) => {
+    if (
+      !normalizedSlugPattern.test(pkg.slug) ||
+      reservedOfferingSlugs.has(pkg.slug)
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["slug"],
+        message: "Premium package slug is invalid or reserved.",
+      });
+    }
+    if (pkg.customerGearRequired && !pkg.customerGearLabel) {
+      context.addIssue({
+        code: "custom",
+        path: ["customerGearLabel"],
+        message: "Gear-confirmation packages need a customer-facing label.",
+      });
+    }
+    const groupIds = pkg.requirementGroups.map(({ id }) => id);
+    if (new Set(groupIds).size !== groupIds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["requirementGroups"],
+        message: "Premium requirement group identifiers must be unique.",
+      });
+    }
+    const requirementIds = pkg.requirementGroups.flatMap((group) =>
+      group.requirements.map(({ id }) => id),
+    );
+    if (new Set(requirementIds).size !== requirementIds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["requirementGroups"],
+        message: "Premium requirement identifiers must be unique.",
+      });
+    }
+    const faqIds = pkg.faqs.map(({ id }) => id);
+    if (new Set(faqIds).size !== faqIds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["faqs"],
+        message: "Premium FAQ identifiers must be unique.",
+      });
+    }
+  });
+
+export const stagedPremiumOptionSchema = z
+  .object({
+    id: z.string().min(1).max(30),
+    seededKey: z.string().max(200).nullable(),
+    packageId: z.string().max(30).nullable(),
+    slug: z.string().min(2).max(180),
+    name: z.string().min(2).max(160),
+    description: z.string().min(10).max(500),
+    enabled: z.boolean(),
+    displayOrder: z.number().int().min(0).max(100_000),
+    optionType: z.enum(premiumOptionTypes),
+    pricingMode: z.enum(premiumOptionPricingModes),
+    fixedPriceCents: moneyCentsSchema,
+    percentBps: basisPointsSchema,
+    perUnitPriceCents: moneyCentsSchema,
+    minimumQuantity: z.number().int().min(1).max(1_000_000),
+    maximumQuantity: z.number().int().min(1).max(1_000_000),
+    defaultQuantity: z.number().int().min(1).max(1_000_000),
+    customerInputRequired: z.boolean(),
+    needsClientReview: z.boolean(),
+  })
+  .superRefine((option, context) => {
+    if (
+      !normalizedSlugPattern.test(option.slug) ||
+      reservedOfferingSlugs.has(option.slug)
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["slug"],
+        message: "Premium option slug is invalid or reserved.",
+      });
+    }
+    if (option.maximumQuantity < option.minimumQuantity) {
+      context.addIssue({
+        code: "custom",
+        path: ["maximumQuantity"],
+        message: "Maximum quantity cannot be lower than minimum quantity.",
+      });
+    }
+    if (
+      option.defaultQuantity < option.minimumQuantity ||
+      option.defaultQuantity > option.maximumQuantity
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["defaultQuantity"],
+        message: "Default quantity must fit inside the configured bounds.",
+      });
+    }
+    if (option.pricingMode === "FIXED_FEE" && option.fixedPriceCents <= 0) {
+      context.addIssue({
+        code: "custom",
+        path: ["fixedPriceCents"],
+        message: "Fixed-fee options need a positive price.",
+      });
+    }
+    if (option.pricingMode === "PERCENT_OF_BASE" && option.percentBps <= 0) {
+      context.addIssue({
+        code: "custom",
+        path: ["percentBps"],
+        message: "Percentage options need positive basis points.",
+      });
+    }
+    if (option.pricingMode === "PER_UNIT" && option.perUnitPriceCents <= 0) {
+      context.addIssue({
+        code: "custom",
+        path: ["perUnitPriceCents"],
+        message: "Per-unit options need a positive unit price.",
+      });
+    }
+  });
+
+export const stagedPremiumRuleSchema = stagedSkillingRuleSchema.extend({
+  configuratorType: z.enum(premiumConfiguratorTypes).default("CUSTOM"),
+  enabled: z.boolean().default(true),
+  rsnEligibilityEnabled: z.boolean(),
+  supportsManualStatFallback: z.boolean().default(true),
+});
+
+export const stagedPremiumConfigSchema = z
+  .object({
+    rule: stagedPremiumRuleSchema.nullable(),
+    packages: z.array(stagedPremiumPackageSchema),
+    options: z.array(stagedPremiumOptionSchema),
+  })
+  .superRefine((config, context) => {
+    const packageIds = config.packages.map(({ id }) => id);
+    const packageSlugs = config.packages.map(({ slug }) => slug);
+    if (new Set(packageIds).size !== packageIds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["packages"],
+        message: "Premium package identifiers must be unique.",
+      });
+    }
+    if (new Set(packageSlugs).size !== packageSlugs.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["packages"],
+        message: "Premium package slugs must be unique.",
+      });
+    }
+    const optionIds = config.options.map(({ id }) => id);
+    const optionSlugs = config.options.map(({ slug }) => slug);
+    if (new Set(optionIds).size !== optionIds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["options"],
+        message: "Premium option identifiers must be unique.",
+      });
+    }
+    if (new Set(optionSlugs).size !== optionSlugs.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["options"],
+        message: "Premium option slugs must be unique.",
+      });
+    }
+    for (const [optionIndex, option] of config.options.entries()) {
+      if (option.packageId && !packageIds.includes(option.packageId)) {
+        context.addIssue({
+          code: "custom",
+          path: ["options", optionIndex, "packageId"],
+          message: "Premium option package does not exist in this snapshot.",
+        });
+      }
+    }
+  });
+
 function upgradeLegacyAggregate(value: unknown) {
   if (!value || typeof value !== "object" || !("schemaVersion" in value))
     return value;
@@ -498,7 +818,7 @@ function upgradeLegacyAggregate(value: unknown) {
   if (legacy.schemaVersion === 1 && Array.isArray(legacy.requirements)) {
     return {
       ...legacy,
-      schemaVersion: 4,
+      schemaVersion: 5,
       requirements: legacy.requirements.map((requirement) => ({
         ...(requirement as Record<string, unknown>),
         customerGuidance: null,
@@ -510,13 +830,23 @@ function upgradeLegacyAggregate(value: unknown) {
       offerings: [],
       skilling: null,
       bossing: null,
+      premium: null,
     };
   }
   if (legacy.schemaVersion === 2) {
-    return { ...legacy, schemaVersion: 4, skilling: null, bossing: null };
+    return {
+      ...legacy,
+      schemaVersion: 5,
+      skilling: null,
+      bossing: null,
+      premium: null,
+    };
   }
   if (legacy.schemaVersion === 3) {
-    return { ...legacy, schemaVersion: 4, bossing: null };
+    return { ...legacy, schemaVersion: 5, bossing: null, premium: null };
+  }
+  if (legacy.schemaVersion === 4) {
+    return { ...legacy, schemaVersion: 5, premium: null };
   }
   return value;
 }
@@ -574,7 +904,7 @@ function validateStagedRequirementRule(
 
 const stagedCatalogueAggregateV3Schema = z
   .object({
-    schemaVersion: z.literal(4),
+    schemaVersion: z.literal(5),
     service: stagedServiceFieldsSchema,
     gameModes: z.array(z.enum(catalogueGameModes)).min(1),
     requirements: z.array(stagedRequirementSchema),
@@ -582,6 +912,7 @@ const stagedCatalogueAggregateV3Schema = z
     offerings: z.array(stagedOfferingSchema),
     skilling: stagedSkillingConfigSchema.nullable(),
     bossing: stagedBossingConfigSchema.nullable(),
+    premium: stagedPremiumConfigSchema.nullable(),
   })
   .superRefine((aggregate, context) => {
     if (new Set(aggregate.gameModes).size !== aggregate.gameModes.length) {
@@ -778,6 +1109,17 @@ export type StagedBossingStatRequirement = z.infer<
 export type StagedBossingGearRequirement = z.infer<
   typeof stagedBossingGearRequirementSchema
 >;
+export type StagedPremiumConfig = z.infer<typeof stagedPremiumConfigSchema>;
+export type StagedPremiumRule = z.infer<typeof stagedPremiumRuleSchema>;
+export type StagedPremiumPackage = z.infer<typeof stagedPremiumPackageSchema>;
+export type StagedPremiumOption = z.infer<typeof stagedPremiumOptionSchema>;
+export type StagedPremiumRequirementGroup = z.infer<
+  typeof stagedPremiumRequirementGroupSchema
+>;
+export type StagedPremiumRequirement = z.infer<
+  typeof stagedPremiumRequirementSchema
+>;
+export type StagedPremiumFaq = z.infer<typeof stagedPremiumFaqSchema>;
 
 type AggregateSource = CatalogueService & {
   gameModes: { gameMode: CatalogueGameMode }[];
@@ -950,6 +1292,86 @@ type AggregateSource = CatalogueService & {
       }>;
     }>;
   }>;
+  premiumConfig?: StagedPremiumRule | null;
+  premiumPackages?: Array<{
+    id: string;
+    seededKey: string | null;
+    slug: string;
+    name: string;
+    shortDescription: string;
+    enabled: boolean;
+    displayOrder: number;
+    basePriceCents: number;
+    minimumPriceCents: number;
+    setupFeeCents: number;
+    estimatedHours: number | null;
+    difficultyTierLabel: string | null;
+    requirementsSummary: string | null;
+    gearNotes: string | null;
+    unlockNotes: string | null;
+    customerGearRequired: boolean;
+    customerGearLabel: string | null;
+    gearUnconfirmedAdjustmentCents: number;
+    needsClientReview: boolean;
+    requirementGroups: Array<{
+      id: string;
+      seededKey: string | null;
+      title: string;
+      description: string | null;
+      displayOrder: number;
+      needsClientReview: boolean;
+      requirements: Array<{
+        id: string;
+        seededKey: string | null;
+        label: string;
+        description: string;
+        isRequired: boolean;
+        displayOrder: number;
+        verificationMode: RequirementVerificationMode;
+        metricKey: string | null;
+        requirementType?: (typeof premiumRequirementTypes)[number];
+        comparisonOperator?:
+          | "GREATER_THAN_OR_EQUAL"
+          | "GREATER_THAN"
+          | "EQUAL"
+          | "LESS_THAN_OR_EQUAL"
+          | "LESS_THAN"
+          | null;
+        requiredValue: number | null;
+        customerGuidance: string | null;
+        needsClientReview: boolean;
+      }>;
+    }>;
+    faqs: Array<{
+      id: string;
+      seededKey: string | null;
+      question: string;
+      answer: string;
+      enabled: boolean;
+      displayOrder: number;
+      needsClientReview: boolean;
+    }>;
+  }>;
+  premiumOptions?: Array<{
+    id: string;
+    seededKey: string | null;
+    packageId: string | null;
+    slug: string;
+    name: string;
+    description: string;
+    enabled: boolean;
+    displayOrder: number;
+    optionType: (typeof premiumOptionTypes)[number];
+    pricingMode: (typeof premiumOptionPricingModes)[number];
+    fixedPriceCents: number;
+    percentBps: number;
+    perUnitPriceCents: number;
+    minimumQuantity: number;
+    maximumQuantity: number;
+    defaultQuantity: number;
+    customerInputRequired: boolean;
+    needsClientReview: boolean;
+  }>;
 };
 
 export type StagedServiceEdit = {
@@ -990,8 +1412,13 @@ export function snapshotFromService(
     source.engineType === "BOSSING_ENGINE" ||
     Boolean(source.bossingRule) ||
     Boolean(source.bossingBosses?.length);
+  const hasPremiumConfig =
+    source.engineType === "PREMIUM_SERVICE_CONFIGURATOR" ||
+    Boolean(source.premiumConfig) ||
+    Boolean(source.premiumPackages?.length) ||
+    Boolean(source.premiumOptions?.length);
   return stagedCatalogueAggregateSchema.parse({
-    schemaVersion: 4,
+    schemaVersion: 5,
     service: {
       categoryId: source.categoryId,
       name: source.name,
@@ -1153,6 +1580,84 @@ export function snapshotFromService(
           })),
         }
       : null,
+    premium: hasPremiumConfig
+      ? {
+          rule: source.premiumConfig ?? null,
+          packages: (source.premiumPackages ?? []).map((pkg) => ({
+            id: pkg.id,
+            seededKey: pkg.seededKey,
+            slug: pkg.slug,
+            name: pkg.name,
+            shortDescription: pkg.shortDescription,
+            enabled: pkg.enabled,
+            displayOrder: pkg.displayOrder,
+            basePriceCents: pkg.basePriceCents,
+            minimumPriceCents: pkg.minimumPriceCents,
+            setupFeeCents: pkg.setupFeeCents,
+            estimatedHours: pkg.estimatedHours,
+            difficultyTierLabel: pkg.difficultyTierLabel,
+            requirementsSummary: pkg.requirementsSummary,
+            gearNotes: pkg.gearNotes,
+            unlockNotes: pkg.unlockNotes,
+            customerGearRequired: pkg.customerGearRequired,
+            customerGearLabel: pkg.customerGearLabel,
+            gearUnconfirmedAdjustmentCents: pkg.gearUnconfirmedAdjustmentCents,
+            needsClientReview: pkg.needsClientReview,
+            requirementGroups: pkg.requirementGroups.map((group) => ({
+              id: group.id,
+              seededKey: group.seededKey,
+              title: group.title,
+              description: group.description,
+              displayOrder: group.displayOrder,
+              needsClientReview: group.needsClientReview,
+              requirements: group.requirements.map((requirement) => ({
+                id: requirement.id,
+                seededKey: requirement.seededKey,
+                label: requirement.label,
+                description: requirement.description,
+                requirementType: requirement.requirementType ?? "OTHER",
+                isRequired: requirement.isRequired,
+                displayOrder: requirement.displayOrder,
+                verificationMode: requirement.verificationMode,
+                metricKey: requirement.metricKey,
+                comparisonOperator: requirement.comparisonOperator ?? null,
+                requiredValue: requirement.requiredValue,
+                customerGuidance: requirement.customerGuidance,
+                needsClientReview: requirement.needsClientReview,
+              })),
+            })),
+            faqs: pkg.faqs.map((faq) => ({
+              id: faq.id,
+              seededKey: faq.seededKey,
+              question: faq.question,
+              answer: faq.answer,
+              enabled: faq.enabled,
+              displayOrder: faq.displayOrder,
+              needsClientReview: faq.needsClientReview,
+            })),
+          })),
+          options: (source.premiumOptions ?? []).map((option) => ({
+            id: option.id,
+            seededKey: option.seededKey,
+            packageId: option.packageId,
+            slug: option.slug,
+            name: option.name,
+            description: option.description,
+            enabled: option.enabled,
+            displayOrder: option.displayOrder,
+            optionType: option.optionType,
+            pricingMode: option.pricingMode,
+            fixedPriceCents: option.fixedPriceCents,
+            percentBps: option.percentBps,
+            perUnitPriceCents: option.perUnitPriceCents,
+            minimumQuantity: option.minimumQuantity,
+            maximumQuantity: option.maximumQuantity,
+            defaultQuantity: option.defaultQuantity,
+            customerInputRequired: option.customerInputRequired,
+            needsClientReview: option.needsClientReview,
+          })),
+        }
+      : null,
   });
 }
 
@@ -1191,6 +1696,10 @@ export function applyServiceEdit(
     bossing:
       input.engineType === "BOSSING_ENGINE"
         ? (aggregate.bossing ?? { rule: null, bosses: [] })
+        : null,
+    premium:
+      input.engineType === "PREMIUM_SERVICE_CONFIGURATOR"
+        ? (aggregate.premium ?? { rule: null, packages: [], options: [] })
         : null,
   });
 }

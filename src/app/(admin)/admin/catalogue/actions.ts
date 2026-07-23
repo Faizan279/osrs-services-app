@@ -52,6 +52,17 @@ import {
   saveBossingMethod,
   saveBossingRule,
 } from "@/lib/bossing/admin";
+import {
+  premiumFaqInputSchema,
+  premiumOptionInputSchema,
+  premiumPackageInputSchema,
+  premiumRequirementGroupInputSchema,
+  premiumRequirementInputSchema,
+  premiumRuleInputSchema,
+  savePremiumOption,
+  savePremiumPackage,
+  savePremiumRule,
+} from "@/lib/premium/admin";
 
 function checked(formData: FormData, key: string) {
   return formData.get(key) === "on";
@@ -175,6 +186,8 @@ function eligibilityRuleFields(formData: FormData) {
 function skillingRuleInput(formData: FormData, serviceId: string) {
   return skillingRuleInputSchema.parse({
     serviceId,
+    configuratorType: formData.get("configuratorType"),
+    enabled: checked(formData, "enabled"),
     normalModeMultiplierBps: formData.get("normalModeMultiplierBps"),
     ironmanMultiplierBps: formData.get("ironmanMultiplierBps"),
     hardcoreIronmanMultiplierBps: formData.get("hardcoreIronmanMultiplierBps"),
@@ -370,6 +383,186 @@ function bossingMethodInput(formData: FormData, serviceId: string) {
     needsClientReview: checked(formData, "needsClientReview"),
     statRequirements: bossingStatRequirements(formData),
     gearRequirements: bossingGearRequirements(formData),
+  });
+}
+
+function premiumRuleInput(formData: FormData, serviceId: string) {
+  return premiumRuleInputSchema.parse({
+    serviceId,
+    normalModeMultiplierBps: formData.get("normalModeMultiplierBps"),
+    ironmanMultiplierBps: formData.get("ironmanMultiplierBps"),
+    hardcoreIronmanMultiplierBps: formData.get("hardcoreIronmanMultiplierBps"),
+    ultimateIronmanMultiplierBps: formData.get("ultimateIronmanMultiplierBps"),
+    discordStreamEnabled: checked(formData, "discordStreamEnabled"),
+    discordStreamPercentBps: formData.get("discordStreamPercentBps"),
+    rsnEligibilityEnabled: checked(formData, "rsnEligibilityEnabled"),
+    supportsManualStatFallback: checked(formData, "supportsManualStatFallback"),
+    standardDeliveryEnabled: checked(formData, "standardDeliveryEnabled"),
+    standardDeliveryLabel: formData.get("standardDeliveryLabel"),
+    standardDeliveryDescription: formData.get("standardDeliveryDescription"),
+    standardDeliveryEstimate: formData.get("standardDeliveryEstimate"),
+    standardDeliveryMultiplierBps: formData.get(
+      "standardDeliveryMultiplierBps",
+    ),
+    standardDeliveryFixedFeeCents: formData.get(
+      "standardDeliveryFixedFeeCents",
+    ),
+    priorityDeliveryEnabled: checked(formData, "priorityDeliveryEnabled"),
+    priorityDeliveryLabel: formData.get("priorityDeliveryLabel"),
+    priorityDeliveryDescription: formData.get("priorityDeliveryDescription"),
+    priorityDeliveryEstimate: formData.get("priorityDeliveryEstimate"),
+    priorityDeliveryMultiplierBps: formData.get(
+      "priorityDeliveryMultiplierBps",
+    ),
+    priorityDeliveryFixedFeeCents: formData.get(
+      "priorityDeliveryFixedFeeCents",
+    ),
+    expressDeliveryEnabled: checked(formData, "expressDeliveryEnabled"),
+    expressDeliveryLabel: formData.get("expressDeliveryLabel"),
+    expressDeliveryDescription: formData.get("expressDeliveryDescription"),
+    expressDeliveryEstimate: formData.get("expressDeliveryEstimate"),
+    expressDeliveryMultiplierBps: formData.get("expressDeliveryMultiplierBps"),
+    expressDeliveryFixedFeeCents: formData.get("expressDeliveryFixedFeeCents"),
+    needsClientReview: checked(formData, "needsClientReview"),
+  });
+}
+
+function premiumRequirementGroups(formData: FormData) {
+  const groups = new Map<
+    string,
+    {
+      title: string;
+      description: string;
+      displayOrder: number;
+      needsClientReview: boolean;
+      requirements: unknown[];
+    }
+  >();
+  String(formData.get("requirementGroups") ?? "")
+    .split(/\r?\n/)
+    .map((row) => row.trim())
+    .filter(Boolean)
+    .forEach((row, index) => {
+      const parts = row.split("|").map((value) => value?.trim());
+      const [
+        groupTitle,
+        groupDescription,
+        label,
+        description,
+        requirementType,
+        verificationMode,
+        metricKey,
+        comparisonOperator,
+        requiredValue,
+        customerGuidance,
+      ] =
+        parts.length >= 10
+          ? parts
+          : [
+              parts[0],
+              parts[1],
+              parts[2],
+              parts[3],
+              parts[4] === "AUTOMATIC" ? "SKILL" : "OTHER",
+              parts[4],
+              parts[5],
+              parts[4] === "AUTOMATIC" ? "GREATER_THAN_OR_EQUAL" : "",
+              parts[6],
+              parts[7],
+            ];
+      const title = groupTitle || "Requirements";
+      const group = groups.get(title) ?? {
+        title,
+        description: groupDescription || "",
+        displayOrder: (groups.size + 1) * 10,
+        needsClientReview: true,
+        requirements: [],
+      };
+      group.requirements.push(
+        premiumRequirementInputSchema.parse({
+          label,
+          description,
+          requirementType,
+          isRequired: true,
+          displayOrder: (index + 1) * 10,
+          verificationMode,
+          metricKey,
+          comparisonOperator,
+          requiredValue,
+          customerGuidance,
+          needsClientReview: true,
+        }),
+      );
+      groups.set(title, group);
+    });
+  return [...groups.values()].map((group) =>
+    premiumRequirementGroupInputSchema.parse(group),
+  );
+}
+
+function premiumFaqs(formData: FormData) {
+  return String(formData.get("faqs") ?? "")
+    .split(/\r?\n/)
+    .map((row) => row.trim())
+    .filter(Boolean)
+    .map((row, index) => {
+      const [question, answer] = row.split("|").map((value) => value?.trim());
+      return premiumFaqInputSchema.parse({
+        question,
+        answer,
+        enabled: true,
+        displayOrder: (index + 1) * 10,
+        needsClientReview: true,
+      });
+    });
+}
+
+function premiumPackageInput(formData: FormData, serviceId: string) {
+  return premiumPackageInputSchema.parse({
+    serviceId,
+    slug: formData.get("slug"),
+    name: formData.get("name"),
+    shortDescription: formData.get("shortDescription"),
+    enabled: checked(formData, "enabled"),
+    displayOrder: formData.get("displayOrder"),
+    basePriceCents: formData.get("basePriceCents"),
+    minimumPriceCents: formData.get("minimumPriceCents"),
+    setupFeeCents: formData.get("setupFeeCents"),
+    estimatedHours: formData.get("estimatedHours"),
+    difficultyTierLabel: formData.get("difficultyTierLabel"),
+    requirementsSummary: formData.get("requirementsSummary"),
+    gearNotes: formData.get("gearNotes"),
+    unlockNotes: formData.get("unlockNotes"),
+    customerGearRequired: checked(formData, "customerGearRequired"),
+    customerGearLabel: formData.get("customerGearLabel"),
+    gearUnconfirmedAdjustmentCents: formData.get(
+      "gearUnconfirmedAdjustmentCents",
+    ),
+    needsClientReview: checked(formData, "needsClientReview"),
+    requirementGroups: premiumRequirementGroups(formData),
+    faqs: premiumFaqs(formData),
+  });
+}
+
+function premiumOptionInput(formData: FormData, serviceId: string) {
+  return premiumOptionInputSchema.parse({
+    serviceId,
+    packageId: formData.get("packageId"),
+    slug: formData.get("slug"),
+    name: formData.get("name"),
+    description: formData.get("description"),
+    enabled: checked(formData, "enabled"),
+    displayOrder: formData.get("displayOrder"),
+    optionType: formData.get("optionType"),
+    pricingMode: formData.get("pricingMode"),
+    fixedPriceCents: formData.get("fixedPriceCents"),
+    percentBps: formData.get("percentBps"),
+    perUnitPriceCents: formData.get("perUnitPriceCents"),
+    minimumQuantity: formData.get("minimumQuantity"),
+    maximumQuantity: formData.get("maximumQuantity"),
+    defaultQuantity: formData.get("defaultQuantity"),
+    customerInputRequired: checked(formData, "customerInputRequired"),
+    needsClientReview: checked(formData, "needsClientReview"),
   });
 }
 
@@ -1110,6 +1303,120 @@ export async function saveBossingMethodAction(formData: FormData) {
       `/admin/catalogue/services/${serviceId}/bossing/methods/${result.id}`,
       "saved",
       result.staged ? "Method changes staged for republish." : "Method saved.",
+    ),
+  );
+}
+
+export async function savePremiumRuleAction(formData: FormData) {
+  const serviceId = idValue(formData, "serviceId");
+  const session = await requireCapability(
+    "products.edit",
+    `/admin/catalogue/services/${serviceId}/premium`,
+  );
+  let staged: boolean;
+  try {
+    const result = await savePremiumRule(
+      premiumRuleInput(formData, serviceId),
+      session.user.id,
+      expectedVersionValue(formData),
+    );
+    staged = result.staged;
+  } catch (error) {
+    redirect(
+      destination(
+        `/admin/catalogue/services/${serviceId}/premium`,
+        "error",
+        catalogueActionErrorMessage(error, "save-premium-rule"),
+      ),
+    );
+  }
+  redirect(
+    destination(
+      `/admin/catalogue/services/${serviceId}/premium`,
+      "saved",
+      staged ? "Premium rules staged for republish." : "Premium rules saved.",
+    ),
+  );
+}
+
+export async function savePremiumPackageAction(formData: FormData) {
+  const serviceId = idValue(formData, "serviceId");
+  const rawPackageId = String(formData.get("packageId") ?? "");
+  const packageId = rawPackageId
+    ? catalogueIdSchema.parse(rawPackageId)
+    : undefined;
+  const session = await requireCapability(
+    "products.edit",
+    `/admin/catalogue/services/${serviceId}/premium`,
+  );
+  let result: Awaited<ReturnType<typeof savePremiumPackage>>;
+  try {
+    result = await savePremiumPackage(
+      premiumPackageInput(formData, serviceId),
+      session.user.id,
+      expectedVersionValue(formData),
+      packageId,
+    );
+  } catch (error) {
+    redirect(
+      destination(
+        packageId
+          ? `/admin/catalogue/services/${serviceId}/premium/packages/${packageId}`
+          : `/admin/catalogue/services/${serviceId}/premium/packages/new`,
+        "error",
+        catalogueActionErrorMessage(error, "save-premium-package"),
+      ),
+    );
+  }
+  revalidatePath(`/admin/catalogue/services/${serviceId}`);
+  redirect(
+    destination(
+      `/admin/catalogue/services/${serviceId}/premium/packages/${result.id}`,
+      "saved",
+      result.staged
+        ? "Premium package changes staged for republish."
+        : "Premium package saved.",
+    ),
+  );
+}
+
+export async function savePremiumOptionAction(formData: FormData) {
+  const serviceId = idValue(formData, "serviceId");
+  const rawOptionId = String(formData.get("optionId") ?? "");
+  const optionId = rawOptionId
+    ? catalogueIdSchema.parse(rawOptionId)
+    : undefined;
+  const session = await requireCapability(
+    "products.edit",
+    `/admin/catalogue/services/${serviceId}/premium`,
+  );
+  let result: Awaited<ReturnType<typeof savePremiumOption>>;
+  try {
+    result = await savePremiumOption(
+      premiumOptionInput(formData, serviceId),
+      session.user.id,
+      expectedVersionValue(formData),
+      optionId,
+    );
+  } catch (error) {
+    redirect(
+      destination(
+        optionId
+          ? `/admin/catalogue/services/${serviceId}/premium/options/${optionId}`
+          : `/admin/catalogue/services/${serviceId}/premium/options/new`,
+        "error",
+        catalogueActionErrorMessage(error, "save-premium-option"),
+      ),
+    );
+  }
+  revalidatePath(`/admin/catalogue/services/${serviceId}`);
+  redirect(
+    destination(
+      `/admin/catalogue/services/${serviceId}/premium/options/${result.id}`,
+      "saved",
+      result.staged
+        ? "Premium option changes staged for republish."
+        : "Premium option saved.",
     ),
   );
 }

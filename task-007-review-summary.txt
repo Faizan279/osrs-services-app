@@ -1,0 +1,56 @@
+Branch: codex/task-007-premium-service-configurators
+Starting main SHA: 2631c2dd53a19e17596bf3a3ee0b40669d009c5f
+Clean reconstructed implementation commit: 4615b8230287e0ba996afea57c0097ecbf9e0a7c
+Clean reconstructed correction commit: 74adb8775c24aaedc11f44f0dc1a734925c5e8cd
+Clean reconstructed documentation status commit: ff2e082ef92e0a80ba5dda717158e57c2aa924c9
+Pre-cleanup local implementation commit retained in local backup bundle: d07674043535e25ccedd784b0e2a6777e659d533
+Pre-cleanup local correction commit retained in local backup bundle: 8c4802379c55789499cfc669f0d87681cc59426c
+Pre-cleanup local documentation status commit retained in local backup bundle: 567ae0bb07ba4e924ab7da1426f918bac7e67e3b
+Git history was reconstructed before the first GitHub push to remove a generated Task 007 review ZIP from the publishable branch.
+
+Migration:
+- prisma/migrations/20260719190000_task007_premium_service_configurators/migration.sql
+
+Correction summary:
+- Added PremiumConfiguratorType and seeded FIRE_CAPE.
+- Added premium config enabled and supportsManualStatFallback.
+- Added PremiumRequirementType and comparisonOperator.
+- Added server-side manual-stat fallback with allow-listed metrics only.
+- Added public choices for RSN lookup, manual stat entry or no stat check.
+- Official RSN results take precedence when lookup succeeds.
+- Manual results are labelled Customer-entered / not independently verified.
+- Gear, quests, unlocks, ownership, bank, inventory, membership and diaries remain non-automatic.
+- Updated admin editing, staging, revision snapshots, seeds, route tests, staging tests, E2E selectors and screenshot selectors.
+
+Validation completed locally:
+- pnpm exec prisma format: passed
+- pnpm db:generate: passed
+- pnpm lint: passed
+- pnpm typecheck: passed
+- pnpm test: 22 files / 123 tests passed
+- pnpm test:seed: 1 file / 2 tests passed
+- pnpm format:check: passed
+- pnpm build: passed
+
+Environment gate not satisfied:
+- docker/mysql/mysqld/mariadbd unavailable on PATH.
+- No Docker/MySQL/MariaDB service found.
+- 127.0.0.1:3306 is not reachable.
+- Free disk was below 100 MB after build.
+
+Not completed after correction commit:
+- pnpm test:e2e
+- Fresh MySQL validation
+- Existing Task 006 MySQL validation
+- pnpm screenshots:task007
+- task-007-final-review-pack.zip
+These final handoff checks are configured to run in GitHub Actions rather than on the user's local machine.
+
+GitHub Actions validation path:
+- .github/workflows/task007-validation.yml runs full Task 007 validation on GitHub-hosted MySQL 8.4 service containers.
+- Local MySQL is optional for handoff validation.
+- Screenshots, validation reports, Playwright output and the final review pack are uploaded as workflow artifacts.
+- Production still requires a real persistent MySQL database.
+- This summary does not claim the workflow has passed until the GitHub Actions run completes successfully.
+
+No merge, deployment or Task 008 work was done.

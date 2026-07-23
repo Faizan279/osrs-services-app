@@ -602,6 +602,148 @@ export async function publishService(
           },
         });
       }
+      await transaction.premiumServiceConfig.deleteMany({
+        where: { serviceId: id },
+      });
+      if (snapshot.premium) {
+        const rule = snapshot.premium.rule ?? {
+          id: stagedId(),
+          configuratorType: "CUSTOM" as const,
+          enabled: true,
+          normalModeMultiplierBps: 0,
+          ironmanMultiplierBps: 1000,
+          hardcoreIronmanMultiplierBps: 2000,
+          ultimateIronmanMultiplierBps: 3000,
+          discordStreamEnabled: true,
+          discordStreamPercentBps: 200,
+          rsnEligibilityEnabled: true,
+          supportsManualStatFallback: true,
+          standardDeliveryEnabled: true,
+          standardDeliveryLabel: "Standard",
+          standardDeliveryDescription:
+            "Standard review queue for premium work.",
+          standardDeliveryEstimate: "Estimate confirmed before checkout",
+          standardDeliveryMultiplierBps: 0,
+          standardDeliveryFixedFeeCents: 0,
+          priorityDeliveryEnabled: false,
+          priorityDeliveryLabel: "Priority",
+          priorityDeliveryDescription:
+            "Faster queue when staff capacity allows.",
+          priorityDeliveryEstimate: "Faster estimate, client review required",
+          priorityDeliveryMultiplierBps: 1500,
+          priorityDeliveryFixedFeeCents: 0,
+          expressDeliveryEnabled: false,
+          expressDeliveryLabel: "Express",
+          expressDeliveryDescription:
+            "Fastest configured queue for eligible premium work.",
+          expressDeliveryEstimate: "Fastest estimate, client review required",
+          expressDeliveryMultiplierBps: 3000,
+          expressDeliveryFixedFeeCents: 0,
+          needsClientReview: true,
+        };
+        const config = await transaction.premiumServiceConfig.create({
+          data: {
+            ...rule,
+            serviceId: id,
+          },
+        });
+        for (const premiumPackage of snapshot.premium.packages) {
+          await transaction.premiumPackage.create({
+            data: {
+              id: premiumPackage.id,
+              serviceId: id,
+              configId: config.id,
+              seededKey: premiumPackage.seededKey,
+              slug: premiumPackage.slug,
+              name: premiumPackage.name,
+              shortDescription: premiumPackage.shortDescription,
+              enabled: premiumPackage.enabled,
+              displayOrder: premiumPackage.displayOrder,
+              basePriceCents: premiumPackage.basePriceCents,
+              minimumPriceCents: premiumPackage.minimumPriceCents,
+              setupFeeCents: premiumPackage.setupFeeCents,
+              estimatedHours: premiumPackage.estimatedHours,
+              difficultyTierLabel: premiumPackage.difficultyTierLabel,
+              requirementsSummary: premiumPackage.requirementsSummary,
+              gearNotes: premiumPackage.gearNotes,
+              unlockNotes: premiumPackage.unlockNotes,
+              customerGearRequired: premiumPackage.customerGearRequired,
+              customerGearLabel: premiumPackage.customerGearLabel,
+              gearUnconfirmedAdjustmentCents:
+                premiumPackage.gearUnconfirmedAdjustmentCents,
+              needsClientReview: premiumPackage.needsClientReview,
+              requirementGroups: {
+                create: premiumPackage.requirementGroups.map((group) => ({
+                  id: group.id,
+                  serviceId: id,
+                  configId: config.id,
+                  seededKey: group.seededKey,
+                  title: group.title,
+                  description: group.description,
+                  displayOrder: group.displayOrder,
+                  needsClientReview: group.needsClientReview,
+                  requirements: {
+                    create: group.requirements.map((requirement) => ({
+                      id: requirement.id,
+                      seededKey: requirement.seededKey,
+                      label: requirement.label,
+                      description: requirement.description,
+                      requirementType: requirement.requirementType,
+                      isRequired: requirement.isRequired,
+                      displayOrder: requirement.displayOrder,
+                      verificationMode: requirement.verificationMode,
+                      metricKey: requirement.metricKey,
+                      comparisonOperator: requirement.comparisonOperator,
+                      requiredValue: requirement.requiredValue,
+                      customerGuidance: requirement.customerGuidance,
+                      needsClientReview: requirement.needsClientReview,
+                    })),
+                  },
+                })),
+              },
+              faqs: {
+                create: premiumPackage.faqs.map((faq) => ({
+                  id: faq.id,
+                  serviceId: id,
+                  configId: config.id,
+                  seededKey: faq.seededKey,
+                  question: faq.question,
+                  answer: faq.answer,
+                  enabled: faq.enabled,
+                  displayOrder: faq.displayOrder,
+                  needsClientReview: faq.needsClientReview,
+                })),
+              },
+            },
+          });
+        }
+        if (snapshot.premium.options.length) {
+          await transaction.premiumOption.createMany({
+            data: snapshot.premium.options.map((option) => ({
+              id: option.id,
+              serviceId: id,
+              configId: config.id,
+              packageId: option.packageId,
+              seededKey: option.seededKey,
+              slug: option.slug,
+              name: option.name,
+              description: option.description,
+              enabled: option.enabled,
+              displayOrder: option.displayOrder,
+              optionType: option.optionType,
+              pricingMode: option.pricingMode,
+              fixedPriceCents: option.fixedPriceCents,
+              percentBps: option.percentBps,
+              perUnitPriceCents: option.perUnitPriceCents,
+              minimumQuantity: option.minimumQuantity,
+              maximumQuantity: option.maximumQuantity,
+              defaultQuantity: option.defaultQuantity,
+              customerInputRequired: option.customerInputRequired,
+              needsClientReview: option.needsClientReview,
+            })),
+          });
+        }
+      }
       await transaction.catalogueMediaReference.deleteMany({
         where: { serviceId: id },
       });
@@ -652,6 +794,26 @@ export async function publishService(
                 },
               },
             },
+          },
+          premiumConfig: true,
+          premiumPackages: {
+            orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+            include: {
+              requirementGroups: {
+                orderBy: [{ displayOrder: "asc" }, { title: "asc" }],
+                include: {
+                  requirements: {
+                    orderBy: [{ displayOrder: "asc" }, { label: "asc" }],
+                  },
+                },
+              },
+              faqs: {
+                orderBy: [{ displayOrder: "asc" }, { question: "asc" }],
+              },
+            },
+          },
+          premiumOptions: {
+            orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
           },
         },
       });
@@ -732,6 +894,20 @@ export async function publishService(
           },
         });
       }
+      if (service.stage && snapshot.premium) {
+        await transaction.auditLog.create({
+          data: {
+            actorId,
+            action: "catalogue.premium.aggregate_republished",
+            targetType: "CatalogueService",
+            targetId: id,
+            metadata: auditMetadata({
+              packageCount: snapshot.premium.packages.length,
+              optionCount: snapshot.premium.options.length,
+            }),
+          },
+        });
+      }
       if (service.stage) {
         const deleted = await transaction.catalogueServiceStage.deleteMany({
           where: {
@@ -805,6 +981,14 @@ export async function archiveService(
             },
           },
         },
+        premiumConfig: true,
+        premiumPackages: {
+          include: {
+            requirementGroups: { include: { requirements: true } },
+            faqs: true,
+          },
+        },
+        premiumOptions: true,
       },
     });
     await transaction.catalogueRevision.create({
@@ -905,6 +1089,17 @@ export async function discardServiceStage(
         },
       });
     }
+    if (snapshot.premium) {
+      await transaction.auditLog.create({
+        data: {
+          actorId,
+          action: "catalogue.premium.changes_discarded",
+          targetType: "CatalogueService",
+          targetId: id,
+          metadata: auditMetadata({ stageVersion: expectedVersion }),
+        },
+      });
+    }
     return service;
   });
 }
@@ -930,6 +1125,14 @@ export async function duplicateService(id: string, actorId: string) {
             },
           },
         },
+        premiumConfig: true,
+        premiumPackages: {
+          include: {
+            requirementGroups: { include: { requirements: true } },
+            faqs: true,
+          },
+        },
+        premiumOptions: true,
       },
     });
     const existing = await transaction.catalogueService.findMany({
@@ -1189,6 +1392,127 @@ export async function duplicateService(id: string, actorId: string) {
               })),
             },
           },
+        });
+      }
+    }
+    if (source.premiumConfig) {
+      const {
+        id: _configId,
+        serviceId: _serviceId,
+        createdAt: _createdAt,
+        updatedAt: _updatedAt,
+        ...config
+      } = source.premiumConfig;
+      void _configId;
+      void _serviceId;
+      void _createdAt;
+      void _updatedAt;
+      const copiedConfig = await transaction.premiumServiceConfig.create({
+        data: {
+          ...config,
+          serviceId: duplicate.id,
+          needsClientReview: true,
+        },
+      });
+      const packageIds = new Map<string, string>();
+      for (const premiumPackage of source.premiumPackages) {
+        const copiedPackage = await transaction.premiumPackage.create({
+          data: {
+            serviceId: duplicate.id,
+            configId: copiedConfig.id,
+            slug: premiumPackage.slug,
+            name: premiumPackage.name,
+            shortDescription: premiumPackage.shortDescription,
+            enabled: premiumPackage.enabled,
+            displayOrder: premiumPackage.displayOrder,
+            basePriceCents: premiumPackage.basePriceCents,
+            minimumPriceCents: premiumPackage.minimumPriceCents,
+            setupFeeCents: premiumPackage.setupFeeCents,
+            estimatedHours: premiumPackage.estimatedHours,
+            difficultyTierLabel: premiumPackage.difficultyTierLabel,
+            requirementsSummary: premiumPackage.requirementsSummary,
+            gearNotes: premiumPackage.gearNotes,
+            unlockNotes: premiumPackage.unlockNotes,
+            customerGearRequired: premiumPackage.customerGearRequired,
+            customerGearLabel: premiumPackage.customerGearLabel,
+            gearUnconfirmedAdjustmentCents:
+              premiumPackage.gearUnconfirmedAdjustmentCents,
+            needsClientReview: true,
+            seededKey: null,
+          },
+        });
+        packageIds.set(premiumPackage.id, copiedPackage.id);
+        for (const group of premiumPackage.requirementGroups) {
+          await transaction.premiumRequirementGroup.create({
+            data: {
+              serviceId: duplicate.id,
+              configId: copiedConfig.id,
+              packageId: copiedPackage.id,
+              title: group.title,
+              description: group.description,
+              displayOrder: group.displayOrder,
+              needsClientReview: true,
+              seededKey: null,
+              requirements: {
+                create: group.requirements.map((requirement) => ({
+                  label: requirement.label,
+                  description: requirement.description,
+                  requirementType: requirement.requirementType,
+                  isRequired: requirement.isRequired,
+                  displayOrder: requirement.displayOrder,
+                  verificationMode: requirement.verificationMode,
+                  metricKey: requirement.metricKey,
+                  comparisonOperator: requirement.comparisonOperator,
+                  requiredValue: requirement.requiredValue,
+                  customerGuidance: requirement.customerGuidance,
+                  needsClientReview: true,
+                  seededKey: null,
+                })),
+              },
+            },
+          });
+        }
+        if (premiumPackage.faqs.length) {
+          await transaction.premiumFaq.createMany({
+            data: premiumPackage.faqs.map((faq) => ({
+              serviceId: duplicate.id,
+              configId: copiedConfig.id,
+              packageId: copiedPackage.id,
+              question: faq.question,
+              answer: faq.answer,
+              enabled: faq.enabled,
+              displayOrder: faq.displayOrder,
+              needsClientReview: true,
+              seededKey: null,
+            })),
+          });
+        }
+      }
+      if (source.premiumOptions.length) {
+        await transaction.premiumOption.createMany({
+          data: source.premiumOptions.map((option) => ({
+            serviceId: duplicate.id,
+            configId: copiedConfig.id,
+            packageId: option.packageId
+              ? (packageIds.get(option.packageId) ?? null)
+              : null,
+            slug: option.slug,
+            name: option.name,
+            description: option.description,
+            enabled: option.enabled,
+            displayOrder: option.displayOrder,
+            optionType: option.optionType,
+            pricingMode: option.pricingMode,
+            fixedPriceCents: option.fixedPriceCents,
+            percentBps: option.percentBps,
+            perUnitPriceCents: option.perUnitPriceCents,
+            minimumQuantity: option.minimumQuantity,
+            maximumQuantity: option.maximumQuantity,
+            defaultQuantity: option.defaultQuantity,
+            customerInputRequired: option.customerInputRequired,
+            needsClientReview: true,
+            seededKey: null,
+          })),
         });
       }
     }

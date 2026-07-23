@@ -46,6 +46,28 @@ function createFakeClient() {
     bossingMethods: new Map<string, { id: string; name: string }>(),
     bossingStatRequirements: new Set<string>(),
     bossingGearRequirements: new Set<string>(),
+    premiumRules: new Map<
+      string,
+      {
+        standardDeliveryEnabled: boolean;
+        priorityDeliveryEnabled: boolean;
+        expressDeliveryEnabled: boolean;
+        rsnEligibilityEnabled: boolean;
+      }
+    >(),
+    premiumPackages: new Map<string, { id: string; name: string }>(),
+    premiumOptions: new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        enabled: boolean;
+        pricingMode: string;
+      }
+    >(),
+    premiumRequirementGroups: new Map<string, { id: string; title: string }>(),
+    premiumRequirements: new Set<string>(),
+    premiumFaqs: new Set<string>(),
     categoryUpdates: [] as unknown[],
     serviceUpdates: [] as unknown[],
     skillingSkillUpdates: [] as unknown[],
@@ -54,6 +76,10 @@ function createFakeClient() {
     bossingBossUpdates: [] as unknown[],
     bossingMethodUpdates: [] as unknown[],
     bossingRuleUpdates: [] as unknown[],
+    premiumRuleUpdates: [] as unknown[],
+    premiumPackageUpdates: [] as unknown[],
+    premiumOptionUpdates: [] as unknown[],
+    premiumRequirementGroupUpdates: [] as unknown[],
   };
   const client = {
     catalogueCategory: {
@@ -289,6 +315,101 @@ function createFakeClient() {
         return { count: args.data.length };
       },
     },
+    premiumServiceConfig: {
+      async upsert(args: {
+        where: { serviceId: string };
+        create: {
+          serviceId: string;
+          standardDeliveryEnabled: boolean;
+          priorityDeliveryEnabled: boolean;
+          expressDeliveryEnabled: boolean;
+          rsnEligibilityEnabled: boolean;
+        };
+        update: unknown;
+      }) {
+        state.premiumRuleUpdates.push(args.update);
+        const key = args.where.serviceId || args.create.serviceId;
+        if (state.premiumRules.has(key)) {
+          return { id: `premium-rule:${key}` };
+        }
+        state.premiumRules.set(key, {
+          standardDeliveryEnabled: args.create.standardDeliveryEnabled,
+          priorityDeliveryEnabled: args.create.priorityDeliveryEnabled,
+          expressDeliveryEnabled: args.create.expressDeliveryEnabled,
+          rsnEligibilityEnabled: args.create.rsnEligibilityEnabled,
+        });
+        return { id: `premium-rule:${key}` };
+      },
+    },
+    premiumPackage: {
+      async upsert(args: {
+        where: { seededKey: string };
+        create: { name: string };
+        update: unknown;
+      }) {
+        state.premiumPackageUpdates.push(args.update);
+        const existing = state.premiumPackages.get(args.where.seededKey);
+        if (existing) return { id: existing.id };
+        const record = {
+          id: `premium-package:${args.where.seededKey}`,
+          name: args.create.name,
+        };
+        state.premiumPackages.set(args.where.seededKey, record);
+        return { id: record.id };
+      },
+    },
+    premiumOption: {
+      async upsert(args: {
+        where: { seededKey: string };
+        create: { name: string; enabled: boolean; pricingMode: string };
+        update: unknown;
+      }) {
+        state.premiumOptionUpdates.push(args.update);
+        const existing = state.premiumOptions.get(args.where.seededKey);
+        if (existing) return { id: existing.id };
+        const record = {
+          id: `premium-option:${args.where.seededKey}`,
+          name: args.create.name,
+          enabled: args.create.enabled,
+          pricingMode: args.create.pricingMode,
+        };
+        state.premiumOptions.set(args.where.seededKey, record);
+        return { id: record.id };
+      },
+    },
+    premiumRequirementGroup: {
+      async upsert(args: {
+        where: { seededKey: string };
+        create: { title: string };
+        update: unknown;
+      }) {
+        state.premiumRequirementGroupUpdates.push(args.update);
+        const existing = state.premiumRequirementGroups.get(
+          args.where.seededKey,
+        );
+        if (existing) return { id: existing.id };
+        const record = {
+          id: `premium-group:${args.where.seededKey}`,
+          title: args.create.title,
+        };
+        state.premiumRequirementGroups.set(args.where.seededKey, record);
+        return { id: record.id };
+      },
+    },
+    premiumRequirement: {
+      async createMany(args: { data: Array<{ seededKey: string }> }) {
+        args.data.forEach((item) =>
+          state.premiumRequirements.add(item.seededKey),
+        );
+        return { count: args.data.length };
+      },
+    },
+    premiumFaq: {
+      async createMany(args: { data: Array<{ seededKey: string }> }) {
+        args.data.forEach((item) => state.premiumFaqs.add(item.seededKey));
+        return { count: args.data.length };
+      },
+    },
   } as unknown as CatalogueSeedClient;
   return { client, state };
 }
@@ -298,8 +419,8 @@ describe("catalogue seed", () => {
     const { client, state } = createFakeClient();
     await seedCatalogue(client);
     expect(state.categories.size).toBe(catalogueCategorySeeds.length);
-    expect(state.services.size).toBe(6);
-    expect(state.requirements.size).toBe(6);
+    expect(state.services.size).toBe(7);
+    expect(state.requirements.size).toBe(7);
     expect(state.offerings.size).toBe(8);
     expect(state.offeringRequirements.size).toBe(8);
     expect(state.skillingRules.size).toBe(1);
@@ -320,6 +441,18 @@ describe("catalogue seed", () => {
     expect(state.bossingMethods.size).toBe(3);
     expect(state.bossingStatRequirements.size).toBe(8);
     expect(state.bossingGearRequirements.size).toBe(6);
+    expect(state.premiumRules.size).toBe(1);
+    expect(state.premiumRules.get("service:fire-cape-premium")).toEqual({
+      standardDeliveryEnabled: true,
+      priorityDeliveryEnabled: false,
+      expressDeliveryEnabled: false,
+      rsnEligibilityEnabled: true,
+    });
+    expect(state.premiumPackages.size).toBe(2);
+    expect(state.premiumRequirementGroups.size).toBe(4);
+    expect(state.premiumRequirements.size).toBe(11);
+    expect(state.premiumFaqs.size).toBe(3);
+    expect(state.premiumOptions.size).toBe(3);
     expect(
       [...state.services.values()].every(
         (service) =>
@@ -345,6 +478,16 @@ describe("catalogue seed", () => {
     });
     state.bossingMethods.get("pvm-support:giant-mole:standard-kills")!.name =
       "Client-edited Mole method";
+    state.premiumRules.set("service:fire-cape-premium", {
+      standardDeliveryEnabled: false,
+      priorityDeliveryEnabled: true,
+      expressDeliveryEnabled: true,
+      rsnEligibilityEnabled: false,
+    });
+    state.premiumPackages.get("fire-cape-premium:standard-fire-cape")!.name =
+      "Client-edited Fire Cape package";
+    state.premiumOptions.get("fire-cape-premium:option:supply-support")!.name =
+      "Client-edited supply support";
     const counts = [
       state.categories.size,
       state.services.size,
@@ -359,6 +502,12 @@ describe("catalogue seed", () => {
       state.bossingMethods.size,
       state.bossingStatRequirements.size,
       state.bossingGearRequirements.size,
+      state.premiumRules.size,
+      state.premiumPackages.size,
+      state.premiumRequirementGroups.size,
+      state.premiumRequirements.size,
+      state.premiumFaqs.size,
+      state.premiumOptions.size,
     ];
     await seedCatalogue(client);
     expect([
@@ -375,6 +524,12 @@ describe("catalogue seed", () => {
       state.bossingMethods.size,
       state.bossingStatRequirements.size,
       state.bossingGearRequirements.size,
+      state.premiumRules.size,
+      state.premiumPackages.size,
+      state.premiumRequirementGroups.size,
+      state.premiumRequirements.size,
+      state.premiumFaqs.size,
+      state.premiumOptions.size,
     ]).toEqual(counts);
     expect(state.categories.get("quests")?.name).toBe("Client quest taxonomy");
     expect(state.services.get("quest-progression")?.name).toBe(
@@ -393,6 +548,18 @@ describe("catalogue seed", () => {
     expect(
       state.bossingMethods.get("pvm-support:giant-mole:standard-kills")?.name,
     ).toBe("Client-edited Mole method");
+    expect(state.premiumRules.get("service:fire-cape-premium")).toEqual({
+      standardDeliveryEnabled: false,
+      priorityDeliveryEnabled: true,
+      expressDeliveryEnabled: true,
+      rsnEligibilityEnabled: false,
+    });
+    expect(
+      state.premiumPackages.get("fire-cape-premium:standard-fire-cape")?.name,
+    ).toBe("Client-edited Fire Cape package");
+    expect(
+      state.premiumOptions.get("fire-cape-premium:option:supply-support")?.name,
+    ).toBe("Client-edited supply support");
     expect(
       state.categoryUpdates.every((value) => JSON.stringify(value) === "{}"),
     ).toBe(true);
@@ -424,6 +591,24 @@ describe("catalogue seed", () => {
     ).toBe(true);
     expect(
       state.bossingRuleUpdates.every((value) => JSON.stringify(value) === "{}"),
+    ).toBe(true);
+    expect(
+      state.premiumRuleUpdates.every((value) => JSON.stringify(value) === "{}"),
+    ).toBe(true);
+    expect(
+      state.premiumPackageUpdates.every(
+        (value) => JSON.stringify(value) === "{}",
+      ),
+    ).toBe(true);
+    expect(
+      state.premiumOptionUpdates.every(
+        (value) => JSON.stringify(value) === "{}",
+      ),
+    ).toBe(true);
+    expect(
+      state.premiumRequirementGroupUpdates.every(
+        (value) => JSON.stringify(value) === "{}",
+      ),
     ).toBe(true);
   });
 });

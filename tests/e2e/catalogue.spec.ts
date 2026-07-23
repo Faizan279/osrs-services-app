@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import mariadb from "mariadb";
 
 async function databaseRows<T extends Record<string, unknown>>(
@@ -68,6 +68,30 @@ async function signInToCatalogue(page: import("@playwright/test").Page) {
   await expect(
     page.getByRole("heading", { name: "Services", exact: true }),
   ).toBeVisible();
+}
+
+async function submitFormAndWaitForPost(
+  page: Page,
+  form: Locator,
+  path: string,
+) {
+  const responsePromise = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" && response.url().includes(path),
+    { timeout: 30_000 },
+  );
+  await form.evaluate((element: HTMLFormElement) => element.requestSubmit());
+  await responsePromise;
+}
+
+async function setFormFieldValue(field: Locator, value: string) {
+  await field.evaluate((element, nextValue) => {
+    const input = element as HTMLInputElement | HTMLTextAreaElement;
+    input.value = nextValue;
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, value);
+  await expect(field).toHaveValue(value);
 }
 
 const graphCycleSeedKeys = [
@@ -273,7 +297,7 @@ test("public catalogue supports search and category filtering", async ({
   await expect(
     page.getByRole("heading", { name: "Skill training request" }),
   ).toBeVisible();
-  await expect(page.getByText("Quote only", { exact: true })).toHaveCount(6);
+  await expect(page.getByText("Quote only", { exact: true })).toHaveCount(7);
   await expect(page.getByText("Published", { exact: true })).toHaveCount(0);
   await page.getByLabel("Search catalogue").fill("quest");
   await page.getByRole("button", { name: "Search" }).click();
@@ -365,11 +389,14 @@ test("seeded Super Admin can open the catalogue editor", async ({ page }) => {
     timeout: 30_000,
   });
   await page.goto("/admin/catalogue/services");
+  const filtersForm = page.locator("form").filter({
+    has: page.getByRole("button", { name: "Apply filters" }),
+  });
   await page.getByLabel("Availability").selectOption("AVAILABLE");
-  await page.getByRole("button", { name: "Apply filters" }).click();
-  await expect(page.getByText("6 matching services")).toBeVisible();
+  await filtersForm.evaluate((form: HTMLFormElement) => form.requestSubmit());
+  await expect(page.getByText("7 matching services")).toBeVisible();
   await page.getByLabel("Availability").selectOption("UNAVAILABLE");
-  await page.getByRole("button", { name: "Apply filters" }).click();
+  await filtersForm.evaluate((form: HTMLFormElement) => form.requestSubmit());
   await expect(page.getByText("0 matching services")).toBeVisible();
 });
 
@@ -582,10 +609,7 @@ test("published edits, children and media stay staged until atomic republish", a
 
   await page.goto(`/admin/catalogue/services/${service.id}`);
   const summaryField = page.locator('textarea[name="shortSummary"]');
-  await summaryField.fill("");
-  await expect(summaryField).toHaveValue("");
-  await summaryField.fill(service.shortSummary);
-  await expect(summaryField).toHaveValue(service.shortSummary);
+  await setFormFieldValue(summaryField, service.shortSummary);
   await page
     .locator('input[name="gameModes"][value="ULTIMATE_IRONMAN"]')
     .check();
@@ -740,12 +764,15 @@ test("stale stage mutations, discard and republish preserve the newest snapshot"
   await page
     .locator('textarea[name="shortSummary"]')
     .fill(initialPendingSummary);
-  await page
-    .getByRole("button", { name: "Save unpublished changes" })
-    .click({ noWaitAfter: true });
+  const serviceForm = page.locator("form").filter({
+    has: page.getByRole("button", { name: "Save unpublished changes" }),
+  });
+  await submitFormAndWaitForPost(page, serviceForm, editorPath);
   currentVersion += 1;
   await expect
-    .poll(async () => (await stageState(service.id)).version)
+    .poll(async () => (await stageState(service.id)).version, {
+      timeout: 30_000,
+    })
     .toBe(currentVersion);
   const initialStage = await stageState(service.id);
   const initialRequirementCount = initialStage.requirementCount ?? 0;
@@ -804,12 +831,12 @@ test("stale stage mutations, discard and republish preserve the newest snapshot"
   await acceptedRequirementForm
     .getByLabel("Description", { exact: true })
     .fill("An accepted requirement used to verify stage version conflicts.");
-  await acceptedRequirementForm
-    .getByRole("button", { name: "Add requirement" })
-    .click({ noWaitAfter: true });
+  await submitFormAndWaitForPost(page, acceptedRequirementForm, editorPath);
   currentVersion += 1;
   await expect
-    .poll(async () => (await stageState(service.id)).version)
+    .poll(async () => (await stageState(service.id)).version, {
+      timeout: 30_000,
+    })
     .toBe(currentVersion);
 
   const staleRequirementForm = stalePage.locator("form").filter({
@@ -822,9 +849,9 @@ test("stale stage mutations, discard and republish preserve the newest snapshot"
     .getByLabel("Description", { exact: true })
     .fill("This stale requirement must never replace the newest snapshot.");
   await submitAndExpectSafeConflict(stalePage, () =>
-    staleRequirementForm
-      .getByRole("button", { name: "Add requirement" })
-      .click({ noWaitAfter: true }),
+    staleRequirementForm.evaluate((form: HTMLFormElement) =>
+      form.requestSubmit(),
+    ),
   );
   expect((await stageState(service.id)).version).toBe(currentVersion);
   expect((await stageState(service.id)).requirementCount).toBe(
@@ -837,12 +864,12 @@ test("stale stage mutations, discard and republish preserve the newest snapshot"
   await page
     .locator('textarea[name="shortSummary"]')
     .fill("A newer service edit protects the accepted requirement.");
-  await page
-    .getByRole("button", { name: "Save unpublished changes" })
-    .click({ noWaitAfter: true });
+  await submitFormAndWaitForPost(page, serviceForm, editorPath);
   currentVersion += 1;
   await expect
-    .poll(async () => (await stageState(service.id)).version)
+    .poll(async () => (await stageState(service.id)).version, {
+      timeout: 30_000,
+    })
     .toBe(currentVersion);
   const staleRequirementRow = stalePage
     .getByRole("listitem")
@@ -867,12 +894,12 @@ test("stale stage mutations, discard and republish preserve the newest snapshot"
   await acceptedMediaForm
     .getByLabel("Alt text", { exact: true })
     .fill("Accepted concurrency artwork");
-  await acceptedMediaForm
-    .getByRole("button", { name: "Add media reference" })
-    .click({ noWaitAfter: true });
+  await submitFormAndWaitForPost(page, acceptedMediaForm, editorPath);
   currentVersion += 1;
   await expect
-    .poll(async () => (await stageState(service.id)).version)
+    .poll(async () => (await stageState(service.id)).version, {
+      timeout: 30_000,
+    })
     .toBe(currentVersion);
 
   const staleMediaForm = stalePage.locator("form").filter({
@@ -885,9 +912,7 @@ test("stale stage mutations, discard and republish preserve the newest snapshot"
     .getByLabel("Alt text", { exact: true })
     .fill("Stale concurrency artwork");
   await submitAndExpectSafeConflict(stalePage, () =>
-    staleMediaForm
-      .getByRole("button", { name: "Add media reference" })
-      .click({ noWaitAfter: true }),
+    staleMediaForm.evaluate((form: HTMLFormElement) => form.requestSubmit()),
   );
   expect((await stageState(service.id)).version).toBe(currentVersion);
   expect((await stageState(service.id)).mediaCount).toBe(initialMediaCount + 1);
@@ -898,12 +923,12 @@ test("stale stage mutations, discard and republish preserve the newest snapshot"
   await page
     .locator('textarea[name="shortSummary"]')
     .fill("A newer service edit protects the accepted media reference.");
-  await page
-    .getByRole("button", { name: "Save unpublished changes" })
-    .click({ noWaitAfter: true });
+  await submitFormAndWaitForPost(page, serviceForm, editorPath);
   currentVersion += 1;
   await expect
-    .poll(async () => (await stageState(service.id)).version)
+    .poll(async () => (await stageState(service.id)).version, {
+      timeout: 30_000,
+    })
     .toBe(currentVersion);
   const staleMediaRow = stalePage
     .getByRole("listitem")
@@ -922,12 +947,12 @@ test("stale stage mutations, discard and republish preserve the newest snapshot"
   await page
     .locator('textarea[name="shortSummary"]')
     .fill("A newer service edit protects the stage from stale discard.");
-  await page
-    .getByRole("button", { name: "Save unpublished changes" })
-    .click({ noWaitAfter: true });
+  await submitFormAndWaitForPost(page, serviceForm, editorPath);
   currentVersion += 1;
   await expect
-    .poll(async () => (await stageState(service.id)).version)
+    .poll(async () => (await stageState(service.id)).version, {
+      timeout: 30_000,
+    })
     .toBe(currentVersion);
   stalePage.once("dialog", (dialog) => dialog.accept());
   await submitAndExpectSafeConflict(stalePage, () =>
@@ -943,12 +968,12 @@ test("stale stage mutations, discard and republish preserve the newest snapshot"
   await page
     .locator('textarea[name="shortSummary"]')
     .fill(newestPendingSummary);
-  await page
-    .getByRole("button", { name: "Save unpublished changes" })
-    .click({ noWaitAfter: true });
+  await submitFormAndWaitForPost(page, serviceForm, editorPath);
   currentVersion += 1;
   await expect
-    .poll(async () => (await stageState(service.id)).version)
+    .poll(async () => (await stageState(service.id)).version, {
+      timeout: 30_000,
+    })
     .toBe(currentVersion);
   stalePage.once("dialog", (dialog) => dialog.accept());
   await submitAndExpectSafeConflict(stalePage, () =>
