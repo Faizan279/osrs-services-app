@@ -12,6 +12,8 @@ Categories, product/service creation and editing, duplication, images, requireme
 
 Base prices, variants, calculator formulas, game-mode multipliers, add-ons, delivery options, discounts, preview, and version history.
 
+Task 008 adds the first protected global pricing center at `/admin/pricing`. It manages draft global rules, immutable published revisions, preview calculations, restore actions and separate `pricing.view`, `pricing.edit` and `pricing.publish` capabilities. Cart, checkout, quote, order and payment administration remain later work.
+
 ## Inventory and capacity
 
 Stock, reserved stock, alerts, account-listing status, gold stock, service capacity, availability, estimated start time, pause, and quote-only mode.

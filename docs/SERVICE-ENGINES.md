@@ -80,6 +80,12 @@ The admin engine supports service-scoped premium rules, package create/edit, opt
 
 This engine does not create carts, checkout sessions, orders, payment records, quote records, fake reviews, global discounts or global price history. Estimate values are preview-only and remain scoped to premium services.
 
+## Global Pricing Layer
+
+Task 008 adds global pricing as a shared layer above the skilling, bossing and premium preview engines. Each engine still owns its service-specific subtotal, line items and validation. When `global_pricing_enabled` is enabled, the public estimate route passes that server-calculated subtotal into the latest published pricing revision and appends global adjustment lines to the response.
+
+Global pricing supports fixed additions, percentage additions, minimum totals and maximum totals scoped globally, by engine type, by category or by service. Draft rules are managed at `/admin/pricing`; public estimates only use published `PricingRevision` snapshots. Cart, checkout, quote, order and payment flows remain deferred.
+
 ## Gold Engine
 
 Supports buy and sell rates, quantity presets, custom quantity, limits, RSN, trade instructions, manual review, stock tracking, and optional Secure 100+ Combat Service.

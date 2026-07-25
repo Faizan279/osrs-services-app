@@ -26,6 +26,8 @@ import {
   calculatePremiumEstimate,
   PremiumValidationError,
 } from "@/lib/premium/estimate";
+import { publicPricingPayload } from "@/lib/pricing/public-response";
+import { applyPublishedPricingIfEnabled } from "@/lib/pricing/server";
 
 export const dynamic = "force-dynamic";
 
@@ -394,6 +396,30 @@ export async function POST(request: NextRequest) {
       includeDiscordStream: input.includeDiscordStream,
       deliverySpeed: input.deliverySpeed,
     });
+    const priced = await applyPublishedPricingIfEnabled({
+      source: {
+        serviceId: service.id,
+        serviceSlug: service.slug,
+        categoryId: service.categoryId,
+        categorySlug: null,
+        engineType: service.engineType,
+        currency: "USD",
+        baseSubtotalCents: estimate.estimatedTotalCents,
+        basePricingLines: estimate.lineItems,
+        selectedReferences: {
+          packageSlug: input.packageSlug,
+          gameMode: input.gameMode,
+          deliverySpeed: input.deliverySpeed,
+          selectedOptionCount: input.optionSelections.length,
+          statCheckMode: input.statCheckMode,
+        },
+        engineConfigurationRevision: {
+          id: service.premiumConfig.id,
+          version: service.version,
+        },
+      },
+    });
+    const publicPricing = publicPricingPayload(priced);
     const selectedOptionNames = input.optionSelections.map((selection) => {
       const option = optionsForPackage.find(
         (candidate) => candidate.slug === selection.slug,
@@ -430,9 +456,14 @@ export async function POST(request: NextRequest) {
           includesDiscordStream: estimate.includesDiscordStream,
           estimatedHours: estimate.estimatedHours,
           delivery: estimate.delivery,
-          lineItems: estimate.lineItems,
-          estimatedTotalCents: estimate.estimatedTotalCents,
-          estimatedTotal: estimate.estimatedTotal,
+          lineItems: publicPricing.lineItems,
+          globalAdjustmentLines: publicPricing.globalAdjustmentLines,
+          minimumMaximumAdjustmentLines:
+            publicPricing.minimumMaximumAdjustmentLines,
+          pricingRevision: publicPricing.pricingRevision,
+          priceSnapshot: publicPricing.priceSnapshot,
+          estimatedTotalCents: publicPricing.estimatedTotalCents,
+          estimatedTotal: publicPricing.estimatedTotal,
           finalPriceNote: estimate.finalPriceNote,
         },
         eligibility: rsn.eligibility?.ok

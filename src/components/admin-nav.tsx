@@ -1,6 +1,11 @@
 "use client";
 
-import { Blocks, LayoutDashboard, Library } from "lucide-react";
+import {
+  Blocks,
+  CircleDollarSign,
+  LayoutDashboard,
+  Library,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -12,6 +17,12 @@ const navigation = [
     href: "/admin/catalogue",
     label: "Catalogue",
     icon: Library,
+    exact: false,
+  },
+  {
+    href: "/admin/pricing",
+    label: "Pricing",
+    icon: CircleDollarSign,
     exact: false,
   },
   {

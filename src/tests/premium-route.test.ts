@@ -3,6 +3,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   catalogueServiceFindFirst: vi.fn(),
   featureFlagFindUnique: vi.fn(),
+  pricingRevisionFindFirst: vi.fn(),
   configuredRsnProvider: vi.fn(),
   consumePublicLookupLimit: vi.fn(),
   lookupPublicStats: vi.fn(),
@@ -12,6 +13,7 @@ vi.mock("@/lib/db/prisma", () => ({
   prisma: {
     catalogueService: { findFirst: mocks.catalogueServiceFindFirst },
     featureFlag: { findUnique: mocks.featureFlagFindUnique },
+    pricingRevision: { findFirst: mocks.pricingRevisionFindFirst },
     publicRateLimitBucket: {
       upsert: vi.fn(),
       deleteMany: vi.fn(),
@@ -38,6 +40,7 @@ vi.mock("@/lib/eligibility/rate-limit", () => ({
 let POST: typeof import("@/app/api/premium/estimate/route").POST;
 
 const rule = {
+  id: "premiumconfig1",
   configuratorType: "FIRE_CAPE" as const,
   enabled: true,
   normalModeMultiplierBps: 0,
@@ -132,6 +135,37 @@ const option = {
   defaultQuantity: 1,
 };
 
+const globalPricingRevision = {
+  schemaVersion: 1,
+  ruleSetId: "globalpricingdraftseed",
+  revisionId: "pricingrevision4",
+  revisionNumber: 4,
+  currencyCode: "USD",
+  publishedAt: "2026-07-23T00:00:00.000Z",
+  rules: [
+    {
+      id: "premiumglobal",
+      publicLabel: "Premium review adjustment",
+      enabled: true,
+      ruleType: "FIXED_ADDITION",
+      amountCents: 500,
+      valueBps: null,
+      priority: 0,
+      exclusiveGroupKey: null,
+      effectiveStart: null,
+      effectiveEnd: null,
+      applicability: [
+        {
+          scope: "SERVICE",
+          engineType: null,
+          categoryId: null,
+          serviceId: "service1",
+        },
+      ],
+    },
+  ],
+};
+
 function request(body: Record<string, unknown>) {
   return new Request("https://example.test/api/premium/estimate", {
     method: "POST",
@@ -151,7 +185,12 @@ function request(body: Record<string, unknown>) {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.featureFlagFindUnique.mockResolvedValue({ enabled: true });
+  mocks.featureFlagFindUnique.mockImplementation(({ where }) =>
+    Promise.resolve({
+      enabled: where.key !== "global_pricing_enabled",
+    }),
+  );
+  mocks.pricingRevisionFindFirst.mockResolvedValue(null);
   mocks.consumePublicLookupLimit.mockResolvedValue(true);
   mocks.configuredRsnProvider.mockReturnValue({ id: "test-provider" });
   mocks.lookupPublicStats.mockResolvedValue({
@@ -170,6 +209,10 @@ beforeEach(() => {
   });
   mocks.catalogueServiceFindFirst.mockResolvedValue({
     id: "service1",
+    slug: "fire-cape",
+    categoryId: "category1",
+    engineType: "PREMIUM_SERVICE_CONFIGURATOR",
+    version: 9,
     gameModes: [{ gameMode: "NORMAL" }],
     premiumConfig: rule,
     premiumPackages: [premiumPackage],
@@ -202,6 +245,40 @@ describe("premium estimate route", () => {
     expect(JSON.stringify(body)).not.toMatch(
       /basePriceCents|premiumConfig|rule|needsClientReview/i,
     );
+    expect(body.estimate.pricingRevision).toBeNull();
+    expect(body.eligibility).toBeNull();
+  });
+
+  it("applies global pricing after the premium configurator estimate", async () => {
+    mocks.featureFlagFindUnique.mockResolvedValue({ enabled: true });
+    mocks.pricingRevisionFindFirst.mockResolvedValue({
+      snapshot: globalPricingRevision,
+    });
+
+    const response = await POST(
+      request({
+        optionSelections: [{ slug: "supply-support" }],
+        estimatedTotalCents: 1,
+      }) as never,
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.estimate.estimatedTotalCents).toBe(14_000);
+    expect(body.estimate.estimatedTotal).toBe("$140.00");
+    expect(body.estimate.globalAdjustmentLines).toEqual([
+      {
+        label: "Premium review adjustment",
+        amountCents: 500,
+      },
+    ]);
+    expect(body.estimate.priceSnapshot.selectedReferences).toEqual(
+      expect.objectContaining({
+        packageSlug: "standard-fire-cape",
+        selectedOptionCount: 1,
+      }),
+    );
+    expect(JSON.stringify(body)).not.toContain("premiumglobal");
     expect(body.eligibility).toBeNull();
   });
 

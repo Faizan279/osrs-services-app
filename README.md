@@ -78,6 +78,12 @@ Estimates are calculated through `POST /api/premium/estimate` with no-store resp
 
 Admin users with `products.view` can view premium configuration under `/admin/catalogue/services/[id]/premium`; edits require `products.edit` server-side. Published premium edits use the Task 003 staged aggregate and remain private until republish. `premium_configurator_enabled` is seeded off by default while seeded package prices/rules are marked `Needs client review`; seed reruns preserve administrator changes to that flag.
 
+## Task 008 global pricing foundation
+
+Global pricing now sits above the skilling, bossing and premium estimate engines. Each engine still calculates its server-authoritative base subtotal first; when `global_pricing_enabled` is enabled, the latest published pricing revision can append fixed additions, percentage additions, minimum totals or maximum totals.
+
+Admin users with `pricing.view` can access `/admin/pricing`; edits require `pricing.edit`; publish, discard and restore require `pricing.publish`. Seeds create a neutral draft rule set and neutral published revision, with `global_pricing_enabled` disabled so Task 005-007 public estimate behavior remains unchanged until the client approves pricing rules.
+
 ### Requirements
 
 - Node.js 24 LTS
@@ -98,7 +104,7 @@ Normal seed runs preserve an existing administrator password. Set `ADMIN_SEED_RE
 
 `DATABASE_ALLOW_PUBLIC_KEY_RETRIEVAL=true` supports the non-TLS Docker MySQL account locally. Leave it disabled in production and use the database provider's TLS configuration.
 
-Local MySQL is optional for Task 007 handoff validation. The draft pull request includes `.github/workflows/task007-validation.yml`, which runs migrations, seeds, unit tests, E2E tests, screenshots and review-pack generation against temporary GitHub-hosted MySQL 8.4 service containers. Those CI credentials are disposable validation-only values and are not production secrets.
+Local MySQL is optional for Task 007 and Task 008 handoff validation. The draft pull request includes `.github/workflows/task008-validation.yml`, which runs migrations, seeds, unit tests, E2E tests, screenshots and review-pack generation against temporary GitHub-hosted MySQL 8.4 service containers. Those CI credentials are disposable validation-only values and are not production secrets.
 
 ```bash
 pnpm install --frozen-lockfile
@@ -133,13 +139,14 @@ pnpm screenshots:task004
 pnpm screenshots:task005
 pnpm screenshots:task006
 pnpm screenshots:task007
+pnpm screenshots:task008
 pnpm format:check
 pnpm build
 ```
 
-Task 002 through Task 007 screenshot capture expects the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
+Task 002 through Task 008 screenshot capture expects the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
 
-For Task 007, the GitHub Actions workflow uploads Playwright results, screenshots, validation reports and the final review ZIP as workflow artifacts. Production deployment still requires a real persistent MySQL database and must not use the temporary CI service container.
+For Task 008, the GitHub Actions workflow uploads Playwright results, screenshots, validation reports and the final review ZIP as workflow artifacts. Production deployment still requires a real persistent MySQL database and must not use the temporary CI service container.
 
 ### Database commands
 

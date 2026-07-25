@@ -1,0 +1,45 @@
+Branch: codex/task-008-global-pricing-foundation
+Starting main SHA: 387be5d140ab50ae796f9108867a68dd9641f869
+Worktree: E:\Codex\osrs-services-task-008
+
+Summary:
+- Added additive global pricing tables and enums.
+- Added global_pricing_enabled, seeded disabled.
+- Added pricing.publish permission.
+- Added neutral pricing seed with one draft rule set and one zero-rule published revision.
+- Added pure global pricing engine.
+- Integrated global pricing after skilling, bossing and premium service engines.
+- Added admin pricing overview, rules, editor, preview and history pages.
+- Added Task 008 validation, screenshot and review-pack scripts.
+- Added Task 008 GitHub Actions validation workflow.
+
+Safety:
+- Public estimates keep Task 005-007 behavior while global_pricing_enabled is false.
+- Published pricing revisions are immutable snapshots.
+- Draft pricing changes stay private until published.
+- RSN values and manual stat entries are not stored in price snapshots.
+- No cart, checkout, quote, order, payment, deployment, push, PR creation or merge was done locally.
+
+Local validation completed so far:
+- pnpm exec prisma format: passed
+- pnpm db:generate: passed
+- pnpm typecheck: passed
+- pnpm lint: passed
+- pnpm test: 23 files / 134 tests passed
+- pnpm test:seed: 1 file / 2 tests passed
+- pnpm format:check: passed
+- pnpm build: passed
+- Focused Vitest suite: 6 files / 32 tests passed
+
+Local environment gate:
+- 127.0.0.1:3306 is not reachable.
+- docker/mysql/mysqld/mariadbd are not available on PATH.
+- MySQL-backed E2E, fresh/upgrade validation and screenshots are configured for GitHub Actions.
+
+Configured GitHub Actions validation:
+- .github/workflows/task008-validation.yml
+- Fresh MySQL 8.4 validation
+- Task 007-to-Task 008 upgrade validation
+- Lint, typecheck, unit tests, seed tests, format check, build and E2E
+- Task 008 screenshots
+- task-008-final-review-pack.zip generation
