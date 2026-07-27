@@ -245,7 +245,9 @@ test("presets, custom limits, manual review, unavailable states and secure servi
   await page.getByRole("radio", { name: /50M/ }).first().check();
   await page.getByLabel("RuneScape name").fill("Valid Rsn");
   await page.getByRole("button", { name: "Estimate trade" }).click();
-  await expect(page.getByText("$12.50")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("$12.50", { exact: true }).first()).toBeVisible({
+    timeout: 30_000,
+  });
 
   await page.goto("/services/gold/gold-trading");
   await runEstimate(page, "1", "at least 10M GP");
