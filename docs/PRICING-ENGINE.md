@@ -104,6 +104,18 @@ Calculation order:
 
 Admin routes under `/admin/pricing` require `pricing.view` for read access, `pricing.edit` for draft rule edits and `pricing.publish` for publish, discard and restore actions. Draft edits use optimistic `draftVersion` checks; published `PricingRevision` rows are immutable snapshots.
 
+## Task 009 gold estimate pricing
+
+Task 009 adds a gold-specific rate engine. Gold rates are stored as integer minor units per 1,000,000 GP and quantities are whole-GP `BigInt` values. The base calculation is:
+
+`(rateMinorUnitsPerMillion * quantityGp + 500000) / 1000000`
+
+The integer `500000` offset gives half-up rounding to whole minor units without floating-point arithmetic.
+
+Customer-buy estimates represent a customer charge. After the gold subtotal and optional Secure 100+ Combat Service line are calculated, the server may pass the subtotal through Task 008 global pricing when `global_pricing_enabled` is enabled and a published pricing revision is available.
+
+Customer-sell estimates represent a payout to the customer. They intentionally do not receive ordinary customer-charge global additions or minimum/maximum customer-charge rules. Future checkout/order work must recalculate gold estimates server-side from the current published gold revision instead of trusting old snapshots.
+
 ## Initial prices
 
 - Existing WooCommerce prices are migration input.
@@ -146,7 +158,7 @@ Each delivery option stores its label, description, fee rule, estimated time, an
 5. Secure 100+ Combat fee
 6. Discord Stream fee
 7. Delivery fee
-8. Task 008 global pricing additions, minimums and maximums when enabled
+8. Task 008 global pricing additions, minimums and maximums when enabled and applicable
 9. Discounts according to stacking rules
 10. Taxes if later applicable
 11. Final total

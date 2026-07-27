@@ -38,6 +38,7 @@
     "skilling_calculator_enabled": false,
     "bossing_calculator_enabled": false,
     "premium_configurator_enabled": false,
-    "global_pricing_enabled": false
+    "global_pricing_enabled": false,
+    "gold_engine_enabled": false
   }
 }

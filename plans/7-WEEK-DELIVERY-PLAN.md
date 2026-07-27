@@ -18,7 +18,7 @@ Skilling, Bossing, Fire Cape, Infernal Cape, Colosseum, Yama, Royal Titans, Corr
 
 ## Week 5 — Gold, accounts, products, and checkout
 
-Buy and sell Gold, stock and rates, prebuilt accounts, custom builds, Items, Bonds, Outfits, guest checkout, orders, quotes, and payment interfaces.
+Buy and sell Gold, stock and rates, prebuilt accounts, custom builds, Items, Bonds, Outfits, guest checkout, orders, quotes, and payment interfaces. Task 009 completes the gold trading estimate, rates, revisions and inventory-ledger foundation; cart, checkout, account marketplaces and payment interfaces remain later work.
 
 ## Week 6 — Customer dashboard and live chat
 

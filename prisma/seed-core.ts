@@ -104,6 +104,7 @@ export const defaultRoles: Array<{
       permissions.ordersView,
       permissions.ordersUpdate,
       permissions.chatRespond,
+      permissions.goldView,
     ],
   },
 ];
@@ -136,6 +137,7 @@ export const defaultFeatureFlags = [
     false,
   ],
   ["global_pricing_enabled", "Published global pricing adjustments", false],
+  ["gold_engine_enabled", "Public gold trading estimates", false],
 ] as const;
 
 export async function seedDatabase(

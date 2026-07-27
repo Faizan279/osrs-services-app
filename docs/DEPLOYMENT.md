@@ -14,6 +14,8 @@ Local MySQL is optional for Task 007 validation handoff. The draft PR workflow `
 
 Local MySQL is also optional for Task 008 handoff validation. `.github/workflows/task008-validation.yml` runs fresh MySQL validation, Task 007-to-Task 008 upgrade validation, tests, screenshots and review-pack generation on GitHub-hosted MySQL 8.4 service containers.
 
+Local MySQL remains optional for Task 009 handoff validation. `.github/workflows/task009-validation.yml` runs fresh MySQL validation, Task 008-to-Task 009 upgrade validation, tests, screenshots and review-pack generation on GitHub-hosted MySQL 8.4 service containers.
+
 ## Staging
 
 Create a staging environment before production. Test Hostinger's Node.js application support first. Use an alternative managed Node environment or VPS if the required custom server or real-time connections are limited.
@@ -105,3 +107,27 @@ Before enabling global pricing outside validation:
 - review Task 008 validation artifacts when using PR-based handoff validation
 
 Rollback is manual. First disable `global_pricing_enabled`, then export any admin-edited pricing rule sets, rules, revisions and audit rows that must be retained. Remove applicability rows, rules, revisions and rule sets in dependency order only after review. Do not use `prisma migrate reset` against shared or production data.
+
+## Gold trading deployment notes
+
+Task 009 adds migration `20260725130000_task009_gold_trading_engine`. It is additive and creates gold markets, draft/published rate sets, rates, immutable rate revisions, quantity presets and inventory ledger entries.
+
+Normal seed runs create:
+
+- the Gold category and `gold-trading` catalogue service
+- one paused gold market
+- draft customer-buy and customer-sell rates marked `Needs client review`
+- quantity presets
+- zero gold stock and zero buying capacity
+- `gold_engine_enabled` disabled
+
+Before enabling gold trading outside validation:
+
+- run `pnpm db:migrate` without reset
+- run `pnpm db:seed` twice and confirm edited gold rates, presets, balances, ledgers, revisions and feature flags are preserved
+- review `/admin/gold` and publish a client-approved gold-rate revision
+- enter real stock and buying capacity through inventory adjustments
+- confirm `gold_engine_enabled` is intentionally enabled
+- verify public buy/sell estimates and mobile screenshots against staging data
+
+Rollback is manual. First disable `gold_engine_enabled`, then export any admin-edited gold rates, revisions, presets, inventory ledgers and audit rows that must be retained. Remove ledger entries, presets, revisions, rates, rate sets and markets in dependency order only after review. Do not use `prisma migrate reset` against shared or production data.

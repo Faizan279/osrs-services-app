@@ -14,6 +14,8 @@ Guests may order with email, display name, RSN/game ID, optional Discord usernam
 
 Task 008 does not create cart, checkout, quote, order or payment records. It prepares immutable pricing snapshots for future flows, but the server must still recalculate before order creation and mark old snapshots for repricing when the service configuration or published pricing revision has changed.
 
+Task 009 gold estimates also remain preview-only. `GoldEstimateSnapshotV1` is JSON-safe and excludes RSN, customer contact data, internal notes, ledger data and authentication details. Future cart and checkout flows must recalculate gold buy/sell amounts from the current server-side published gold revision, stock or buying-capacity state, and applicable global-pricing rules; Task 009 estimates never reserve or deduct inventory.
+
 ## Suggested order statuses
 
 - Awaiting Payment

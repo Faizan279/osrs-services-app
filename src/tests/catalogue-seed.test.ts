@@ -419,8 +419,8 @@ describe("catalogue seed", () => {
     const { client, state } = createFakeClient();
     await seedCatalogue(client);
     expect(state.categories.size).toBe(catalogueCategorySeeds.length);
-    expect(state.services.size).toBe(7);
-    expect(state.requirements.size).toBe(7);
+    expect(state.services.size).toBe(8);
+    expect(state.requirements.size).toBe(8);
     expect(state.offerings.size).toBe(8);
     expect(state.offeringRequirements.size).toBe(8);
     expect(state.skillingRules.size).toBe(1);
