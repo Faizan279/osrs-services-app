@@ -365,7 +365,7 @@ async function runGoldEstimate(
   await page.getByLabel("Custom quantity in millions of GP").fill(quantity);
   await page.getByLabel("RuneScape name").fill("Valid Rsn");
   await page.getByRole("button", { name: "Estimate trade" }).click();
-  await page.getByText(expectedText).waitFor();
+  await page.getByText(expectedText).first().waitFor();
   await settle(page);
 }
 
