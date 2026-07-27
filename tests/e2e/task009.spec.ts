@@ -195,7 +195,7 @@ async function runEstimate(page: Page, quantity: string, expectedText: string) {
 
 test.describe.configure({ mode: "serial" });
 
-test.beforeEach(async (_fixtures, testInfo) => {
+test.beforeEach(async ({}, testInfo) => {
   test.skip(
     testInfo.project.name !== "desktop-chromium",
     "Task 009 E2E mutates shared deterministic gold fixture once.",
