@@ -206,28 +206,93 @@ enum GoldSecureServicePricingMode {
   BASIS_POINTS
 }
 
+enum AccountListingStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum AccountListingAvailability {
+  AVAILABLE
+  HELD
+  SOLD
+  PAUSED
+  UNAVAILABLE
+}
+
+enum AccountListingApprovalStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum AccountStatType {
+  SKILL
+  COMBAT
+  QUEST
+  SUMMARY
+  OTHER
+}
+
+enum AccountUnlockType {
+  QUEST
+  DIARY
+  MINIGAME
+  BOSS_ACCESS
+  RAID
+  PRAYER
+  SPELLBOOK
+  TRANSPORTATION
+  UNTRADEABLE
+  ACCOUNT_PROGRESSION
+  OTHER
+}
+
+enum AccountHoldStatus {
+  ACTIVE
+  RELEASED
+  EXPIRED
+  CANCELLED
+}
+
+enum AccountHandoverReadiness {
+  INTERNAL_REVIEW_REQUIRED
+  READY_FOR_FUTURE_HANDOVER
+  NEEDS_MANUAL_REVIEW
+}
+
+enum AccountImageType {
+  COVER
+  GALLERY
+  STAT_OVERVIEW
+  UNLOCK_OVERVIEW
+}
+
 model User {
-  id                 String                     @id @default(cuid()) @db.VarChar(30)
-  email              String                     @unique @db.VarChar(191)
-  emailVerified      DateTime?
-  name               String?                    @db.VarChar(120)
-  image              String?                    @db.VarChar(500)
-  passwordHash       String                     @db.VarChar(255)
-  status             UserStatus                 @default(ACTIVE)
-  createdAt          DateTime                   @default(now())
-  updatedAt          DateTime                   @updatedAt
-  roles              UserRole[]
-  sessions           Session[]
-  auditLogs          AuditLog[]                 @relation("AuditActor")
-  servicesCreated    CatalogueService[]         @relation("CatalogueServiceCreatedBy")
-  servicesUpdated    CatalogueService[]         @relation("CatalogueServiceUpdatedBy")
-  catalogueRevisions CatalogueRevision[]        @relation("CatalogueRevisionActor")
-  catalogueStages    CatalogueServiceStage[]    @relation("CatalogueServiceStageUpdatedBy")
-  pricingRuleSets    PricingRuleSet[]           @relation("PricingRuleSetPublishedBy")
-  pricingRevisions   PricingRevision[]          @relation("PricingRevisionPublishedBy")
-  goldRateSets       GoldRateSet[]              @relation("GoldRateSetPublishedBy")
-  goldRateRevisions  GoldRateRevision[]         @relation("GoldRateRevisionPublishedBy")
-  goldLedgerEntries  GoldInventoryLedgerEntry[] @relation("GoldInventoryLedgerActor")
+  id                  String                     @id @default(cuid()) @db.VarChar(30)
+  email               String                     @unique @db.VarChar(191)
+  emailVerified       DateTime?
+  name                String?                    @db.VarChar(120)
+  image               String?                    @db.VarChar(500)
+  passwordHash        String                     @db.VarChar(255)
+  status              UserStatus                 @default(ACTIVE)
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+  roles               UserRole[]
+  sessions            Session[]
+  auditLogs           AuditLog[]                 @relation("AuditActor")
+  servicesCreated     CatalogueService[]         @relation("CatalogueServiceCreatedBy")
+  servicesUpdated     CatalogueService[]         @relation("CatalogueServiceUpdatedBy")
+  catalogueRevisions  CatalogueRevision[]        @relation("CatalogueRevisionActor")
+  catalogueStages     CatalogueServiceStage[]    @relation("CatalogueServiceStageUpdatedBy")
+  pricingRuleSets     PricingRuleSet[]           @relation("PricingRuleSetPublishedBy")
+  pricingRevisions    PricingRevision[]          @relation("PricingRevisionPublishedBy")
+  goldRateSets        GoldRateSet[]              @relation("GoldRateSetPublishedBy")
+  goldRateRevisions   GoldRateRevision[]         @relation("GoldRateRevisionPublishedBy")
+  goldLedgerEntries   GoldInventoryLedgerEntry[] @relation("GoldInventoryLedgerActor")
+  accountRevisions    AccountListingRevision[]   @relation("AccountListingRevisionPublishedBy")
+  accountHolds        AccountListingHold[]       @relation("AccountListingHoldCreatedBy")
+  accountHoldReleases AccountListingHold[]       @relation("AccountListingHoldReleasedBy")
 
   @@index([status])
 }
@@ -391,6 +456,7 @@ model CatalogueService {
   premiumFaqs                       PremiumFaq[]
   pricingScopes                     PricingRuleApplicability[]
   goldMarket                        GoldMarket?
+  accountMarketplace                AccountMarketplace?
 
   @@unique([categoryId, slug])
   @@index([publicationStatus, publishAt, unpublishAt])
@@ -1110,6 +1176,227 @@ model GoldInventoryLedgerEntry {
   @@index([marketId, createdAt])
   @@index([entryType, createdAt])
   @@index([actorId, createdAt])
+}
+
+model AccountMarketplace {
+  id                            String                     @id @default(cuid()) @db.VarChar(30)
+  stableKey                     String                     @unique @db.VarChar(120)
+  serviceId                     String                     @unique @db.VarChar(30)
+  publicName                    String                     @db.VarChar(160)
+  slug                          String                     @unique @db.VarChar(180)
+  description                   String                     @db.Text
+  currencyCode                  String                     @default("USD") @db.Char(3)
+  availabilityState             AccountListingAvailability @default(PAUSED)
+  publicMarketplaceInstructions String                     @db.Text
+  internalNotes                 String?                    @db.Text
+  defaultSort                   String                     @default("featured") @db.VarChar(40)
+  needsClientReview             Boolean                    @default(true)
+  draftVersion                  Int                        @default(1)
+  createdAt                     DateTime                   @default(now())
+  updatedAt                     DateTime                   @updatedAt
+  service                       CatalogueService           @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  listings                      AccountListing[]
+
+  @@index([serviceId])
+  @@index([availabilityState])
+  @@index([currencyCode])
+}
+
+model AccountListing {
+  id                    String                           @id @default(cuid()) @db.VarChar(30)
+  stableKey             String                           @unique @db.VarChar(120)
+  marketplaceId         String                           @db.VarChar(30)
+  publicTitle           String                           @db.VarChar(180)
+  slug                  String                           @db.VarChar(180)
+  shortDescription      String                           @db.VarChar(500)
+  fullDescription       String                           @db.Text
+  internalReferenceCode String                           @unique @db.VarChar(120)
+  currencyCode          String                           @default("USD") @db.Char(3)
+  basePriceCents        Int
+  gameMode              CatalogueGameMode                @default(NORMAL)
+  combatLevel           Int?
+  totalLevel            Int?
+  questPoints           Int?
+  accountAgeLabel       String?                          @db.VarChar(120)
+  membershipStateLabel  String?                          @db.VarChar(120)
+  availability          AccountListingAvailability       @default(PAUSED)
+  publicationStatus     AccountListingStatus             @default(DRAFT)
+  approvalStatus        AccountListingApprovalStatus     @default(PENDING_REVIEW)
+  isFeatured            Boolean                          @default(false)
+  sortOrder             Int                              @default(0)
+  publicBadgeText       String?                          @db.VarChar(120)
+  rejectionReason       String?                          @db.Text
+  needsClientReview     Boolean                          @default(true)
+  concurrencyVersion    Int                              @default(1)
+  publishedAt           DateTime?
+  archivedAt            DateTime?
+  createdAt             DateTime                         @default(now())
+  updatedAt             DateTime                         @updatedAt
+  marketplace           AccountMarketplace               @relation(fields: [marketplaceId], references: [id], onDelete: Cascade)
+  stats                 AccountListingStat[]
+  unlocks               AccountListingUnlock[]
+  features              AccountListingFeature[]
+  images                AccountListingImage[]
+  revisions             AccountListingRevision[]
+  holds                 AccountListingHold[]
+  handoverChecklist     AccountListingHandoverChecklist?
+
+  @@unique([marketplaceId, slug])
+  @@index([marketplaceId, publicationStatus, approvalStatus, availability, sortOrder])
+  @@index([marketplaceId, isFeatured, sortOrder])
+  @@index([basePriceCents])
+  @@index([combatLevel])
+  @@index([totalLevel])
+  @@index([gameMode])
+  @@index([publishedAt])
+}
+
+model AccountListingStat {
+  id                 String          @id @default(cuid()) @db.VarChar(30)
+  stableKey          String          @unique @db.VarChar(160)
+  listingId          String          @db.VarChar(30)
+  statKey            String          @db.VarChar(80)
+  publicLabel        String          @db.VarChar(120)
+  value              Int
+  maximumValue       Int?
+  statType           AccountStatType @default(SKILL)
+  statGroup          String          @db.VarChar(120)
+  sortOrder          Int             @default(0)
+  isPublic           Boolean         @default(true)
+  needsClientReview  Boolean         @default(true)
+  concurrencyVersion Int             @default(1)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  listing            AccountListing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, statKey])
+  @@index([listingId, isPublic, sortOrder])
+  @@index([statKey, value])
+}
+
+model AccountListingUnlock {
+  id                 String            @id @default(cuid()) @db.VarChar(30)
+  stableKey          String            @unique @db.VarChar(160)
+  listingId          String            @db.VarChar(30)
+  unlockKey          String            @db.VarChar(100)
+  publicLabel        String            @db.VarChar(160)
+  description        String?           @db.Text
+  unlockType         AccountUnlockType
+  sortOrder          Int               @default(0)
+  isPublic           Boolean           @default(true)
+  filterable         Boolean           @default(true)
+  needsClientReview  Boolean           @default(true)
+  concurrencyVersion Int               @default(1)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  listing            AccountListing    @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, unlockKey])
+  @@index([listingId, isPublic, sortOrder])
+  @@index([unlockKey, filterable])
+  @@index([unlockType])
+}
+
+model AccountListingFeature {
+  id                 String         @id @default(cuid()) @db.VarChar(30)
+  stableKey          String         @unique @db.VarChar(160)
+  listingId          String         @db.VarChar(30)
+  featureKey         String         @db.VarChar(100)
+  publicLabel        String         @db.VarChar(160)
+  description        String?        @db.Text
+  sortOrder          Int            @default(0)
+  isPublic           Boolean        @default(true)
+  filterable         Boolean        @default(true)
+  needsClientReview  Boolean        @default(true)
+  concurrencyVersion Int            @default(1)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  listing            AccountListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, featureKey])
+  @@index([listingId, isPublic, sortOrder])
+  @@index([featureKey, filterable])
+}
+
+model AccountListingImage {
+  id                 String           @id @default(cuid()) @db.VarChar(30)
+  stableKey          String           @unique @db.VarChar(160)
+  listingId          String           @db.VarChar(30)
+  imageType          AccountImageType @default(GALLERY)
+  assetPath          String           @db.VarChar(500)
+  altText            String           @db.VarChar(240)
+  caption            String?          @db.VarChar(240)
+  sortOrder          Int              @default(0)
+  isPublic           Boolean          @default(true)
+  needsClientReview  Boolean          @default(true)
+  concurrencyVersion Int              @default(1)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  listing            AccountListing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, imageType, isPublic, sortOrder])
+}
+
+model AccountListingRevision {
+  id                    String         @id @default(cuid()) @db.VarChar(30)
+  listingId             String         @db.VarChar(30)
+  revisionNumber        Int
+  snapshotSchemaVersion Int            @default(1)
+  snapshot              Json
+  publishedAt           DateTime       @default(now())
+  publishedById         String?        @db.VarChar(30)
+  createdAt             DateTime       @default(now())
+  listing               AccountListing @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  publishedBy           User?          @relation("AccountListingRevisionPublishedBy", fields: [publishedById], references: [id], onDelete: SetNull)
+
+  @@unique([listingId, revisionNumber])
+  @@index([listingId, publishedAt])
+  @@index([publishedById])
+}
+
+model AccountListingHold {
+  id                   String                     @id @default(cuid()) @db.VarChar(30)
+  stableKey            String                     @unique @db.VarChar(160)
+  listingId            String                     @db.VarChar(30)
+  status               AccountHoldStatus          @default(ACTIVE)
+  previousAvailability AccountListingAvailability @default(AVAILABLE)
+  startsAt             DateTime                   @default(now())
+  expiresAt            DateTime
+  reason               String                     @db.VarChar(240)
+  createdById          String?                    @db.VarChar(30)
+  releasedAt           DateTime?
+  releasedById         String?                    @db.VarChar(30)
+  concurrencyVersion   Int                        @default(1)
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  listing              AccountListing             @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  createdBy            User?                      @relation("AccountListingHoldCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  releasedBy           User?                      @relation("AccountListingHoldReleasedBy", fields: [releasedById], references: [id], onDelete: SetNull)
+
+  @@index([listingId, status, expiresAt])
+  @@index([createdById, createdAt])
+  @@index([releasedById, releasedAt])
+}
+
+model AccountListingHandoverChecklist {
+  id                             String                   @id @default(cuid()) @db.VarChar(30)
+  listingId                      String                   @unique @db.VarChar(30)
+  listingSecurityReviewed        Boolean                  @default(false)
+  emailTransferRequired          Boolean                  @default(true)
+  recoveryReviewRequired         Boolean                  @default(true)
+  authenticatorResetRequired     Boolean                  @default(true)
+  bankPinResetRequired           Boolean                  @default(true)
+  previousSessionsReviewRequired Boolean                  @default(true)
+  handoverInstructionsPrepared   Boolean                  @default(false)
+  ownershipEvidenceReviewed      Boolean                  @default(false)
+  readyForFutureHandover         Boolean                  @default(false)
+  finalAdminApprovalRequired     Boolean                  @default(true)
+  readiness                      AccountHandoverReadiness @default(INTERNAL_REVIEW_REQUIRED)
+  needsClientReview              Boolean                  @default(true)
+  concurrencyVersion             Int                      @default(1)
+  createdAt                      DateTime                 @default(now())
+  updatedAt                      DateTime                 @updatedAt
+  listing                        AccountListing           @relation(fields: [listingId], references: [id], onDelete: Cascade)
 }
 
 model PricingRuleSet {

@@ -1,0 +1,386 @@
+name: Task 010 validation
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - codex/task-010-account-marketplace
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  NODE_VERSION: "24"
+  PNPM_VERSION: "11.7.0"
+  DATABASE_HOST: 127.0.0.1
+  DATABASE_PORT: "3306"
+  DATABASE_USER: osrs
+  DATABASE_PASSWORD: task010-app-password
+  DATABASE_ALLOW_PUBLIC_KEY_RETRIEVAL: "true"
+  AUTH_SECRET: task010-ci-auth-secret-at-least-32-characters
+  ELIGIBILITY_HMAC_SECRET: task010-ci-eligibility-secret-at-least-32-characters
+  ADMIN_SEED_EMAIL: task010-admin@example.test
+  ADMIN_SEED_PASSWORD: Task010-CI-Admin-Password-Only
+  ADMIN_SEED_NAME: Task 010 CI Admin
+  ADMIN_SEED_RESET_PASSWORD: "false"
+  RSN_DEVELOPMENT_FIXTURE: "true"
+  CI: "true"
+
+jobs:
+  task010-validation:
+    name: task010-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      DATABASE_NAME: osrs_services
+      DATABASE_URL: mysql://osrs:task010-app-password@127.0.0.1:3306/osrs_services
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: task010-root-password
+          MYSQL_DATABASE: osrs_services
+          MYSQL_USER: osrs
+          MYSQL_PASSWORD: task010-app-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uosrs -ptask010-app-password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Enable Corepack and install pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@${PNPM_VERSION} --activate
+          pnpm --version
+
+      - name: Resolve pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-node24-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node24-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Prisma format
+        run: pnpm exec prisma format
+
+      - name: Verify Prisma format did not change tracked files
+        run: git diff --exit-code
+
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Apply fresh migrations
+        run: pnpm db:migrate
+
+      - name: Seed fresh database
+        run: pnpm db:seed
+
+      - name: Write fresh database validation report
+        run: pnpm exec tsx scripts/validate-task010-fresh-db.ts
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Seed tests
+        run: pnpm test:seed
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Build
+        env:
+          RSN_DEVELOPMENT_FIXTURE: "false"
+        run: pnpm build
+
+      - name: E2E tests
+        env:
+          PLAYWRIGHT_USE_DEV_SERVER: "true"
+          RSN_DEVELOPMENT_FIXTURE: "true"
+        run: pnpm test:e2e
+
+      - name: Capture Task 010 screenshots
+        env:
+          RSN_DEVELOPMENT_FIXTURE: "false"
+        run: |
+          pnpm build
+          pnpm start > next-task010-screenshots.log 2>&1 &
+          app_pid=$!
+          trap 'kill "$app_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..90}; do
+            if curl -fsS http://127.0.0.1:3000/health >/dev/null; then
+              break
+            fi
+            if ! kill -0 "$app_pid" 2>/dev/null; then
+              cat next-task010-screenshots.log
+              exit 1
+            fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:3000/health >/dev/null
+          pnpm screenshots:task010
+
+      - name: Verify Task 010 screenshots
+        run: pnpm exec tsx scripts/build-task010-review-pack.ts --verify-screenshots
+
+      - name: Upload Playwright results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task010-playwright-results
+          path: |
+            playwright-report/**
+            test-results/**
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task010-screenshots
+          path: artifacts/task-010/*.png
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload fresh validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task010-fresh-validation-report
+          path: artifacts/task-010/task010-fresh-database-validation.txt
+          if-no-files-found: ignore
+          retention-days: 14
+
+  task009-to-task010-upgrade:
+    name: task009-to-task010-upgrade
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DATABASE_NAME: task010_existing_validation
+      DATABASE_URL: mysql://osrs:task010-app-password@127.0.0.1:3306/task010_existing_validation
+      TASK009_BASE_COMMIT: 105dc91c900ce3a4d68b97d13df925f30455aabb
+      TASK010_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: task010-root-password
+          MYSQL_DATABASE: task010_existing_validation
+          MYSQL_USER: osrs
+          MYSQL_PASSWORD: task010-app-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uosrs -ptask010-app-password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+
+    steps:
+      - name: Checkout Task 010 branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Enable Corepack and install pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@${PNPM_VERSION} --activate
+          pnpm --version
+
+      - name: Resolve pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-node24-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node24-pnpm-
+
+      - name: Check out Task 009 merge commit
+        run: |
+          git checkout "$TASK009_BASE_COMMIT"
+          git show "$TASK010_HEAD_SHA:scripts/validate-task010-existing-db.ts" > scripts/validate-task010-existing-db.ts
+
+      - name: Install Task 009 dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Task 009 Prisma client
+        run: pnpm db:generate
+
+      - name: Apply Task 001-009 migrations
+        run: pnpm db:migrate
+
+      - name: Seed Task 009 database
+        run: pnpm db:seed
+
+      - name: Snapshot Task 009 preservation markers
+        run: pnpm exec tsx scripts/validate-task010-existing-db.ts snapshot
+
+      - name: Check out Task 010 branch
+        run: |
+          rm -f scripts/validate-task010-existing-db.ts
+          git checkout "$TASK010_HEAD_SHA"
+
+      - name: Install Task 010 dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Task 010 Prisma client
+        run: pnpm db:generate
+
+      - name: Apply Task 010 migration
+        run: pnpm db:migrate
+
+      - name: Seed Task 010 database once
+        run: pnpm db:seed
+
+      - name: Create account seed-preservation markers
+        run: pnpm exec tsx scripts/validate-task010-existing-db.ts prepare-accounts
+
+      - name: Seed Task 010 database a second time
+        run: pnpm db:seed
+
+      - name: Verify Task 009 preservation and Task 010 additions
+        run: pnpm exec tsx scripts/validate-task010-existing-db.ts verify
+
+      - name: Upload upgrade validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task010-upgrade-validation-report
+          path: artifacts/task-010/task009-to-task010-validation.txt
+          if-no-files-found: ignore
+          retention-days: 14
+
+  task010-final-review-pack:
+    name: task010-final-review-pack
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs:
+      - task010-validation
+      - task009-to-task010-upgrade
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Enable Corepack and install pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@${PNPM_VERSION} --activate
+          pnpm --version
+
+      - name: Resolve pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-node24-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node24-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate changed file manifest
+        run: |
+          git fetch origin main
+          git diff --name-only origin/main...HEAD > changed-files.txt
+
+      - name: Download screenshot artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: task010-screenshots
+          path: artifacts/task-010
+
+      - name: Download fresh validation report
+        uses: actions/download-artifact@v4
+        with:
+          name: task010-fresh-validation-report
+          path: artifacts/task-010
+
+      - name: Download upgrade validation report
+        uses: actions/download-artifact@v4
+        with:
+          name: task010-upgrade-validation-report
+          path: artifacts/task-010
+
+      - name: Build final review pack
+        run: pnpm exec tsx scripts/build-task010-review-pack.ts
+
+      - name: Upload validation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task010-validation-reports
+          path: |
+            artifacts/task-010/*.txt
+            reports/CODEX-TASK-010-COMPLETION.md
+            task-010-review-summary.txt
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload final review pack
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task010-final-review-pack
+          path: task-010-final-review-pack.zip
+          if-no-files-found: error
+          retention-days: 14

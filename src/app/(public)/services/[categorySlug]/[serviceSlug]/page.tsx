@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { CheckCircle2, CircleAlert, Clock3, Gamepad2 } from "lucide-react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { CatalogueBreadcrumbs } from "@/components/catalogue-public";
 import { BossingCalculatorEngine } from "@/components/bossing-calculator-engine";
@@ -69,6 +69,9 @@ export default async function ServiceDetailPage({
   const service = await getPublicService(categorySlug, serviceSlug);
   if (!service) notFound();
   const discordHref = getDiscordHref();
+  if (service.engineType === "ACCOUNT_MARKETPLACE") {
+    redirect("/accounts");
+  }
   if (service.engineType === "CATALOGUE_CARD") {
     const search = typeof query.q === "string" ? query.q.slice(0, 80) : "";
     const mode =

@@ -152,6 +152,9 @@ describe("database seed idempotence", () => {
     const goldFlag = state.featureFlags.get("gold_engine_enabled")!;
     expect(goldFlag.enabled).toBe(false);
     goldFlag.enabled = true;
+    const accountsFlag = state.featureFlags.get("account_marketplace_enabled")!;
+    expect(accountsFlag.enabled).toBe(false);
+    accountsFlag.enabled = true;
 
     const editor = state.roles.get("EDITOR")!;
     const manualPermission = state.permissions.get("orders.view")!;
@@ -177,6 +180,7 @@ describe("database seed idempotence", () => {
     expect(premiumFlag.enabled).toBe(true);
     expect(globalPricingFlag.enabled).toBe(true);
     expect(goldFlag.enabled).toBe(true);
+    expect(accountsFlag.enabled).toBe(true);
     expect(state.rolePermissions.has(manualAssignment)).toBe(true);
     expect(state.rolePermissions.has(missingDefaultAssignment)).toBe(true);
     const superAdmin = state.roles.get("SUPER_ADMIN")!;
@@ -185,8 +189,20 @@ describe("database seed idempotence", () => {
     const goldView = state.permissions.get("gold.view")!;
     const goldPublish = state.permissions.get("gold.publish")!;
     const goldInventoryAdjust = state.permissions.get("gold.inventory.adjust")!;
+    const accountsView = state.permissions.get("accounts.view")!;
+    const accountsPublish = state.permissions.get("accounts.publish")!;
+    const accountsApprove = state.permissions.get("accounts.approve")!;
+    const accountsAvailabilityManage = state.permissions.get(
+      "accounts.availability.manage",
+    )!;
+    const accountsHandoverReview = state.permissions.get(
+      "accounts.handover.review",
+    )!;
     expect(
       state.rolePermissions.has(`${superAdmin.id}:${pricingPublish.id}`),
+    ).toBe(true);
+    expect(
+      state.rolePermissions.has(`${superAdmin.id}:${accountsPublish.id}`),
     ).toBe(true);
     expect(
       state.rolePermissions.has(`${supportAgent.id}:${pricingPublish.id}`),
@@ -199,6 +215,25 @@ describe("database seed idempotence", () => {
     ).toBe(false);
     expect(
       state.rolePermissions.has(`${supportAgent.id}:${goldInventoryAdjust.id}`),
+    ).toBe(false);
+    expect(
+      state.rolePermissions.has(`${supportAgent.id}:${accountsView.id}`),
+    ).toBe(true);
+    expect(
+      state.rolePermissions.has(`${supportAgent.id}:${accountsPublish.id}`),
+    ).toBe(false);
+    expect(
+      state.rolePermissions.has(`${supportAgent.id}:${accountsApprove.id}`),
+    ).toBe(false);
+    expect(
+      state.rolePermissions.has(
+        `${supportAgent.id}:${accountsAvailabilityManage.id}`,
+      ),
+    ).toBe(false);
+    expect(
+      state.rolePermissions.has(
+        `${supportAgent.id}:${accountsHandoverReview.id}`,
+      ),
     ).toBe(false);
     expect(administrator.passwordHash).toBe(originalPasswordHash);
   });
