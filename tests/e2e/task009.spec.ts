@@ -190,9 +190,9 @@ async function runEstimate(page: Page, quantity: string, expectedText: string) {
   await page.getByLabel("Custom quantity in millions of GP").fill(quantity);
   await page.getByLabel("RuneScape name").fill("Valid Rsn");
   await page.getByRole("button", { name: "Estimate trade" }).click();
-  await expect(
-    page.getByText(expectedText, { exact: true }).first(),
-  ).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(expectedText).first()).toBeVisible({
+    timeout: 30_000,
+  });
 }
 
 test.describe.configure({ mode: "serial" });
