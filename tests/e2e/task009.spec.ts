@@ -211,7 +211,7 @@ test("public gold page exposes a controlled review state when disabled", async (
   );
   await page.goto("/gold");
   await expect(page).toHaveURL(/\/services\/gold\/gold-trading$/);
-  await expect(page.getByText("Review mode")).toBeVisible();
+  await expect(page.getByText("Review mode", { exact: true })).toBeVisible();
   await expect(page.getByText("Gold trading is in review mode.")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Estimate trade" }),
