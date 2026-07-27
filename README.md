@@ -84,6 +84,16 @@ Global pricing now sits above the skilling, bossing and premium estimate engines
 
 Admin users with `pricing.view` can access `/admin/pricing`; edits require `pricing.edit`; publish, discard and restore require `pricing.publish`. Seeds create a neutral draft rule set and neutral published revision, with `global_pricing_enabled` disabled so Task 005-007 public estimate behavior remains unchanged until the client approves pricing rules.
 
+## Task 009 gold trading engine
+
+`GOLD_ENGINE` pages now support a public gold trading estimator for `/services/gold/gold-trading` and convenience route `/gold`. Customers can choose Buy Gold or Sell Gold, configured presets or custom million-GP quantities, RSN, and an optional Secure 100+ Combat Service where staff enable it.
+
+Gold quantities are represented as whole-GP `BigInt` values on the server and serialized as decimal strings in JSON and snapshots. Rates are integer minor units per 1,000,000 GP. Rounding is deterministic half-up to whole minor units: `rateMinorUnitsPerMillion * quantityGp + 500000`, then integer-divide by `1000000`.
+
+Public estimates are calculated through `POST /api/gold/estimate` with no-store responses. The route loads the published gold-rate revision, market balances, limits and secure-service config server-side, ignores client-submitted rates or totals, excludes RSNs from snapshots, and never reserves or deducts stock. Customer-buy estimates may receive Task 008 global-pricing additions when `global_pricing_enabled` is enabled; customer-sell payouts intentionally bypass customer-charge global additions.
+
+Admin users with `gold.view` can access `/admin/gold`; edits require `gold.edit`; publish/discard/restore require `gold.publish`; inventory and buying-capacity adjustments require `gold.inventory.adjust`. Seeds create the Gold category/service, one paused gold market, draft buy/sell rates, presets, zero live balances, no default published gold revision, and `gold_engine_enabled=false`.
+
 ### Requirements
 
 - Node.js 24 LTS
@@ -104,7 +114,7 @@ Normal seed runs preserve an existing administrator password. Set `ADMIN_SEED_RE
 
 `DATABASE_ALLOW_PUBLIC_KEY_RETRIEVAL=true` supports the non-TLS Docker MySQL account locally. Leave it disabled in production and use the database provider's TLS configuration.
 
-Local MySQL is optional for Task 007 and Task 008 handoff validation. The draft pull request includes `.github/workflows/task008-validation.yml`, which runs migrations, seeds, unit tests, E2E tests, screenshots and review-pack generation against temporary GitHub-hosted MySQL 8.4 service containers. Those CI credentials are disposable validation-only values and are not production secrets.
+Local MySQL is optional for Task 007, Task 008 and Task 009 handoff validation. The draft pull request includes `.github/workflows/task009-validation.yml`, which runs migrations, seeds, unit tests, E2E tests, screenshots and review-pack generation against temporary GitHub-hosted MySQL 8.4 service containers. Those CI credentials are disposable validation-only values and are not production secrets.
 
 ```bash
 pnpm install --frozen-lockfile
@@ -140,13 +150,14 @@ pnpm screenshots:task005
 pnpm screenshots:task006
 pnpm screenshots:task007
 pnpm screenshots:task008
+pnpm screenshots:task009
 pnpm format:check
 pnpm build
 ```
 
-Task 002 through Task 008 screenshot capture expects the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
+Task 002 through Task 009 screenshot capture expects the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
 
-For Task 008, the GitHub Actions workflow uploads Playwright results, screenshots, validation reports and the final review ZIP as workflow artifacts. Production deployment still requires a real persistent MySQL database and must not use the temporary CI service container.
+For Task 009, the GitHub Actions workflow uploads Playwright results, screenshots, validation reports and the final review ZIP as workflow artifacts. Production deployment still requires a real persistent MySQL database and must not use the temporary CI service container.
 
 ### Database commands
 

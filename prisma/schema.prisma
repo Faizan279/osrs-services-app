@@ -173,25 +173,61 @@ enum PricingScope {
   SERVICE
 }
 
+enum GoldTradeDirection {
+  CUSTOMER_BUYS_GOLD
+  CUSTOMER_SELLS_GOLD
+}
+
+enum GoldRateSetStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum GoldInventoryEntryType {
+  STOCK_INCREASE
+  STOCK_DECREASE
+  BUY_CAPACITY_INCREASE
+  BUY_CAPACITY_DECREASE
+  CORRECTION
+}
+
+enum GoldAvailabilityState {
+  AVAILABLE
+  LIMITED_AVAILABILITY
+  MANUAL_REVIEW_REQUIRED
+  PAUSED
+  UNAVAILABLE
+}
+
+enum GoldSecureServicePricingMode {
+  DISABLED
+  FIXED_MINOR_UNITS
+  BASIS_POINTS
+}
+
 model User {
-  id                 String                  @id @default(cuid()) @db.VarChar(30)
-  email              String                  @unique @db.VarChar(191)
+  id                 String                     @id @default(cuid()) @db.VarChar(30)
+  email              String                     @unique @db.VarChar(191)
   emailVerified      DateTime?
-  name               String?                 @db.VarChar(120)
-  image              String?                 @db.VarChar(500)
-  passwordHash       String                  @db.VarChar(255)
-  status             UserStatus              @default(ACTIVE)
-  createdAt          DateTime                @default(now())
-  updatedAt          DateTime                @updatedAt
+  name               String?                    @db.VarChar(120)
+  image              String?                    @db.VarChar(500)
+  passwordHash       String                     @db.VarChar(255)
+  status             UserStatus                 @default(ACTIVE)
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
   roles              UserRole[]
   sessions           Session[]
-  auditLogs          AuditLog[]              @relation("AuditActor")
-  servicesCreated    CatalogueService[]      @relation("CatalogueServiceCreatedBy")
-  servicesUpdated    CatalogueService[]      @relation("CatalogueServiceUpdatedBy")
-  catalogueRevisions CatalogueRevision[]     @relation("CatalogueRevisionActor")
-  catalogueStages    CatalogueServiceStage[] @relation("CatalogueServiceStageUpdatedBy")
-  pricingRuleSets    PricingRuleSet[]        @relation("PricingRuleSetPublishedBy")
-  pricingRevisions   PricingRevision[]       @relation("PricingRevisionPublishedBy")
+  auditLogs          AuditLog[]                 @relation("AuditActor")
+  servicesCreated    CatalogueService[]         @relation("CatalogueServiceCreatedBy")
+  servicesUpdated    CatalogueService[]         @relation("CatalogueServiceUpdatedBy")
+  catalogueRevisions CatalogueRevision[]        @relation("CatalogueRevisionActor")
+  catalogueStages    CatalogueServiceStage[]    @relation("CatalogueServiceStageUpdatedBy")
+  pricingRuleSets    PricingRuleSet[]           @relation("PricingRuleSetPublishedBy")
+  pricingRevisions   PricingRevision[]          @relation("PricingRevisionPublishedBy")
+  goldRateSets       GoldRateSet[]              @relation("GoldRateSetPublishedBy")
+  goldRateRevisions  GoldRateRevision[]         @relation("GoldRateRevisionPublishedBy")
+  goldLedgerEntries  GoldInventoryLedgerEntry[] @relation("GoldInventoryLedgerActor")
 
   @@index([status])
 }
@@ -354,6 +390,7 @@ model CatalogueService {
   premiumRequirementGroups          PremiumRequirementGroup[]
   premiumFaqs                       PremiumFaq[]
   pricingScopes                     PricingRuleApplicability[]
+  goldMarket                        GoldMarket?
 
   @@unique([categoryId, slug])
   @@index([publicationStatus, publishAt, unpublishAt])
@@ -939,6 +976,140 @@ model PremiumFaq {
   @@index([serviceId, enabled, displayOrder])
   @@index([configId, enabled, displayOrder])
   @@index([packageId, enabled, displayOrder])
+}
+
+model GoldMarket {
+  id                           String                       @id @default(cuid()) @db.VarChar(30)
+  stableKey                    String                       @unique @db.VarChar(120)
+  serviceId                    String                       @unique @db.VarChar(30)
+  publicName                   String                       @db.VarChar(160)
+  slug                         String                       @unique @db.VarChar(180)
+  description                  String                       @db.Text
+  currencyCode                 String                       @default("USD") @db.Char(3)
+  availabilityState            GoldAvailabilityState        @default(PAUSED)
+  publicTradeInstructions      String                       @db.Text
+  internalInstructions         String?                      @db.Text
+  rsnRequired                  Boolean                      @default(true)
+  secureServiceEnabled         Boolean                      @default(false)
+  secureServicePricingMode     GoldSecureServicePricingMode @default(DISABLED)
+  secureServiceFixedMinorUnits Int                          @default(0)
+  secureServiceBps             Int                          @default(0)
+  secureServiceCustomerBuys    Boolean                      @default(true)
+  secureServiceCustomerSells   Boolean                      @default(false)
+  quoteValidityMinutes         Int                          @default(15)
+  stockQuantityGp              BigInt                       @default(0)
+  buyingCapacityGp             BigInt                       @default(0)
+  stockVersion                 Int                          @default(1)
+  draftVersion                 Int                          @default(1)
+  needsClientReview            Boolean                      @default(true)
+  createdAt                    DateTime                     @default(now())
+  updatedAt                    DateTime                     @updatedAt
+  service                      CatalogueService             @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  rateSets                     GoldRateSet[]
+  revisions                    GoldRateRevision[]
+  quantityPresets              GoldQuantityPreset[]
+  ledgerEntries                GoldInventoryLedgerEntry[]
+
+  @@index([serviceId])
+  @@index([availabilityState])
+  @@index([currencyCode])
+}
+
+model GoldRateSet {
+  id                 String            @id @default(cuid()) @db.VarChar(30)
+  marketId           String            @db.VarChar(30)
+  status             GoldRateSetStatus @default(DRAFT)
+  version            Int               @default(1)
+  publishedAt        DateTime?
+  publishedById      String?           @db.VarChar(30)
+  internalNotes      String?           @db.Text
+  needsClientReview  Boolean           @default(true)
+  concurrencyVersion Int               @default(1)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  market             GoldMarket        @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  publishedBy        User?             @relation("GoldRateSetPublishedBy", fields: [publishedById], references: [id], onDelete: SetNull)
+  rates              GoldRate[]
+
+  @@index([marketId, status, updatedAt])
+  @@index([publishedById])
+}
+
+model GoldRate {
+  id                       String             @id @default(cuid()) @db.VarChar(30)
+  rateSetId                String             @db.VarChar(30)
+  direction                GoldTradeDirection
+  rateMinorUnitsPerMillion Int
+  minimumQuantityGp        BigInt
+  maximumQuantityGp        BigInt
+  automaticReviewMaximumGp BigInt
+  effectiveStart           DateTime
+  effectiveEnd             DateTime?
+  enabled                  Boolean            @default(true)
+  needsClientReview        Boolean            @default(true)
+  concurrencyVersion       Int                @default(1)
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+  rateSet                  GoldRateSet        @relation(fields: [rateSetId], references: [id], onDelete: Cascade)
+
+  @@unique([rateSetId, direction])
+  @@index([direction, enabled, effectiveStart, effectiveEnd])
+}
+
+model GoldRateRevision {
+  id                    String     @id @default(cuid()) @db.VarChar(30)
+  marketId              String     @db.VarChar(30)
+  rateSetId             String?    @db.VarChar(30)
+  revisionNumber        Int
+  snapshotSchemaVersion Int        @default(1)
+  snapshot              Json
+  publishedAt           DateTime   @default(now())
+  publishedById         String?    @db.VarChar(30)
+  createdAt             DateTime   @default(now())
+  market                GoldMarket @relation(fields: [marketId], references: [id], onDelete: Restrict)
+  publishedBy           User?      @relation("GoldRateRevisionPublishedBy", fields: [publishedById], references: [id], onDelete: SetNull)
+
+  @@unique([marketId, revisionNumber])
+  @@index([marketId, publishedAt])
+  @@index([publishedById])
+}
+
+model GoldQuantityPreset {
+  id                 String             @id @default(cuid()) @db.VarChar(30)
+  marketId           String             @db.VarChar(30)
+  direction          GoldTradeDirection
+  publicLabel        String             @db.VarChar(80)
+  quantityGp         BigInt
+  sortOrder          Int                @default(0)
+  enabled            Boolean            @default(true)
+  needsClientReview  Boolean            @default(true)
+  concurrencyVersion Int                @default(1)
+  seededKey          String?            @unique @db.VarChar(160)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  market             GoldMarket         @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  @@index([marketId, direction, enabled, sortOrder])
+}
+
+model GoldInventoryLedgerEntry {
+  id                        String                 @id @default(cuid()) @db.VarChar(30)
+  marketId                  String                 @db.VarChar(30)
+  entryType                 GoldInventoryEntryType
+  quantityGp                BigInt
+  resultingStockQuantityGp  BigInt
+  resultingBuyingCapacityGp BigInt
+  reason                    String                 @db.VarChar(240)
+  internalNote              String?                @db.Text
+  actorId                   String?                @db.VarChar(30)
+  referenceKey              String?                @unique @db.VarChar(160)
+  createdAt                 DateTime               @default(now())
+  market                    GoldMarket             @relation(fields: [marketId], references: [id], onDelete: Restrict)
+  actor                     User?                  @relation("GoldInventoryLedgerActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([marketId, createdAt])
+  @@index([entryType, createdAt])
+  @@index([actorId, createdAt])
 }
 
 model PricingRuleSet {

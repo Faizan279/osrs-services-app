@@ -88,7 +88,11 @@ Global pricing supports fixed additions, percentage additions, minimum totals an
 
 ## Gold Engine
 
-Supports buy and sell rates, quantity presets, custom quantity, limits, RSN, trade instructions, manual review, stock tracking, and optional Secure 100+ Combat Service.
+Task 009 implements `GOLD_ENGINE` for buy/sell gold trading estimates. The public engine supports Buy Gold and Sell Gold tabs, admin-configured quantity presets, custom million-GP quantities, RSN collection, active published rates, minimum/maximum limits, automatic/manual-review thresholds, safe availability states, trade instructions, and optional Secure 100+ Combat Service.
+
+Gold quantities are parsed on the server into whole-GP `BigInt` values and serialized as decimal strings. Rates are integer minor units per 1,000,000 GP and use deterministic half-up rounding to whole minor units. Public estimates use only the latest published gold-rate revision; draft edits stay private until published.
+
+The admin engine supports `/admin/gold`, market settings, draft buy/sell rate editing, presets, inventory and buying-capacity adjustment, append-only ledger history, revision history, restore-to-draft, optimistic concurrency, permissions and audit logs. Estimates never reserve or deduct inventory and do not create cart, checkout, quote, order or payment records.
 
 ## Account Marketplace Engine
 

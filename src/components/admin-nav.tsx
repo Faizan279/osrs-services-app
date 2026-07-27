@@ -3,6 +3,7 @@
 import {
   Blocks,
   CircleDollarSign,
+  Coins,
   LayoutDashboard,
   Library,
 } from "lucide-react";
@@ -23,6 +24,12 @@ const navigation = [
     href: "/admin/pricing",
     label: "Pricing",
     icon: CircleDollarSign,
+    exact: false,
+  },
+  {
+    href: "/admin/gold",
+    label: "Gold",
+    icon: Coins,
     exact: false,
   },
   {

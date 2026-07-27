@@ -1,0 +1,34 @@
+CODEX TASK 009 REVIEW SUMMARY
+
+Branch: codex/task-009-gold-trading-engine
+Worktree: E:\Codex\osrs-services-task-009
+Starting SHA: 5b3a7e4452e7d383bf2095ecd4d3788f19641383
+Task 008 merge commit: 5b3a7e4452e7d383bf2095ecd4d3788f19641383
+
+Implemented a reusable GOLD_ENGINE for preview-only gold buy/sell estimates, admin draft/published rate management, immutable gold-rate revisions, quantity presets, stock/buying-capacity ledgers, permissions, audit logs, feature flagging, seeds, tests, GitHub Actions MySQL validation, screenshots and review-pack generation.
+
+Key routes:
+- Public: /services/gold/gold-trading, /gold, POST /api/gold/estimate
+- Admin: /admin/gold, /admin/gold/markets, /admin/gold/markets/[marketId], /rates, /presets, /inventory, /history, /admin/gold/preview
+
+Key safety boundaries:
+- No cart, checkout, quote, order, payment, reservation or stock deduction.
+- No client-submitted rates, totals, stock, capacity or availability are trusted.
+- RSN is validated when required but is not stored or included in snapshots/audit metadata.
+- Customer-buy estimates may use Task 008 global pricing; customer-sell payouts do not.
+
+Local validation completed so far:
+- pnpm exec prisma format: passed
+- pnpm db:generate: passed
+- pnpm lint: passed
+- pnpm typecheck: passed
+- pnpm test: passed, 26 files / 155 tests
+- pnpm test:seed: passed, 1 file / 2 tests
+
+Final local validation before commit:
+- pnpm format:check: passed
+- pnpm build: passed with full placeholder database environment; no local MySQL-backed migration or seed command was run
+
+Database validation:
+- Local MySQL was not installed or used.
+- MySQL-backed migration/seed/screenshot validation is configured in .github/workflows/task009-validation.yml with temporary MySQL 8.4 service containers.

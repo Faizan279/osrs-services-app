@@ -111,6 +111,11 @@ export default async function EditServicePage({
               </Link>
             </Button>
           )}
+          {service.engineType === "GOLD_ENGINE" && (
+            <Button asChild variant="secondary">
+              <Link href="/admin/gold">Manage gold</Link>
+            </Button>
+          )}
           <Button asChild variant="secondary">
             <Link href={`/admin/catalogue/services/${id}/preview`}>
               Preview

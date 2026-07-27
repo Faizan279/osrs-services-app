@@ -149,6 +149,9 @@ describe("database seed idempotence", () => {
     const globalPricingFlag = state.featureFlags.get("global_pricing_enabled")!;
     expect(globalPricingFlag.enabled).toBe(false);
     globalPricingFlag.enabled = true;
+    const goldFlag = state.featureFlags.get("gold_engine_enabled")!;
+    expect(goldFlag.enabled).toBe(false);
+    goldFlag.enabled = true;
 
     const editor = state.roles.get("EDITOR")!;
     const manualPermission = state.permissions.get("orders.view")!;
@@ -173,16 +176,29 @@ describe("database seed idempotence", () => {
     expect(bossingFlag.enabled).toBe(true);
     expect(premiumFlag.enabled).toBe(true);
     expect(globalPricingFlag.enabled).toBe(true);
+    expect(goldFlag.enabled).toBe(true);
     expect(state.rolePermissions.has(manualAssignment)).toBe(true);
     expect(state.rolePermissions.has(missingDefaultAssignment)).toBe(true);
     const superAdmin = state.roles.get("SUPER_ADMIN")!;
     const supportAgent = state.roles.get("SUPPORT_AGENT")!;
     const pricingPublish = state.permissions.get("pricing.publish")!;
+    const goldView = state.permissions.get("gold.view")!;
+    const goldPublish = state.permissions.get("gold.publish")!;
+    const goldInventoryAdjust = state.permissions.get("gold.inventory.adjust")!;
     expect(
       state.rolePermissions.has(`${superAdmin.id}:${pricingPublish.id}`),
     ).toBe(true);
     expect(
       state.rolePermissions.has(`${supportAgent.id}:${pricingPublish.id}`),
+    ).toBe(false);
+    expect(state.rolePermissions.has(`${supportAgent.id}:${goldView.id}`)).toBe(
+      true,
+    );
+    expect(
+      state.rolePermissions.has(`${supportAgent.id}:${goldPublish.id}`),
+    ).toBe(false);
+    expect(
+      state.rolePermissions.has(`${supportAgent.id}:${goldInventoryAdjust.id}`),
     ).toBe(false);
     expect(administrator.passwordHash).toBe(originalPasswordHash);
   });

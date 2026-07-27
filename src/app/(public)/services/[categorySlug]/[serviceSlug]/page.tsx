@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { CatalogueBreadcrumbs } from "@/components/catalogue-public";
 import { BossingCalculatorEngine } from "@/components/bossing-calculator-engine";
 import { CatalogueCardEngine } from "@/components/catalogue-card-engine";
+import { GoldTradingEngine } from "@/components/gold-trading-engine";
 import { PremiumConfiguratorEngine } from "@/components/premium-configurator-engine";
 import { SkillingCalculatorEngine } from "@/components/skilling-calculator-engine";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +25,7 @@ import {
   getPublicSkillingCalculatorService,
   getPublicService,
 } from "@/lib/catalogue/queries";
+import { getPublicGoldTradingService } from "@/lib/gold/server";
 
 export const dynamic = "force-dynamic";
 
@@ -322,6 +324,69 @@ export default async function ServiceDetailPage({
             rule={engine.rule}
             requestHref={discordHref}
             eligibilityEnabled={Boolean(flags.rsn_eligibility_enabled)}
+          />
+        </main>
+      );
+    }
+  }
+  if (service.engineType === "GOLD_ENGINE") {
+    const engine = await getPublicGoldTradingService({
+      categorySlug,
+      serviceSlug,
+    });
+    if (engine) {
+      return (
+        <main id="main-content" className="min-h-[70vh]">
+          <section className="border-border bg-surface-1 border-b py-14 sm:py-20">
+            <div className="mx-auto max-w-7xl px-5 sm:px-8">
+              <CatalogueBreadcrumbs
+                items={[
+                  { label: "Home", href: "/" },
+                  { label: "Services", href: "/services" },
+                  {
+                    label: service.category.name,
+                    href: `/services/${service.category.slug}`,
+                  },
+                  { label: service.name },
+                ]}
+              />
+              <div className="mt-8 flex flex-wrap gap-2">
+                <Badge variant="info">Gold trading</Badge>
+                {service.isQuoteOnly && (
+                  <Badge variant="warning">Quote only</Badge>
+                )}
+              </div>
+              <p className="text-gold kicker-type mt-8">
+                {service.category.name}
+              </p>
+              <h1 className="display-type mt-4 max-w-4xl text-4xl sm:text-6xl">
+                {service.name}
+              </h1>
+              <p className="text-text-secondary mt-5 max-w-3xl text-lg leading-8">
+                {service.shortSummary}
+              </p>
+            </div>
+          </section>
+          <GoldTradingEngine
+            service={{
+              id: engine.service.id,
+              name: engine.service.name,
+              content: engine.service.content,
+              requirements: engine.service.requirements.map(
+                ({ id, title, description, isRequired, verificationMode }) => ({
+                  id,
+                  title,
+                  description,
+                  isRequired,
+                  verificationMode,
+                }),
+              ),
+            }}
+            market={engine.market}
+            presets={engine.presets}
+            latestRevision={engine.latestRevision}
+            featureEnabled={engine.featureEnabled}
+            requestHref={discordHref}
           />
         </main>
       );

@@ -531,6 +531,7 @@ export async function getCatalogueFeatureFlags() {
           "skilling_calculator_enabled",
           "bossing_calculator_enabled",
           "premium_configurator_enabled",
+          "gold_engine_enabled",
         ],
       },
     },

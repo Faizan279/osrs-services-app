@@ -34,7 +34,8 @@ export type CatalogueSeedClient = {
           | "CATALOGUE_CARD"
           | "SKILLING_CALCULATOR"
           | "BOSSING_ENGINE"
-          | "PREMIUM_SERVICE_CONFIGURATOR";
+          | "PREMIUM_SERVICE_CONFIGURATOR"
+          | "GOLD_ENGINE";
         publicationStatus: "PUBLISHED";
         availabilityState: "AVAILABLE";
         isFeatured: boolean;
@@ -500,6 +501,7 @@ export const catalogueCategorySeeds = [
   ["minigames", "Minigames", "flag"],
   ["bossing-pvm", "Bossing and PvM", "swords"],
   ["premium-services", "Premium Services", "crown"],
+  ["gold", "Gold", "coins"],
   ["ironman-gathering", "Ironman Gathering", "pickaxe"],
   ["items-miscellaneous", "Items and Miscellaneous", "package"],
 ] as const;
@@ -605,6 +607,31 @@ const catalogueServiceSeeds = [
         type: "ACTIVITY" as const,
         required: true,
         verification: "SUPPORT_VERIFIED" as const,
+      },
+    ],
+  },
+  {
+    key: "gold-trading",
+    categoryKey: "gold",
+    name: "Gold trading",
+    slug: "gold-trading",
+    summary:
+      "Estimate buy and sell gold trades using staff-published rates, limits and availability checks.",
+    content:
+      "Gold trading estimates use only staff-published rates, configured quantity limits, current stock or buying-capacity checks and review-safe trade instructions. No inventory is reserved, no order is created and no final trade is confirmed until support reviews the request.",
+    engineType: "GOLD_ENGINE" as const,
+    featured: true,
+    order: 36,
+    modes: ["NORMAL"] as const,
+    requirements: [
+      {
+        key: "gold-rsn",
+        title: "RuneScape name",
+        description:
+          "Provide your RuneScape name for staff review. Never provide a password, PIN or authenticator code.",
+        type: "ACCOUNT" as const,
+        required: true,
+        verification: "CUSTOMER_CONFIRMED" as const,
       },
     ],
   },
