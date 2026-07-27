@@ -253,7 +253,7 @@ test("presets, custom limits, manual review, unavailable states and secure servi
   await runEstimate(page, "1", "at least 10M GP");
 
   await page.goto("/services/gold/gold-trading");
-  await runEstimate(page, "501", "at most 500M GP");
+  await runEstimate(page, "501", "outside the configured limit");
 
   await page.goto("/services/gold/gold-trading");
   await runEstimate(page, "150", "Manual review is required");
