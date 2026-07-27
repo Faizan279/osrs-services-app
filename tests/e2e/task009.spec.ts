@@ -35,7 +35,7 @@ async function signInToGold(page: Page) {
   await page.getByRole("button", { name: "Sign in securely" }).click();
   await page.waitForURL((url) => url.pathname === "/admin/gold");
   await expect(
-    page.getByRole("heading", { name: "Gold", exact: true }),
+    page.getByRole("heading", { name: "Gold Centre", exact: true }),
   ).toBeVisible();
 }
 
