@@ -315,8 +315,10 @@ test("admin account centre supports editing, publication, holds, handover and hi
   });
 
   await page.goto(`/admin/accounts/listings/${listing.id}/handover`);
-  await page.getByLabel("Ready for future handover").check();
-  await page.getByLabel("Readiness").selectOption("READY_FOR_FUTURE_HANDOVER");
+  await page.locator('input[name="readyForFutureHandover"]').check();
+  await page
+    .locator('select[name="readiness"]')
+    .selectOption("READY_FOR_FUTURE_HANDOVER");
   await page.getByRole("button", { name: "Save handover readiness" }).click();
   await expect(page.getByText("Handover readiness saved.")).toBeVisible({
     timeout: 30_000,
