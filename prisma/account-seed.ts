@@ -9,7 +9,7 @@ const categoryDescription =
   "Browse representative prebuilt account listings after staff review. Account marketplace data is disabled by default until pricing, screenshots and handover wording are approved.";
 
 const serviceContent =
-  "Account marketplace listings are preview-only in Task 010. Support rechecks availability, price and safe handover readiness before any future checkout step. Never provide passwords, email credentials, bank PINs, authenticator data or recovery information.";
+  "Account marketplace listings are preview-only in Task 010. Support rechecks availability, price and safe handover readiness before any future checkout step. Never provide sensitive access details in this preview flow.";
 
 const marketplaceInstructions =
   "Use the listing details to request support review. Availability and price are rechecked before any checkout or handover step exists.";
@@ -23,7 +23,7 @@ const listingSeeds = [
     shortDescription:
       "Reviewed demo listing for a main account with combat-focused public stats and raid-ready unlock notes.",
     fullDescription:
-      "This representative account listing demonstrates the Account Marketplace Engine. It contains public-safe stats, unlocks, feature tags and gallery references only. No login identifier, password, email, recovery detail, bank PIN or authenticator information is stored.",
+      "This representative account listing demonstrates the Account Marketplace Engine. It contains public-safe stats, unlocks, feature tags and gallery references only. No sign-in identifier, contact detail, sensitive access detail, authenticator material or private handover note is stored.",
     internalReferenceCode: "ACCT-DEMO-MAIN-PVM",
     basePriceCents: 24999,
     gameMode: "NORMAL" as const,
@@ -197,7 +197,7 @@ export async function seedAccountMarketplace(prisma: PrismaClient) {
       isQuoteOnly: true,
       displayOrder: 37,
       publicPreparationNotes:
-        "Never provide login credentials, email credentials, bank PINs, authenticator data or recovery information.",
+        "Do not collect sensitive access details or private handover material in this preview flow.",
       seoTitle: "OSRS account marketplace",
       seoDescription:
         "Prebuilt account marketplace listings with safe handover readiness metadata.",
@@ -222,9 +222,9 @@ export async function seedAccountMarketplace(prisma: PrismaClient) {
       {
         seededKey: "account-marketplace:no-credentials",
         serviceId: service.id,
-        title: "No credential submission",
+        title: "No sensitive-detail submission",
         description:
-          "Support never asks for passwords, email credentials, PINs, authenticator data or recovery information in Task 010.",
+          "Support handles this preview through safe readiness checks only; do not submit sensitive access details.",
         type: "ACCOUNT",
         isRequired: true,
         displayOrder: 10,
