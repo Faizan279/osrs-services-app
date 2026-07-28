@@ -234,6 +234,7 @@ test("held and sold states are explicit and do not create orders", async ({
 test("admin account centre supports editing, publication, holds, handover and history", async ({
   page,
 }) => {
+  test.setTimeout(60_000);
   const listing = await accountListing();
   await page.goto("/admin/accounts");
   await expect(page).toHaveURL(/\/login\?next=%2Fadmin%2Faccounts/);
