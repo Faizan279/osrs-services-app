@@ -276,7 +276,7 @@ async function loadPublicMarketplace(now = new Date()) {
       publicMarketplaceInstructions: true,
       defaultSort: true,
       needsClientReview: true,
-      concurrencyVersion: true,
+      draftVersion: true,
       createdAt: true,
       updatedAt: true,
       service: {

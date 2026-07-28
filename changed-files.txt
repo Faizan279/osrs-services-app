@@ -53,4 +53,5 @@ src/tests/account-route.test.ts
 src/tests/seed-idempotence.test.ts
 task-010-review-summary.txt
 tasks/CODEX-TASK-010.md
+tests/e2e/catalogue.spec.ts
 tests/e2e/task010.spec.ts
