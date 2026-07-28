@@ -96,7 +96,13 @@ The admin engine supports `/admin/gold`, market settings, draft buy/sell rate ed
 
 ## Account Marketplace Engine
 
-Supports prebuilt account listings, filters, stats, unlocks, images, availability, reservation, approval, and secure handover.
+Task 010 implements `ACCOUNT_MARKETPLACE` for prebuilt account listing browsing and support-review estimates. The public entry points are `/accounts`, `/accounts/[listingSlug]`, `GET /api/accounts`, `GET /api/accounts/[listingSlug]`, and `POST /api/accounts/estimate`.
+
+Public listing visibility requires `approvalStatus=APPROVED`, `publicationStatus=PUBLISHED`, an immutable published listing revision, an available marketplace, and `account_marketplace_enabled=true`. Draft edits remain private. Operational availability is mutable separately from published content so held, sold, paused and unavailable states can be reflected without rewriting revision history.
+
+The engine supports server-side search, filters, sorting, pagination, public game modes, stats, unlocks, feature tags and image galleries. Estimate responses use the server-stored integer-cent listing price and may append Task 008 global-pricing lines when `global_pricing_enabled` is enabled. No public endpoint creates holds, reservations, orders, payments or customer records.
+
+The admin engine supports `/admin/accounts`, listing creation/editing, stats, unlocks, features, media, approval/rejection, publish/discard/restore, availability, temporary holds, sold/reopen actions, secure-handover readiness and revision history. Secure handover stores booleans/statuses only and never stores credentials.
 
 ## Custom Account Build Engine
 

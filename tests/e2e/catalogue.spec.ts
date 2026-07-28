@@ -297,7 +297,7 @@ test("public catalogue supports search and category filtering", async ({
   await expect(
     page.getByRole("heading", { name: "Skill training request" }),
   ).toBeVisible();
-  await expect(page.getByText("Quote only", { exact: true })).toHaveCount(8);
+  await expect(page.getByText("Quote only", { exact: true })).toHaveCount(9);
   await expect(page.getByText("Published", { exact: true })).toHaveCount(0);
   await page.getByLabel("Search catalogue").fill("quest");
   await page.getByRole("button", { name: "Search" }).click();
@@ -394,7 +394,7 @@ test("seeded Super Admin can open the catalogue editor", async ({ page }) => {
   });
   await page.getByLabel("Availability").selectOption("AVAILABLE");
   await filtersForm.evaluate((form: HTMLFormElement) => form.requestSubmit());
-  await expect(page.getByText("8 matching services")).toBeVisible();
+  await expect(page.getByText("9 matching services")).toBeVisible();
   await page.getByLabel("Availability").selectOption("UNAVAILABLE");
   await filtersForm.evaluate((form: HTMLFormElement) => form.requestSubmit());
   await expect(page.getByText("0 matching services")).toBeVisible();

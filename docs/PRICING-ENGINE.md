@@ -116,6 +116,14 @@ Customer-buy estimates represent a customer charge. After the gold subtotal and 
 
 Customer-sell estimates represent a payout to the customer. They intentionally do not receive ordinary customer-charge global additions or minimum/maximum customer-charge rules. Future checkout/order work must recalculate gold estimates server-side from the current published gold revision instead of trusting old snapshots.
 
+## Task 010 account listing pricing
+
+Task 010 adds account listing estimates for `ACCOUNT_MARKETPLACE`. Listing prices are stored as integer USD cents on `AccountListing`; the browser may identify a listing by slug or ID but never supplies an accepted price, total, availability state, approval state, revision or global adjustment.
+
+The base public line is always `Account listing base price`. When `global_pricing_enabled` is enabled and a published pricing revision applies to `ACCOUNT_MARKETPLACE`, the server appends customer-safe global adjustment lines and records the published global-pricing revision reference in `AccountListingSnapshotV1`.
+
+Estimates require an approved, published listing with a published revision and `availability=AVAILABLE`. Held, sold, paused and unavailable listings reject estimates with customer-safe messages. Future cart/checkout work must reload the listing, recalculate from the current server state, and recheck availability before any order can exist.
+
 ## Initial prices
 
 - Existing WooCommerce prices are migration input.
@@ -159,9 +167,10 @@ Each delivery option stores its label, description, fee rule, estimated time, an
 6. Discord Stream fee
 7. Delivery fee
 8. Task 008 global pricing additions, minimums and maximums when enabled and applicable
-9. Discounts according to stacking rules
-10. Taxes if later applicable
-11. Final total
+9. Task 010 account listing base-price and applicable global-pricing lines, for account marketplace estimates only
+10. Discounts according to stacking rules
+11. Taxes if later applicable
+12. Final total
 
 ## Admin requirements
 

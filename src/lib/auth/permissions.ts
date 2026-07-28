@@ -10,6 +10,12 @@ export const permissions = {
   goldEdit: "gold.edit",
   goldPublish: "gold.publish",
   goldInventoryAdjust: "gold.inventory.adjust",
+  accountsView: "accounts.view",
+  accountsEdit: "accounts.edit",
+  accountsApprove: "accounts.approve",
+  accountsPublish: "accounts.publish",
+  accountsAvailabilityManage: "accounts.availability.manage",
+  accountsHandoverReview: "accounts.handover.review",
   ordersView: "orders.view",
   ordersUpdate: "orders.update",
   ordersRefund: "orders.refund",
@@ -36,6 +42,16 @@ export const permissionDescriptions: Record<PermissionKey, string> = {
   [permissions.goldPublish]: "Publish and restore gold rate revisions.",
   [permissions.goldInventoryAdjust]:
     "Adjust gold stock and buying capacity balances.",
+  [permissions.accountsView]:
+    "View account marketplace listings and operational state.",
+  [permissions.accountsEdit]: "Create and edit account marketplace listings.",
+  [permissions.accountsApprove]: "Approve or reject account listings.",
+  [permissions.accountsPublish]:
+    "Publish, discard and restore account listing revisions.",
+  [permissions.accountsAvailabilityManage]:
+    "Manage account listing holds, availability and sold state.",
+  [permissions.accountsHandoverReview]:
+    "Review safe account handover readiness metadata.",
   [permissions.ordersView]: "View customer orders.",
   [permissions.ordersUpdate]: "Update order fulfilment state.",
   [permissions.ordersRefund]: "Initiate or record refunds.",

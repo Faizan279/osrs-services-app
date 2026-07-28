@@ -3,6 +3,7 @@ import argon2 from "argon2";
 import { z } from "zod";
 
 import { PrismaClient } from "../src/generated/prisma/client";
+import { seedAccountMarketplace } from "./account-seed";
 import { seedCatalogue, type CatalogueSeedClient } from "./catalogue-seed";
 import { seedGold } from "./gold-seed";
 import { seedPricing } from "./pricing-seed";
@@ -67,6 +68,7 @@ async function main() {
   await seedCatalogue(prisma as unknown as CatalogueSeedClient);
   await seedPricing(prisma);
   await seedGold(prisma);
+  await seedAccountMarketplace(prisma);
 }
 
 main()

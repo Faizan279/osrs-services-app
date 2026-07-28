@@ -94,6 +94,14 @@ Public estimates are calculated through `POST /api/gold/estimate` with no-store 
 
 Admin users with `gold.view` can access `/admin/gold`; edits require `gold.edit`; publish/discard/restore require `gold.publish`; inventory and buying-capacity adjustments require `gold.inventory.adjust`. Seeds create the Gold category/service, one paused gold market, draft buy/sell rates, presets, zero live balances, no default published gold revision, and `gold_engine_enabled=false`.
 
+## Task 010 account marketplace engine
+
+`ACCOUNT_MARKETPLACE` pages now support preview-only public browsing at `/accounts` and listing details at `/accounts/[listingSlug]`. Public APIs are `GET /api/accounts`, `GET /api/accounts/[listingSlug]`, and `POST /api/accounts/estimate`. The server loads listing price, approval, publication and availability state; client-submitted prices, totals, revisions, availability and global adjustments are ignored.
+
+Account listing snapshots are JSON-safe and contain public stats, unlock references, feature references, cover image references, immutable published listing revision data and optional Task 008 global-pricing lines. They exclude login identifiers, passwords, email addresses, recovery data, authenticator data, bank PINs, internal notes, hold actors and customer contact data.
+
+Admin users with `accounts.view` can access `/admin/accounts`; edits require `accounts.edit`; approval requires `accounts.approve`; publish/discard/restore requires `accounts.publish`; holds, sold state and availability require `accounts.availability.manage`; secure-handover readiness requires `accounts.handover.review`. Seeds create the Accounts category/service, one account marketplace, representative public-safe listings, stats, unlocks, features, media and `account_marketplace_enabled=false`.
+
 ### Requirements
 
 - Node.js 24 LTS
@@ -114,7 +122,7 @@ Normal seed runs preserve an existing administrator password. Set `ADMIN_SEED_RE
 
 `DATABASE_ALLOW_PUBLIC_KEY_RETRIEVAL=true` supports the non-TLS Docker MySQL account locally. Leave it disabled in production and use the database provider's TLS configuration.
 
-Local MySQL is optional for Task 007, Task 008 and Task 009 handoff validation. The draft pull request includes `.github/workflows/task009-validation.yml`, which runs migrations, seeds, unit tests, E2E tests, screenshots and review-pack generation against temporary GitHub-hosted MySQL 8.4 service containers. Those CI credentials are disposable validation-only values and are not production secrets.
+Local MySQL is optional for Task 007, Task 008, Task 009 and Task 010 handoff validation. Task-specific GitHub Actions workflows, including `.github/workflows/task010-validation.yml`, run migrations, seeds, unit tests, E2E tests, screenshots and review-pack generation against temporary GitHub-hosted MySQL 8.4 service containers. Those CI credentials are disposable validation-only values and are not production secrets.
 
 ```bash
 pnpm install --frozen-lockfile
@@ -155,9 +163,9 @@ pnpm format:check
 pnpm build
 ```
 
-Task 002 through Task 009 screenshot capture expects the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
+Task 002 through Task 010 screenshot capture expects the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
 
-For Task 009, the GitHub Actions workflow uploads Playwright results, screenshots, validation reports and the final review ZIP as workflow artifacts. Production deployment still requires a real persistent MySQL database and must not use the temporary CI service container.
+For Task 010, the GitHub Actions workflow uploads Playwright results, screenshots, validation reports and the final review ZIP as workflow artifacts. Production deployment still requires a real persistent MySQL database and must not use the temporary CI service container.
 
 ### Database commands
 

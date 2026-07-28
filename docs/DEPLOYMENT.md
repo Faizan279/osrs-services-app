@@ -131,3 +131,25 @@ Before enabling gold trading outside validation:
 - verify public buy/sell estimates and mobile screenshots against staging data
 
 Rollback is manual. First disable `gold_engine_enabled`, then export any admin-edited gold rates, revisions, presets, inventory ledgers and audit rows that must be retained. Remove ledger entries, presets, revisions, rates, rate sets and markets in dependency order only after review. Do not use `prisma migrate reset` against shared or production data.
+
+## Account marketplace deployment notes
+
+Task 010 adds migration `20260727150000_task010_account_marketplace`. It is additive and creates account marketplaces, listings, public stats, unlocks, features, images, immutable published revisions, temporary holds and secure-handover readiness checklist rows.
+
+Seed creates:
+
+- the Accounts category and `account-marketplace` catalogue service
+- one account marketplace
+- representative public-safe account listings, stats, unlocks, feature tags and placeholder media
+- `account_marketplace_enabled` disabled
+
+Before enabling account marketplace browsing outside validation:
+
+- run `pnpm db:migrate` without reset
+- run `pnpm db:seed` twice and confirm edited account listings, revisions, availability, active holds, handover readiness and feature flags are preserved
+- review `/admin/accounts` and publish only client-approved listing revisions
+- confirm listing screenshots and media contain no login names, emails, private chat, customer data or credentials
+- confirm `account_marketplace_enabled` is intentionally enabled
+- keep cart, checkout, payment, order, reservation and credential handover flows disabled until later tasks implement them
+
+Rollback is manual. First disable `account_marketplace_enabled`, then export any admin-edited listings, revisions, holds, handover readiness rows and audit rows that must be retained. Remove account holds, revisions, images, features, unlocks, stats, checklists, listings and marketplaces in dependency order only after review. Do not use `prisma migrate reset` against shared or production data.

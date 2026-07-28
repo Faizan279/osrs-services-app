@@ -6,6 +6,7 @@ import {
   Coins,
   LayoutDashboard,
   Library,
+  Store,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -30,6 +31,12 @@ const navigation = [
     href: "/admin/gold",
     label: "Gold",
     icon: Coins,
+    exact: false,
+  },
+  {
+    href: "/admin/accounts",
+    label: "Accounts",
+    icon: Store,
     exact: false,
   },
   {
