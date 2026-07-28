@@ -220,7 +220,10 @@ test("held and sold states are explicit and do not create orders", async ({
     [listing.id],
   );
   await page.goto("/accounts?availability=SOLD");
-  await expect(page.getByText("Sold").first()).toBeVisible();
+  const soldCard = page.locator("article").filter({
+    has: page.getByRole("heading", { name: "PvM ready main account" }),
+  });
+  await expect(soldCard.getByText("Sold", { exact: true })).toBeVisible();
   const soldEstimate = await page.request.post("/api/accounts/estimate", {
     data: { listingSlug: "pvm-ready-main-account" },
   });
