@@ -8,6 +8,7 @@ import {
   publicCustomBuildEstimatePayload,
 } from "@/lib/custom-build/server";
 import { catalogueGameModes } from "@/lib/catalogue/constants";
+import { SkillingValidationError } from "@/lib/skilling/xp";
 
 export const dynamic = "force-dynamic";
 
@@ -93,7 +94,10 @@ export async function POST(request: NextRequest) {
       estimate: publicCustomBuildEstimatePayload(estimate),
     });
   } catch (error) {
-    if (error instanceof CustomBuildEstimateError) {
+    if (
+      error instanceof CustomBuildEstimateError ||
+      error instanceof SkillingValidationError
+    ) {
       return json({ ok: false, message: error.message }, 400);
     }
     console.error("custom build estimate failed", {
