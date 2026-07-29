@@ -1,0 +1,44 @@
+CODEX TASK 011 REVIEW SUMMARY
+
+Repository: Faizan279/osrs-services-app
+Worktree: E:\Codex\osrs-services-task-011
+Branch: codex/task-011-custom-account-build
+Base: b20b5c58674681bee989e4363d2d47d2c0fe7d0b
+
+Implemented CUSTOM_ACCOUNT_BUILD as a quote-only custom account-build engine.
+
+Primary additions:
+- Additive migration 20260728150000_task011_custom_account_build.
+- Public configurator at /custom-account-build.
+- Secure tracking route at /custom-account-build/track/[token].
+- Public estimate, request, attachment upload and quote decision APIs.
+- Admin Custom Builds Centre under /admin/custom-builds.
+- Draft and published custom-build configuration revisions.
+- Server-authoritative automatic, partial, manual-review and unavailable estimates.
+- Versioned quote revisions with expiry and customer accept/decline decisions.
+- Private attachment validation and admin-only download endpoint.
+- custom_account_build_enabled feature flag, seeded disabled.
+- custom_builds.* permissions.
+- GitHub Actions validation with temporary MySQL 8.4.
+- Fresh DB, Task 010 upgrade, screenshot and review-pack scripts.
+
+Security boundaries:
+- No passwords, login identifiers, bank PINs, recovery data, authenticator data, cookies or session tokens are collected.
+- Estimate and quote snapshots exclude customer contact details, RSN, notes, attachment paths and raw tracking tokens.
+- Tracking tokens are stored only as SHA-256 hashes.
+- Attachment bytes are private, quarantined and excluded from review artifacts.
+
+Explicitly not implemented:
+- Cart
+- Checkout
+- Orders
+- Order items
+- Payments
+- Quote-to-order conversion
+- Work assignment
+- Customer dashboard
+- Account credential handover
+- Deployment
+- Task 012
+
+Local MySQL/Docker validation was not run. Database-backed validation is configured for GitHub Actions temporary MySQL 8.4.

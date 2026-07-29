@@ -106,7 +106,17 @@ The admin engine supports `/admin/accounts`, listing creation/editing, stats, un
 
 ## Custom Account Build Engine
 
-Supports desired stats, quests, diaries, unlocks, notes, uploads, estimate or quote request, and quote conversion.
+Task 011 implements `CUSTOM_ACCOUNT_BUILD` for custom account-build estimates, persistent requests and versioned quotes. Public entry points are `/custom-account-build`, `/custom-account-build/track/[token]`, `POST /api/custom-build/estimate`, `POST /api/custom-build/requests`, `POST /api/custom-build/requests/[requestId]/attachments`, and `POST /api/custom-build/quotes/[quoteId]/decision`.
+
+The public engine supports desired/current/target stats, current/target XP, explicit fresh-account mode, unknown-current manual-review mode, quests, achievement diaries, unlocks, customer-confirmed completion state, private plain-text requirements notes and quarantined private attachments. Estimates are server-authoritative and return `AUTOMATIC`, `PARTIAL`, `MANUAL_REVIEW_REQUIRED` or `UNAVAILABLE`.
+
+Skill and objective pricing is managed through draft custom-build rule sets and immutable published revisions. Public estimates load only the latest published custom-build revision. Draft edits remain private until publish; restore creates a new draft and never rewrites old revisions. Custom-build subtotals may receive Task 008 global-pricing adjustments only for automatic or partial customer-charge estimates when `global_pricing_enabled` is enabled.
+
+Persistent requests store minimum contact details, consent timestamp/version, selected skills/objectives, customer notes, estimate snapshot, status history and a SHA-256 tracking-token hash. The raw tracking token is shown once and is never logged or stored. Tracking pages use no-store and noindex behavior and show only customer-safe status and sent quote information.
+
+Admin routes under `/admin/custom-builds` support overview, configuration, skill/objective rules, preview, publish/discard/restore, request review, status transitions, attachment metadata review/download, quote revision creation, quote sending, quote voiding and quote history. Permissions are split across `custom_builds.view`, `custom_builds.edit`, `custom_builds.publish`, `custom_builds.requests.review`, `custom_builds.attachments.review` and `custom_builds.quotes.manage`.
+
+This engine never collects account credentials and never creates cart, checkout, order, order item, payment, customer account, project delivery or account credential handover records. Accepted quotes remain accepted quotes only.
 
 ## Product Marketplace Engine
 

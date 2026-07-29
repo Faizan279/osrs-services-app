@@ -124,6 +124,20 @@ The base public line is always `Account listing base price`. When `global_pricin
 
 Estimates require an approved, published listing with a published revision and `availability=AVAILABLE`. Held, sold, paused and unavailable listings reject estimates with customer-safe messages. Future cart/checkout work must reload the listing, recalculate from the current server state, and recheck availability before any order can exist.
 
+## Task 011 custom account-build pricing
+
+Task 011 adds custom account-build estimates for `CUSTOM_ACCOUNT_BUILD`. The browser supplies only service slug, game mode, selected skill targets, selected objective references and customer-confirmed completion state. It never supplies currency, rule prices, objective prices, global-pricing lines, estimate state or totals.
+
+Skill rules support per-XP, per-level-band, fixed target package, fixed addition and manual-review-only modes. XP pricing uses integer minor units per 1,000,000 XP and deterministic half-up rounding:
+
+`(xpRequired * centsPerMillionXp + 500000) / 1000000`
+
+Objective rules support fixed additions, fixed target packages, percentage adjustments where configured, and manual-review-only behavior. Missing, disabled, incompatible or manual-only objectives produce customer-safe review reasons instead of false automatic eligibility.
+
+`CustomBuildEstimateSnapshotV1` stores public selections, priced lines, manual-review reasons, published custom-build revision reference, optional published global-pricing revision reference, generated/valid-until timestamps and review/repricing flags. It excludes display name, email, Discord username, RSN, customer notes, attachments, raw tokens, internal notes and admin identities.
+
+Task 008 global pricing may apply only after the custom-build engine calculates an automatic or partial priced subtotal. Manual-review-only estimates keep totals null and do not receive invented global additions. Quote revisions are manually authoritative snapshots and do not auto-change when custom-build or global-pricing rules change later.
+
 ## Initial prices
 
 - Existing WooCommerce prices are migration input.
@@ -168,9 +182,10 @@ Each delivery option stores its label, description, fee rule, estimated time, an
 7. Delivery fee
 8. Task 008 global pricing additions, minimums and maximums when enabled and applicable
 9. Task 010 account listing base-price and applicable global-pricing lines, for account marketplace estimates only
-10. Discounts according to stacking rules
-11. Taxes if later applicable
-12. Final total
+10. Task 011 custom account-build priced subtotal and applicable global-pricing lines, for automatic or partial custom-build estimates only
+11. Discounts according to stacking rules
+12. Taxes if later applicable
+13. Final total
 
 ## Admin requirements
 

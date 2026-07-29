@@ -155,6 +155,11 @@ describe("database seed idempotence", () => {
     const accountsFlag = state.featureFlags.get("account_marketplace_enabled")!;
     expect(accountsFlag.enabled).toBe(false);
     accountsFlag.enabled = true;
+    const customBuildFlag = state.featureFlags.get(
+      "custom_account_build_enabled",
+    )!;
+    expect(customBuildFlag.enabled).toBe(false);
+    customBuildFlag.enabled = true;
 
     const editor = state.roles.get("EDITOR")!;
     const manualPermission = state.permissions.get("orders.view")!;
@@ -181,6 +186,7 @@ describe("database seed idempotence", () => {
     expect(globalPricingFlag.enabled).toBe(true);
     expect(goldFlag.enabled).toBe(true);
     expect(accountsFlag.enabled).toBe(true);
+    expect(customBuildFlag.enabled).toBe(true);
     expect(state.rolePermissions.has(manualAssignment)).toBe(true);
     expect(state.rolePermissions.has(missingDefaultAssignment)).toBe(true);
     const superAdmin = state.roles.get("SUPER_ADMIN")!;
@@ -198,11 +204,31 @@ describe("database seed idempotence", () => {
     const accountsHandoverReview = state.permissions.get(
       "accounts.handover.review",
     )!;
+    const customBuildsView = state.permissions.get("custom_builds.view")!;
+    const customBuildsEdit = state.permissions.get("custom_builds.edit")!;
+    const customBuildsPublish = state.permissions.get("custom_builds.publish")!;
+    const customBuildsRequestsReview = state.permissions.get(
+      "custom_builds.requests.review",
+    )!;
+    const customBuildsAttachmentsReview = state.permissions.get(
+      "custom_builds.attachments.review",
+    )!;
+    const customBuildsQuotesManage = state.permissions.get(
+      "custom_builds.quotes.manage",
+    )!;
     expect(
       state.rolePermissions.has(`${superAdmin.id}:${pricingPublish.id}`),
     ).toBe(true);
     expect(
       state.rolePermissions.has(`${superAdmin.id}:${accountsPublish.id}`),
+    ).toBe(true);
+    expect(
+      state.rolePermissions.has(`${superAdmin.id}:${customBuildsPublish.id}`),
+    ).toBe(true);
+    expect(
+      state.rolePermissions.has(
+        `${superAdmin.id}:${customBuildsQuotesManage.id}`,
+      ),
     ).toBe(true);
     expect(
       state.rolePermissions.has(`${supportAgent.id}:${pricingPublish.id}`),
@@ -233,6 +259,30 @@ describe("database seed idempotence", () => {
     expect(
       state.rolePermissions.has(
         `${supportAgent.id}:${accountsHandoverReview.id}`,
+      ),
+    ).toBe(false);
+    expect(
+      state.rolePermissions.has(`${supportAgent.id}:${customBuildsView.id}`),
+    ).toBe(true);
+    expect(
+      state.rolePermissions.has(
+        `${supportAgent.id}:${customBuildsRequestsReview.id}`,
+      ),
+    ).toBe(true);
+    expect(
+      state.rolePermissions.has(`${supportAgent.id}:${customBuildsEdit.id}`),
+    ).toBe(false);
+    expect(
+      state.rolePermissions.has(`${supportAgent.id}:${customBuildsPublish.id}`),
+    ).toBe(false);
+    expect(
+      state.rolePermissions.has(
+        `${supportAgent.id}:${customBuildsAttachmentsReview.id}`,
+      ),
+    ).toBe(false);
+    expect(
+      state.rolePermissions.has(
+        `${supportAgent.id}:${customBuildsQuotesManage.id}`,
       ),
     ).toBe(false);
     expect(administrator.passwordHash).toBe(originalPasswordHash);

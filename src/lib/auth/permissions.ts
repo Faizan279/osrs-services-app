@@ -16,6 +16,12 @@ export const permissions = {
   accountsPublish: "accounts.publish",
   accountsAvailabilityManage: "accounts.availability.manage",
   accountsHandoverReview: "accounts.handover.review",
+  customBuildsView: "custom_builds.view",
+  customBuildsEdit: "custom_builds.edit",
+  customBuildsPublish: "custom_builds.publish",
+  customBuildsRequestsReview: "custom_builds.requests.review",
+  customBuildsAttachmentsReview: "custom_builds.attachments.review",
+  customBuildsQuotesManage: "custom_builds.quotes.manage",
   ordersView: "orders.view",
   ordersUpdate: "orders.update",
   ordersRefund: "orders.refund",
@@ -52,6 +58,18 @@ export const permissionDescriptions: Record<PermissionKey, string> = {
     "Manage account listing holds, availability and sold state.",
   [permissions.accountsHandoverReview]:
     "Review safe account handover readiness metadata.",
+  [permissions.customBuildsView]:
+    "View custom account build configuration and request workflow.",
+  [permissions.customBuildsEdit]:
+    "Edit custom account build configuration, skill rules and objectives.",
+  [permissions.customBuildsPublish]:
+    "Publish, discard and restore custom account build revisions.",
+  [permissions.customBuildsRequestsReview]:
+    "Review custom account build requests and status history.",
+  [permissions.customBuildsAttachmentsReview]:
+    "Review and download private custom-build attachment metadata.",
+  [permissions.customBuildsQuotesManage]:
+    "Create, revise, send and void custom account build quotes.",
   [permissions.ordersView]: "View customer orders.",
   [permissions.ordersUpdate]: "Update order fulfilment state.",
   [permissions.ordersRefund]: "Initiate or record refunds.",
