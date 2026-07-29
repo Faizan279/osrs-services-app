@@ -235,7 +235,7 @@ function assertNoPrivateText(entryName: string, data: Buffer) {
   if (entryName.endsWith(".png")) return;
   const text = data.toString("utf8");
   const realEmailPattern =
-    /\b[A-Z0-9._%+-]+@(?!example\.test\b)[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
+    /\b[A-Z0-9._%+-]+@(?!example\.(?:com|net|org|test)\b)[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
   const literalTrackingUrlPattern =
     /custom-account-build\/track\/[A-Za-z0-9_-]{32,}/;
   if (realEmailPattern.test(text)) {
