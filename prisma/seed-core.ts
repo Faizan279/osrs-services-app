@@ -91,6 +91,8 @@ export const defaultRoles: Array<{
       permissions.designSystemView,
       permissions.productsView,
       permissions.productsEdit,
+      permissions.productsPublish,
+      permissions.productsMediaManage,
     ],
   },
   {
@@ -104,6 +106,7 @@ export const defaultRoles: Array<{
       permissions.ordersView,
       permissions.ordersUpdate,
       permissions.chatRespond,
+      permissions.productsView,
       permissions.goldView,
       permissions.accountsView,
       permissions.customBuildsView,
@@ -149,6 +152,11 @@ export const defaultFeatureFlags = [
   [
     "custom_account_build_enabled",
     "Public custom account build estimates and request intake",
+    false,
+  ],
+  [
+    "product_marketplace_enabled",
+    "Public product marketplace browsing and preview estimates",
     false,
   ],
 ] as const;

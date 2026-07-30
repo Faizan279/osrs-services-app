@@ -3,6 +3,10 @@ export const permissions = {
   designSystemView: "design_system.view",
   productsView: "products.view",
   productsEdit: "products.edit",
+  productsPublish: "products.publish",
+  productsInventoryAdjust: "products.inventory.adjust",
+  productsReservationsManage: "products.reservations.manage",
+  productsMediaManage: "products.media.manage",
   pricingView: "pricing.view",
   pricingEdit: "pricing.edit",
   pricingPublish: "pricing.publish",
@@ -40,6 +44,14 @@ export const permissionDescriptions: Record<PermissionKey, string> = {
   [permissions.designSystemView]: "View the protected design-system showcase.",
   [permissions.productsView]: "View product and service records.",
   [permissions.productsEdit]: "Create and edit product and service records.",
+  [permissions.productsPublish]:
+    "Publish, discard and restore product marketplace revisions.",
+  [permissions.productsInventoryAdjust]:
+    "Adjust product marketplace stock through the append-only ledger.",
+  [permissions.productsReservationsManage]:
+    "Create, release and expire internal product inventory reservations.",
+  [permissions.productsMediaManage]:
+    "Manage customer-safe product marketplace media references.",
   [permissions.pricingView]: "View pricing configuration.",
   [permissions.pricingEdit]: "Edit pricing configuration.",
   [permissions.pricingPublish]: "Publish pricing revisions.",

@@ -8,6 +8,7 @@ import { seedCatalogue, type CatalogueSeedClient } from "./catalogue-seed";
 import { seedCustomBuild } from "./custom-build-seed";
 import { seedGold } from "./gold-seed";
 import { seedPricing } from "./pricing-seed";
+import { seedProductMarketplace } from "./product-seed";
 import { seedDatabase, type SeedClient } from "./seed-core";
 
 const seedEnvironmentSchema = z
@@ -71,6 +72,7 @@ async function main() {
   await seedGold(prisma);
   await seedAccountMarketplace(prisma);
   await seedCustomBuild(prisma);
+  await seedProductMarketplace(prisma);
 }
 
 main()

@@ -138,6 +138,23 @@ Objective rules support fixed additions, fixed target packages, percentage adjus
 
 Task 008 global pricing may apply only after the custom-build engine calculates an automatic or partial priced subtotal. Manual-review-only estimates keep totals null and do not receive invented global additions. Quote revisions are manually authoritative snapshots and do not auto-change when custom-build or global-pricing rules change later.
 
+## Task 012 product marketplace pricing
+
+Task 012 adds product marketplace estimates for `PRODUCT_MARKETPLACE`. The browser supplies only a public product reference or slug, a public variant reference and a quantity. It never supplies currency, unit price, tier price, subtotal, global-pricing lines, availability, stock balance, reservation state, published revision or final total.
+
+Product price modes:
+
+- `FIXED_UNIT`: quantity multiplied by the published server-stored unit price.
+- `QUANTITY_TIER`: deterministic tier lookup from published quantity tiers.
+- `FIXED_PACKAGE`: fixed package price, normally quantity one.
+- `MANUAL_REVIEW`: totals remain null and the UI states that support review is required.
+
+Product quantities are positive whole numbers, represented as strings in snapshots where needed, and use `BigInt` internally for multiplication before safe integer-cent serialization. Published tier overlap or ambiguity fails safely. Product estimates reject unavailable and out-of-stock states rather than returning purchasable-looking totals.
+
+`ProductEstimateSnapshotV1` stores public product/variant references, quantity, unit label, authoritative price, applied tier reference, product subtotal, customer-safe global-pricing lines, final estimate, published product revision reference and optional published global-pricing revision reference. It excludes internal product references, internal SKUs, ledger data, reservation actors, reservation reasons, customer data and credentials.
+
+Task 008 global pricing may apply only after the product engine calculates an available or low-stock priced subtotal. Manual-review, unavailable and out-of-stock estimates do not receive invented global additions.
+
 ## Initial prices
 
 - Existing WooCommerce prices are migration input.
@@ -183,9 +200,10 @@ Each delivery option stores its label, description, fee rule, estimated time, an
 8. Task 008 global pricing additions, minimums and maximums when enabled and applicable
 9. Task 010 account listing base-price and applicable global-pricing lines, for account marketplace estimates only
 10. Task 011 custom account-build priced subtotal and applicable global-pricing lines, for automatic or partial custom-build estimates only
-11. Discounts according to stacking rules
-12. Taxes if later applicable
-13. Final total
+11. Task 012 product subtotal, quantity-tier/package pricing and applicable global-pricing lines, for available or low-stock product marketplace estimates only
+12. Discounts according to stacking rules
+13. Taxes if later applicable
+14. Final total
 
 ## Admin requirements
 

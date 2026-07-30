@@ -1,0 +1,49 @@
+CODEX TASK 012 REVIEW SUMMARY
+
+Repository: Faizan279/osrs-services-app
+Worktree: E:\Codex\osrs-services-task-012
+Branch: codex/task-012-product-marketplace
+Base: d24adb9a3fc57befc9676b6a2357c9e578408466
+
+Implemented PRODUCT_MARKETPLACE as a preview-only product marketplace and internal inventory reservation foundation.
+
+Primary additions:
+- Additive migration 20260730150000_task012_product_marketplace.
+- Public product marketplace at /products.
+- Public product details at /products/[productSlug].
+- Public product APIs for listing, detail and estimates.
+- Admin Products Centre under /admin/products.
+- Product categories, listings, variants, tags, media and immutable published revisions.
+- Fixed-unit, quantity-tier, fixed-package and manual-review pricing modes.
+- Server-authoritative ProductEstimateSnapshotV1 with Task 008 global-pricing integration.
+- Variant-level stock modes, append-only inventory ledger and idempotent atomic stock adjustment service.
+- Internal-only reservation create, release, cancel and expiry service.
+- product_marketplace_enabled feature flag, seeded disabled.
+- products.* permissions with Support Agent view-only by default.
+- GitHub Actions validation with temporary MySQL 8.4.
+- Fresh DB, Task 011 upgrade, screenshot and review-pack scripts.
+
+Security and privacy boundaries:
+- Public responses exclude internal product references, internal SKUs, ledger rows, reservation actors, reservation reasons, audit metadata and customer data.
+- Estimates do not reserve stock, deduct stock, create carts, create orders, create payments or create customer records.
+- Seeded media uses safe placeholder artwork and no unlicensed game artwork.
+- Seeded products use review language and zero stock/paused states by default.
+
+Explicitly not implemented:
+- Cart
+- Add-to-cart persistence
+- Checkout
+- Guest checkout
+- Orders
+- Order items
+- Payments
+- Payment providers
+- Customer accounts
+- Public reservation API
+- Customer-created reservations
+- Shipping or automatic delivery
+- Work assignment
+- Deployment
+- Task 013
+
+Local MySQL/Docker validation was not run. Database-backed validation is configured for GitHub Actions temporary MySQL 8.4.

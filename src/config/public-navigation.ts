@@ -35,8 +35,8 @@ export const serviceNavigation = [
   },
   {
     label: "Gold and items",
-    href: "/#gold-service",
-    description: "Planned gold, item and marketplace flows.",
+    href: "/products",
+    description: "Published item, bond and outfit marketplace listings.",
   },
   {
     label: "Membership and bonds",
@@ -57,6 +57,7 @@ export const serviceNavigation = [
 
 export const primaryNavigation = [
   { label: "Gold", href: "/#gold-service" },
+  { label: "Products", href: "/products" },
   { label: "Accounts", href: "/accounts" },
   { label: "Custom Build", href: "/custom-account-build" },
   { label: "Membership", href: "/#membership-service" },
@@ -75,9 +76,11 @@ export const footerNavigation = {
     { label: "Questing", href: "/services/quests" },
     { label: "Bossing and PvM", href: "/services/bossing-pvm" },
     { label: "Gold", href: "/#gold-service" },
+    { label: "Products", href: "/products" },
   ],
   marketplace: [
     { label: "Gold and items", href: "/#gold-service" },
+    { label: "Products", href: "/products" },
     { label: "Accounts", href: "/accounts" },
     { label: "Custom account build", href: "/custom-account-build" },
     { label: "Membership and bonds", href: "/#membership-service" },

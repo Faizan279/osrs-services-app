@@ -16,7 +16,7 @@ Local MySQL is also optional for Task 008 handoff validation. `.github/workflows
 
 Local MySQL remains optional for Task 009 handoff validation. `.github/workflows/task009-validation.yml` runs fresh MySQL validation, Task 008-to-Task 009 upgrade validation, tests, screenshots and review-pack generation on GitHub-hosted MySQL 8.4 service containers.
 
-Local MySQL remains optional for Task 010 and Task 011 handoff validation. `.github/workflows/task010-validation.yml` and `.github/workflows/task011-validation.yml` run their database-backed checks on GitHub-hosted MySQL 8.4 service containers with disposable CI credentials.
+Local MySQL remains optional for Task 010, Task 011 and Task 012 handoff validation. `.github/workflows/task010-validation.yml`, `.github/workflows/task011-validation.yml` and `.github/workflows/task012-validation.yml` run their database-backed checks on GitHub-hosted MySQL 8.4 service containers with disposable CI credentials.
 
 ## Staging
 
@@ -181,3 +181,29 @@ Before enabling custom account-build intake outside validation:
 - keep cart, checkout, order, payment, work assignment, customer-dashboard and credential-handover flows disabled until later tasks implement them
 
 Rollback is manual. First disable `custom_account_build_enabled`, then export any custom-build requests, attachment metadata, quote revisions, customer decisions, admin-edited rules and audit rows that must be retained. Remove decisions, quote lines, quote revisions, quotes, attachments, status events, request objectives, request skills, requests, revisions, objective rules, objectives, skill rules, rule sets and service configuration in dependency order only after review. Do not use `prisma migrate reset` against shared or production data.
+
+## Product marketplace deployment notes
+
+Task 012 adds migration `20260730150000_task012_product_marketplace`. It is additive and creates product marketplaces, categories, products, variants, quantity tiers, tags, media, immutable product revisions, inventory ledger entries, internal reservations and reservation events.
+
+Seed creates:
+
+- the Products category and `product-marketplace` catalogue service
+- one Product Marketplace configuration
+- Items, Bonds and Outfits product categories
+- representative products, variants, quantity tiers, tags and safe placeholder images
+- zero initial-balance ledger rows
+- one neutral published product revision for a paused demo bond product
+- `product_marketplace_enabled` disabled
+
+Before enabling product marketplace browsing outside validation:
+
+- run `pnpm db:migrate` without reset
+- run `pnpm db:seed` twice and confirm edited product drafts, published revisions, variant prices, tiers, inventory balances, ledger rows, reservations, availability states and feature flags are preserved
+- review `/admin/products` and publish only client-approved product revisions
+- enter real stock only through authorized inventory adjustments
+- confirm product images are licensed/approved and contain no customer or credential information
+- confirm `product_marketplace_enabled` is intentionally enabled
+- keep public reservations, cart, checkout, order, order item, payment, shipping and automatic delivery flows disabled until later tasks implement them
+
+Rollback is manual. First disable `product_marketplace_enabled`, then export any admin-edited products, published revisions, inventory ledger entries, active reservations and audit rows that must be retained. Remove reservation events, reservations, ledger entries, revisions, images, tag assignments, tags, price tiers, variants, products, categories and marketplace rows in dependency order only after review. Do not use `prisma migrate reset` against shared or production data.

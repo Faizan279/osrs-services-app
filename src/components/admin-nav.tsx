@@ -7,6 +7,7 @@ import {
   Hammer,
   LayoutDashboard,
   Library,
+  PackageSearch,
   Store,
 } from "lucide-react";
 import Link from "next/link";
@@ -38,6 +39,12 @@ const navigation = [
     href: "/admin/accounts",
     label: "Accounts",
     icon: Store,
+    exact: false,
+  },
+  {
+    href: "/admin/products",
+    label: "Products",
+    icon: PackageSearch,
     exact: false,
   },
   {
