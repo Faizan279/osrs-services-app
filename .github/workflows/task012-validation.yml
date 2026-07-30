@@ -110,6 +110,9 @@ jobs:
       - name: Write fresh database validation report
         run: pnpm exec tsx scripts/validate-task012-fresh-db.ts
 
+      - name: Validate inventory transactions and reservation concurrency
+        run: pnpm exec tsx scripts/validate-task012-transactions.ts
+
       - name: Lint
         run: pnpm lint
 
@@ -185,7 +188,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: task012-fresh-validation-report
-          path: artifacts/task-012/task012-fresh-database-validation.txt
+          path: |
+            artifacts/task-012/task012-fresh-database-validation.txt
+            artifacts/task-012/task012-inventory-reservation-validation.txt
           if-no-files-found: ignore
           retention-days: 14
 

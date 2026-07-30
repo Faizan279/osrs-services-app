@@ -716,10 +716,8 @@ async function productSummary(connection: Connection) {
     "CartItem",
     "CheckoutSession",
   ]);
-  const orderTableCount = await tableNameCount(connection, [
-    "Order",
-    "OrderItem",
-  ]);
+  const orderTableCount = await tableNameCount(connection, ["Order"]);
+  const orderItemTableCount = await tableNameCount(connection, ["OrderItem"]);
   const paymentTableCount = await tableNameCount(connection, ["Payment"]);
   if (
     permissionCount !== productPermissionKeys.length ||
@@ -734,6 +732,7 @@ async function productSummary(connection: Connection) {
   if (
     cartTableCount !== 0 ||
     orderTableCount !== 0 ||
+    orderItemTableCount !== 0 ||
     paymentTableCount !== 0
   ) {
     throw new Error("Cart, order or payment tables were unexpectedly added.");
@@ -775,6 +774,7 @@ async function productSummary(connection: Connection) {
     supportReservations,
     cartTableCount,
     orderTableCount,
+    orderItemTableCount,
     paymentTableCount,
   };
 }
@@ -849,6 +849,7 @@ async function verify() {
       `SUPPORT_AGENT products.reservations.manage assignment: ${summary.supportReservations}`,
       `Cart model/table count: ${summary.cartTableCount}`,
       `Order model/table count: ${summary.orderTableCount}`,
+      `OrderItem model/table count: ${summary.orderItemTableCount}`,
       `Payment model/table count: ${summary.paymentTableCount}`,
       "",
       "Admin password hash equality and all Task 001-011 preservation markers were verified without printing passwords, hashes, contact fields, tokens, database URLs or secrets.",

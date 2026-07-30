@@ -19,6 +19,7 @@ scripts/build-task012-review-pack.ts
 scripts/capture-task-012.ts
 scripts/validate-task012-existing-db.ts
 scripts/validate-task012-fresh-db.ts
+scripts/validate-task012-transactions.ts
 src/app/(admin)/admin/products/[productId]/history/page.tsx
 src/app/(admin)/admin/products/[productId]/inventory/page.tsx
 src/app/(admin)/admin/products/[productId]/media/page.tsx

@@ -139,10 +139,8 @@ async function main() {
       "CartItem",
       "CheckoutSession",
     ]);
-    const orderTableCount = await tableNameCount(connection, [
-      "Order",
-      "OrderItem",
-    ]);
+    const orderTableCount = await tableNameCount(connection, ["Order"]);
+    const orderItemTableCount = await tableNameCount(connection, ["OrderItem"]);
     const paymentTableCount = await tableNameCount(connection, ["Payment"]);
 
     if (!mysqlVersion) throw new Error("Could not read MySQL version.");
@@ -157,6 +155,7 @@ async function main() {
     if (
       cartTableCount !== 0 ||
       orderTableCount !== 0 ||
+      orderItemTableCount !== 0 ||
       paymentTableCount !== 0
     ) {
       throw new Error("Cart, order or payment tables were unexpectedly added.");
@@ -243,6 +242,7 @@ async function main() {
       `SUPPORT_AGENT products.reservations.manage assignment: ${supportReservations}`,
       `Cart model/table count: ${cartTableCount}`,
       `Order model/table count: ${orderTableCount}`,
+      `OrderItem model/table count: ${orderItemTableCount}`,
       `Payment model/table count: ${paymentTableCount}`,
       "",
       "Task 012 did not add cart, checkout, order, order item or payment tables.",

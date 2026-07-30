@@ -21,7 +21,7 @@ Primary additions:
 - product_marketplace_enabled feature flag, seeded disabled.
 - products.* permissions with Support Agent view-only by default.
 - GitHub Actions validation with temporary MySQL 8.4.
-- Fresh DB, Task 011 upgrade, screenshot and review-pack scripts.
+- Fresh DB, inventory/reservation transaction, Task 011 upgrade, screenshot and review-pack scripts.
 
 Security and privacy boundaries:
 - Public responses exclude internal product references, internal SKUs, ledger rows, reservation actors, reservation reasons, audit metadata and customer data.

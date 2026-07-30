@@ -106,11 +106,11 @@ Jobs:
 - `task011-to-task012-upgrade`
 - `task012-final-review-pack`
 
-The workflow uses temporary MySQL 8.4 service containers, CI-only credentials and no production secrets.
+The workflow uses temporary MySQL 8.4 service containers, CI-only credentials and no production secrets. It includes fresh migration/seed validation, inventory transaction checks, real concurrent reservation checks, Task 011-to-Task 012 upgrade preservation, E2E, screenshots and final review-pack generation.
 
 ## Local Validation
 
-Local validation is run without local MySQL or Docker. MySQL-backed migration, seed, E2E, screenshot and upgrade validation is configured for GitHub Actions temporary MySQL 8.4.
+Local validation is run without local MySQL or Docker. MySQL-backed migration, seed, inventory transaction, reservation concurrency, E2E, screenshot and upgrade validation is configured for GitHub Actions temporary MySQL 8.4.
 
 Expected local commands:
 
@@ -150,8 +150,7 @@ Expected CI artifacts:
 
 ## Confirmations
 
-- No push was performed.
-- No PR was created.
+- This implementation report was prepared before branch publication; push and draft PR status are reported in the PR body and final handoff.
 - No merge was performed.
 - No deployment was performed.
 - No Task 013 work was started.

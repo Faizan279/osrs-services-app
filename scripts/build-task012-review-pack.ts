@@ -37,6 +37,7 @@ const requiredExtraPaths = [
   "changed-files.txt",
   "scripts/validate-task012-fresh-db.ts",
   "scripts/validate-task012-existing-db.ts",
+  "scripts/validate-task012-transactions.ts",
   "scripts/capture-task-012.ts",
   "scripts/build-task012-review-pack.ts",
   "reports/CODEX-TASK-012-COMPLETION.md",
@@ -82,6 +83,7 @@ const requiredExtraPaths = [
   "src/tests/seed-idempotence.test.ts",
   "tests/e2e/task012.spec.ts",
   "artifacts/task-012/task012-fresh-database-validation.txt",
+  "artifacts/task-012/task012-inventory-reservation-validation.txt",
   "artifacts/task-012/task011-to-task012-validation.txt",
   ...screenshotPaths,
 ] as const;
