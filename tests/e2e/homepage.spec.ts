@@ -51,11 +51,8 @@ test("desktop services menu supports click, outside click and Escape", async ({
   await expect(menu).toBeHidden();
 
   await trigger.click();
-  await page
-    .getByRole("heading", {
-      name: "Your next OSRS milestone, handled with care.",
-    })
-    .click();
+  const viewport = page.viewportSize() ?? { width: 1440, height: 900 };
+  await page.mouse.click(viewport.width - 24, viewport.height - 24);
   await expect(menu).toBeHidden();
 });
 

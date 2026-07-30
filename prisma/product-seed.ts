@@ -9,7 +9,7 @@ const marketplaceDescription =
   "Browse representative item, bond and outfit listings after staff review. Product marketplace data is disabled by default until prices, stock and fulfilment wording are approved.";
 
 const marketplaceInstructions =
-  "Use product estimates for planning only. Estimates do not reserve stock, create a cart, create an order or start a payment. Support rechecks stock and fulfilment details before any future checkout step.";
+  "Use product estimates for planning only. Estimates do not hold stock, create a cart, create an order or start a payment. Support rechecks stock and fulfilment details before any future checkout step.";
 
 const productCategories = [
   {
@@ -61,7 +61,7 @@ const products = [
     shortDescription:
       "Paused representative bond listing with tiered pricing and zero seeded stock.",
     fullDescription:
-      "This representative bond listing demonstrates Task 012 quantity-tier pricing and stock checks. It is seeded for review only, is not affiliated with Jagex, and does not create a cart, order, payment or reservation.",
+      "This representative bond listing demonstrates Task 012 quantity-tier pricing and stock checks. It is seeded for review only, is not affiliated with Jagex, and does not create a cart, order, payment or stock hold.",
     internalReferenceCode: "PROD-DEMO-BOND",
     productType: "BOND" as const,
     isFeatured: true,
@@ -283,7 +283,7 @@ export async function seedProductMarketplace(prisma: PrismaClient) {
       isQuoteOnly: true,
       displayOrder: 39,
       publicPreparationNotes:
-        "Do not collect customer information, create reservations, or start checkout from public estimates.",
+        "Do not collect customer information, hold stock, or start checkout from public estimates.",
       seoTitle: "OSRS product marketplace",
       seoDescription:
         "Product marketplace listings with safe preview estimates and inventory controls.",

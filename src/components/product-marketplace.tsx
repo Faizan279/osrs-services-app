@@ -478,8 +478,8 @@ function ReviewMode({ requestHref }: { requestHref: string }) {
       <h2 className="display-type text-3xl">Product review mode</h2>
       <p className="text-text-secondary mt-3 max-w-2xl leading-7">
         Product marketplace browsing is paused while staff review item, bond and
-        outfit data. Admins can configure products, prices, inventory and
-        reservations while the public flag remains disabled.
+        outfit data. Admins can configure products, prices, inventory and stock
+        controls while the public flag remains disabled.
       </p>
       <Button asChild className="mt-6" variant="secondary">
         <a href={requestHref}>Contact support</a>

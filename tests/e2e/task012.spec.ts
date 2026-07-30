@@ -98,7 +98,7 @@ async function publishManualReviewProduct() {
       shortDescription:
         "Support-reviewed package that avoids misleading zero totals.",
       fullDescription:
-        "This published E2E product validates the manual-review estimate state without creating a cart, order, payment or reservation.",
+        "This published E2E product validates the manual-review estimate state without creating a cart, order, payment or stock hold.",
       productType: "ITEM",
       currencyCode: "USD",
       publicBadgeText: "Manual review",
