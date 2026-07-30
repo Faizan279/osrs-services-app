@@ -85,8 +85,17 @@ async function submitFormAndWaitForPost(
 }
 
 async function setFormFieldValue(field: Locator, value: string) {
-  await field.fill(value);
-  await field.dispatchEvent("change");
+  await field.evaluate((element, nextValue) => {
+    if (!(
+      element instanceof HTMLInputElement ||
+      element instanceof HTMLTextAreaElement
+    )) {
+      throw new Error("Expected an input or textarea field.");
+    }
+    element.value = nextValue;
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+  }, value);
   await expect(field).toHaveValue(value);
 }
 
