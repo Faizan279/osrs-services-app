@@ -435,17 +435,22 @@ test("published edits, children and media stay staged until atomic republish", a
     "Pending staged summary for atomic publication workflow verification.";
   const stagedRequirement = "Pending publication workflow requirement";
   const stagedMediaPath = "/validation/pending-primary.webp";
+  const editorPath = `/admin/catalogue/services/${service.id}`;
 
   await signInToCatalogue(page);
-  await page.goto(`/admin/catalogue/services/${service.id}`);
+  await page.goto(editorPath);
   await page.waitForLoadState("networkidle");
-  await page.locator('textarea[name="shortSummary"]').fill(stagedSummary);
+  const serviceForm = page.locator("form").filter({
+    has: page.getByRole("button", { name: "Save unpublished changes" }),
+  });
+  await setFormFieldValue(
+    page.locator('textarea[name="shortSummary"]'),
+    stagedSummary,
+  );
   await page
     .locator('input[name="gameModes"][value="ULTIMATE_IRONMAN"]')
     .uncheck();
-  await page
-    .getByRole("button", { name: "Save unpublished changes" })
-    .click({ noWaitAfter: true });
+  await submitFormAndWaitForPost(page, serviceForm, editorPath);
   await expect.poll(async () => (await stageState(service.id)).count).toBe(1);
   await page.reload();
   await expect(
@@ -469,7 +474,7 @@ test("published edits, children and media stay staged until atomic republish", a
   await expect(
     page.getByRole("link", { name: "Back to editor" }),
   ).toHaveAttribute("href", `/admin/catalogue/services/${service.id}`);
-  await page.goto(`/admin/catalogue/services/${service.id}`);
+  await page.goto(editorPath);
   await expect(page).toHaveURL(
     new RegExp(`/admin/catalogue/services/${service.id}$`),
   );
@@ -544,7 +549,7 @@ test("published edits, children and media stay staged until atomic republish", a
   await expect(
     page.getByRole("link", { name: "Back to editor" }),
   ).toHaveAttribute("href", `/admin/catalogue/services/${service.id}`);
-  await page.goto(`/admin/catalogue/services/${service.id}`);
+  await page.goto(editorPath);
   await expect(page).toHaveURL(
     new RegExp(`/admin/catalogue/services/${service.id}$`),
   );
@@ -612,15 +617,13 @@ test("published edits, children and media stay staged until atomic republish", a
     "Pending primary workflow artwork",
   );
 
-  await page.goto(`/admin/catalogue/services/${service.id}`);
+  await page.goto(editorPath);
   const summaryField = page.locator('textarea[name="shortSummary"]');
   await setFormFieldValue(summaryField, service.shortSummary);
   await page
     .locator('input[name="gameModes"][value="ULTIMATE_IRONMAN"]')
     .check();
-  await page
-    .getByRole("button", { name: "Save unpublished changes" })
-    .click({ noWaitAfter: true });
+  await submitFormAndWaitForPost(page, serviceForm, editorPath);
   await expect
     .poll(async () => (await stageState(service.id)).shortSummary)
     .toBe(service.shortSummary);
@@ -1048,14 +1051,19 @@ test("failed republish preserves public content and discard restores the editor"
   );
   const pendingSummary =
     "Pending quest summary used to verify failed publication rollback.";
+  const editorPath = `/admin/catalogue/services/${service.id}`;
 
   await signInToCatalogue(page);
-  await page.goto(`/admin/catalogue/services/${service.id}`);
+  await page.goto(editorPath);
   await page.waitForLoadState("networkidle");
-  await page.locator('textarea[name="shortSummary"]').fill(pendingSummary);
-  await page
-    .getByRole("button", { name: "Save unpublished changes" })
-    .click({ noWaitAfter: true });
+  const serviceForm = page.locator("form").filter({
+    has: page.getByRole("button", { name: "Save unpublished changes" }),
+  });
+  await setFormFieldValue(
+    page.locator('textarea[name="shortSummary"]'),
+    pendingSummary,
+  );
+  await submitFormAndWaitForPost(page, serviceForm, editorPath);
   await expect.poll(async () => (await stageState(service.id)).count).toBe(1);
   await page.reload();
   await databaseRows(
