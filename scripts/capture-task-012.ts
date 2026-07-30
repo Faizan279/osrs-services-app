@@ -287,7 +287,7 @@ async function capturePublicPages(browser: Browser, connection: Connection) {
   await page.getByRole("heading", { name: "Bond marketplace demo" }).waitFor();
   await screenshot(page, "public-product-detail-1440.png");
 
-  await page.getByLabel("Quantity").fill("5");
+  await page.getByRole("spinbutton", { name: "Quantity" }).fill("5");
   await page.getByRole("button", { name: "Calculate estimate" }).click();
   await page.getByText("Product handling").waitFor();
   await screenshot(page, "public-product-estimate-1440.png");
