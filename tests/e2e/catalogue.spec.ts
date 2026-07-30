@@ -618,12 +618,19 @@ test("published edits, children and media stay staged until atomic republish", a
   );
 
   await page.goto(editorPath);
-  const summaryField = page.locator('textarea[name="shortSummary"]');
+  await page.waitForLoadState("networkidle");
+  const restoreServiceForm = page.locator("form").filter({
+    has: page.getByRole("button", { name: "Save unpublished changes" }),
+  });
+  const summaryField = restoreServiceForm.locator(
+    'textarea[name="shortSummary"]',
+  );
+  await expect(summaryField).toHaveValue(stagedSummary, { timeout: 30_000 });
   await setFormFieldValue(summaryField, service.shortSummary);
-  await page
+  await restoreServiceForm
     .locator('input[name="gameModes"][value="ULTIMATE_IRONMAN"]')
     .check();
-  await submitFormAndWaitForPost(page, serviceForm, editorPath);
+  await submitFormAndWaitForPost(page, restoreServiceForm, editorPath);
   await expect
     .poll(async () => (await stageState(service.id)).shortSummary)
     .toBe(service.shortSummary);
