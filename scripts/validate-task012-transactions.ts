@@ -1109,11 +1109,14 @@ async function main() {
       `Order model/table count: ${orderTableCount}`,
       `OrderItem model/table count: ${orderItemTableCount}`,
       `Payment model/table count: ${paymentTableCount}`,
+      "Temporary validation markers cleaned before E2E: true",
       "",
       "Repeated seed inventory preservation is validated by the Task 011-to-Task 012 upgrade job.",
       "No database URLs, passwords, reservation reasons, actor identifiers, internal notes, private media paths, customer data or secrets are included in this report.",
       "",
     ].join("\n");
+
+    await cleanupMarkers(connection);
 
     await mkdir(artifactDirectory, { recursive: true });
     await writeFile(reportPath, report, "utf8");
