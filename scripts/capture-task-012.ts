@@ -260,7 +260,7 @@ async function screenshot(page: Page, name: string) {
   await settle(page);
   await page.screenshot({
     path: path.join(outputDirectory, name),
-    fullPage: true,
+    fullPage: false,
   });
 }
 

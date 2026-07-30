@@ -88,6 +88,10 @@ const requiredExtraPaths = [
   ...screenshotPaths,
 ] as const;
 
+const pngSignature = Buffer.from([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+]);
+
 const disallowedPathPatterns = [
   /^\.env$/,
   /^node_modules\//,
@@ -127,11 +131,41 @@ function assertAllowed(entryName: string) {
   }
 }
 
+function expectedScreenshotSize(screenshotPath: string) {
+  return screenshotPath.includes("-390.png")
+    ? { width: 390, height: 844 }
+    : { width: 1440, height: 1000 };
+}
+
+function readPngSize(screenshotPath: string, data: Buffer) {
+  if (data.length < 24 || !data.subarray(0, 8).equals(pngSignature)) {
+    throw new Error(`Screenshot is not a valid PNG: ${screenshotPath}`);
+  }
+  return {
+    width: data.readUInt32BE(16),
+    height: data.readUInt32BE(20),
+  };
+}
+
 async function verifyScreenshots() {
   for (const screenshotPath of screenshotPaths) {
-    const fileStat = await stat(path.join(process.cwd(), screenshotPath));
+    const absolutePath = path.join(process.cwd(), screenshotPath);
+    const fileStat = await stat(absolutePath);
     if (!fileStat.isFile() || fileStat.size <= 0) {
       throw new Error(`Screenshot is missing or empty: ${screenshotPath}`);
+    }
+    const data = await readFile(absolutePath);
+    const actualSize = readPngSize(screenshotPath, data);
+    const expectedSize = expectedScreenshotSize(screenshotPath);
+    if (
+      actualSize.width !== expectedSize.width ||
+      actualSize.height !== expectedSize.height
+    ) {
+      throw new Error(
+        `Screenshot has unexpected dimensions: ${screenshotPath} ` +
+          `expected ${expectedSize.width}x${expectedSize.height}, ` +
+          `received ${actualSize.width}x${actualSize.height}`,
+      );
     }
   }
   console.log("Task 012 screenshot verification passed.");
