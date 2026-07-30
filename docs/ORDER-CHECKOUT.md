@@ -18,6 +18,8 @@ Task 009 gold estimates also remain preview-only. `GoldEstimateSnapshotV1` is JS
 
 Task 010 account marketplace estimates remain preview-only. `AccountListingSnapshotV1` is JSON-safe and excludes login identifiers, passwords, email addresses, recovery data, authenticator data, bank PINs, internal notes, hold actors and customer contact data. Future cart and checkout flows must reload the account listing, published listing revision, global-pricing revision and availability state before any order or reservation can exist.
 
+Task 011 custom account-build requests are quote-only. `CustomBuildEstimateSnapshotV1` excludes display name, email, Discord username, RSN, customer notes, attachments, raw tracking tokens, internal notes and admin identities. Staff can create immutable quote revisions and send a secure guest tracking view; customer acceptance or decline records a quote decision only. Accepted quotes do not create carts, checkout sessions, orders, order items, payments, work assignments, customer accounts or credential handover.
+
 ## Suggested order statuses
 
 - Awaiting Payment
@@ -36,4 +38,4 @@ Every status change records the previous status, new status, actor, timestamp, p
 
 ## Quotes
 
-Support quote requests, admin revisions, included items, price, estimated delivery, expiry, customer acceptance, conversion to order, and version history.
+Task 011 supports quote requests, admin revisions, included items, price, estimated delivery, expiry, customer acceptance or decline, and version history for custom account builds. Quote-to-order conversion remains deferred and must recalculate from current server-side state before any future order is created.

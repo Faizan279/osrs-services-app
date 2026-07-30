@@ -16,6 +16,8 @@ Local MySQL is also optional for Task 008 handoff validation. `.github/workflows
 
 Local MySQL remains optional for Task 009 handoff validation. `.github/workflows/task009-validation.yml` runs fresh MySQL validation, Task 008-to-Task 009 upgrade validation, tests, screenshots and review-pack generation on GitHub-hosted MySQL 8.4 service containers.
 
+Local MySQL remains optional for Task 010 and Task 011 handoff validation. `.github/workflows/task010-validation.yml` and `.github/workflows/task011-validation.yml` run their database-backed checks on GitHub-hosted MySQL 8.4 service containers with disposable CI credentials.
+
 ## Staging
 
 Create a staging environment before production. Test Hostinger's Node.js application support first. Use an alternative managed Node environment or VPS if the required custom server or real-time connections are limited.
@@ -153,3 +155,29 @@ Before enabling account marketplace browsing outside validation:
 - keep cart, checkout, payment, order, reservation and credential handover flows disabled until later tasks implement them
 
 Rollback is manual. First disable `account_marketplace_enabled`, then export any admin-edited listings, revisions, holds, handover readiness rows and audit rows that must be retained. Remove account holds, revisions, images, features, unlocks, stats, checklists, listings and marketplaces in dependency order only after review. Do not use `prisma migrate reset` against shared or production data.
+
+## Custom account-build deployment notes
+
+Task 011 adds migration `20260728150000_task011_custom_account_build`. It is additive and creates custom-build service configuration, draft rule sets, skill/objective rules, immutable published revisions, persistent requests, request status history, quarantined attachment metadata, quotes, quote revisions, quote lines and customer quote decisions.
+
+Seed creates:
+
+- the Custom Account Builds category and `custom-account-build` catalogue service
+- one custom-build service configuration
+- representative skill rules and quest/diary/unlock objectives marked `Needs client review`
+- one draft rule set
+- one neutral published custom-build revision
+- `custom_account_build_enabled` disabled
+
+Before enabling custom account-build intake outside validation:
+
+- run `pnpm db:migrate` without reset
+- set `CUSTOM_BUILD_PRIVATE_ATTACHMENT_ROOT` to a private non-public filesystem location
+- run `pnpm db:seed` twice and confirm edited custom-build config, rules, revisions, requests, attachment metadata, quotes, customer decisions and feature flags are preserved
+- review `/admin/custom-builds` and publish only client-approved pricing/prerequisite rules
+- confirm production malware-scanning strategy before accepting customer attachments
+- confirm public copy still says no passwords or credential screenshots are accepted
+- confirm `custom_account_build_enabled` is intentionally enabled
+- keep cart, checkout, order, payment, work assignment, customer-dashboard and credential-handover flows disabled until later tasks implement them
+
+Rollback is manual. First disable `custom_account_build_enabled`, then export any custom-build requests, attachment metadata, quote revisions, customer decisions, admin-edited rules and audit rows that must be retained. Remove decisions, quote lines, quote revisions, quotes, attachments, status events, request objectives, request skills, requests, revisions, objective rules, objectives, skill rules, rule sets and service configuration in dependency order only after review. Do not use `prisma migrate reset` against shared or production data.

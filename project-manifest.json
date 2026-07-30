@@ -40,6 +40,17 @@
     "premium_configurator_enabled": false,
     "global_pricing_enabled": false,
     "gold_engine_enabled": false,
-    "account_marketplace_enabled": false
+    "account_marketplace_enabled": false,
+    "custom_account_build_enabled": false
+  },
+  "service_engines": {
+    "custom_account_build": {
+      "engineType": "CUSTOM_ACCOUNT_BUILD",
+      "publicRoute": "/custom-account-build",
+      "adminRoute": "/admin/custom-builds",
+      "featureFlag": "custom_account_build_enabled",
+      "quoteOnly": true,
+      "createsOrdersOrPayments": false
+    }
   }
 }

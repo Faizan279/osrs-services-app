@@ -8,6 +8,7 @@
 - Product and service configuration flows
 - Gold buy and sell
 - Accounts marketplace and custom account-build requests
+- Custom account-build quote tracking
 - Items, bonds, outfits, and gathering
 - Cart and guest checkout
 - Optional customer accounts and dashboard
@@ -36,6 +37,7 @@ Skilling, Quests, Achievement Diaries, Combat Achievements, Minigames, Bossing/P
 - Inventory, capacity, accounts, and gold rates
 - Gold trading rate publication, quantity presets, stock ledger, buying-capacity ledger, and review-safe estimate snapshots
 - Account marketplace listings, public stats, unlocks, feature tags, galleries, availability holds, sold state, approval/publication revisions, and secure-handover readiness metadata
+- Custom account-build configuration, desired-stat/objective rules, request review, private attachment metadata review, status history, and versioned quote revisions
 - Orders, quotes, customers, reviews, and staff
 - Live-chat monitoring
 - Notifications, feature flags, audit logs, exports, and backup preparation

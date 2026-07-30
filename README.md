@@ -102,6 +102,16 @@ Account listing snapshots are JSON-safe and contain public stats, unlock referen
 
 Admin users with `accounts.view` can access `/admin/accounts`; edits require `accounts.edit`; approval requires `accounts.approve`; publish/discard/restore requires `accounts.publish`; holds, sold state and availability require `accounts.availability.manage`; secure-handover readiness requires `accounts.handover.review`. Seeds create the Accounts category/service, one account marketplace, representative public-safe listings, stats, unlocks, features, media and `account_marketplace_enabled=false`.
 
+## Task 011 custom account build engine
+
+`CUSTOM_ACCOUNT_BUILD` pages now support quote-only custom account-build requests at `/custom-account-build` and secure guest tracking at `/custom-account-build/track/[token]`. Public APIs are `POST /api/custom-build/estimate`, `POST /api/custom-build/requests`, `POST /api/custom-build/requests/[requestId]/attachments`, and `POST /api/custom-build/quotes/[quoteId]/decision`.
+
+The engine supports desired/current/target stats, quests, diaries, unlocks, private notes, quarantined private attachment metadata, automatic estimates, partial estimates, manual-review states, persistent requests, status history, immutable quote revisions, quote expiry, and customer accept/decline decisions. Accepted quotes remain quotes only; Task 011 creates no cart, checkout, order, order item, payment, customer account, project delivery or credential handover.
+
+Custom-build snapshots exclude contact details, RSNs, customer notes, attachment paths, raw tracking tokens and internal notes. Tracking tokens are generated with high entropy, stored only as SHA-256 hashes, and shown once in the confirmation link. Private attachments allow PNG, JPEG, WebP and PDF only, use random server filenames, store outside public assets, and require `custom_builds.attachments.review` for admin download.
+
+Admin users with `custom_builds.view` can access `/admin/custom-builds`; edits require `custom_builds.edit`; publish/discard/restore require `custom_builds.publish`; request status review requires `custom_builds.requests.review`; attachment review/download requires `custom_builds.attachments.review`; quote creation/revision/send/void requires `custom_builds.quotes.manage`. Seeds create the Custom Account Builds category/service, draft rules, representative skill/objective pricing, one neutral published revision and `custom_account_build_enabled=false`.
+
 ### Requirements
 
 - Node.js 24 LTS
@@ -122,7 +132,7 @@ Normal seed runs preserve an existing administrator password. Set `ADMIN_SEED_RE
 
 `DATABASE_ALLOW_PUBLIC_KEY_RETRIEVAL=true` supports the non-TLS Docker MySQL account locally. Leave it disabled in production and use the database provider's TLS configuration.
 
-Local MySQL is optional for Task 007, Task 008, Task 009 and Task 010 handoff validation. Task-specific GitHub Actions workflows, including `.github/workflows/task010-validation.yml`, run migrations, seeds, unit tests, E2E tests, screenshots and review-pack generation against temporary GitHub-hosted MySQL 8.4 service containers. Those CI credentials are disposable validation-only values and are not production secrets.
+Local MySQL is optional for Task 007, Task 008, Task 009, Task 010 and Task 011 handoff validation. Task-specific GitHub Actions workflows, including `.github/workflows/task011-validation.yml`, run migrations, seeds, unit tests, E2E tests, screenshots and review-pack generation against temporary GitHub-hosted MySQL 8.4 service containers. Those CI credentials are disposable validation-only values and are not production secrets.
 
 ```bash
 pnpm install --frozen-lockfile
@@ -159,13 +169,15 @@ pnpm screenshots:task006
 pnpm screenshots:task007
 pnpm screenshots:task008
 pnpm screenshots:task009
+pnpm screenshots:task010
+pnpm screenshots:task011
 pnpm format:check
 pnpm build
 ```
 
-Task 002 through Task 010 screenshot capture expects the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
+Task 002 through Task 011 screenshot capture expects the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
 
-For Task 010, the GitHub Actions workflow uploads Playwright results, screenshots, validation reports and the final review ZIP as workflow artifacts. Production deployment still requires a real persistent MySQL database and must not use the temporary CI service container.
+For Task 011, the GitHub Actions workflow uploads Playwright results, screenshots, validation reports and the final review ZIP as workflow artifacts. Production deployment still requires a real persistent MySQL database and must not use the temporary CI service container.
 
 ### Database commands
 

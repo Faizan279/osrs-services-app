@@ -268,31 +268,120 @@ enum AccountImageType {
   UNLOCK_OVERVIEW
 }
 
+enum CustomBuildPublicationStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CustomBuildRequestStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  NEEDS_CUSTOMER_INFORMATION
+  ESTIMATE_PROVIDED
+  QUOTE_DRAFT
+  QUOTE_SENT
+  QUOTE_ACCEPTED
+  QUOTE_DECLINED
+  QUOTE_EXPIRED
+  CLOSED
+  CANCELLED
+}
+
+enum CustomBuildEstimateState {
+  AUTOMATIC
+  PARTIAL
+  MANUAL_REVIEW_REQUIRED
+  UNAVAILABLE
+}
+
+enum CustomBuildObjectiveType {
+  QUEST
+  ACHIEVEMENT_DIARY
+  UNLOCK
+  MINIGAME
+  BOSS_ACCESS
+  PRAYER
+  SPELLBOOK
+  TRANSPORT
+  UNTRADEABLE
+  OTHER
+}
+
+enum CustomBuildPricingMode {
+  PER_XP
+  PER_LEVEL_BAND
+  FIXED_TARGET_PACKAGE
+  FIXED_ADDITION
+  MANUAL_REVIEW_ONLY
+}
+
+enum CustomBuildQuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  VOID
+}
+
+enum CustomBuildAttachmentStatus {
+  QUARANTINED
+  APPROVED
+  REJECTED
+  REMOVED
+}
+
+enum CustomBuildAttachmentScanStatus {
+  NOT_SCANNED
+  PENDING
+  PASSED
+  FAILED
+  REJECTED
+}
+
+enum CustomBuildCustomerDecision {
+  ACCEPTED
+  DECLINED
+}
+
+enum CustomBuildSkillValueMode {
+  LEVEL
+  XP
+  UNKNOWN_CURRENT
+  FRESH_ACCOUNT
+}
+
 model User {
-  id                  String                     @id @default(cuid()) @db.VarChar(30)
-  email               String                     @unique @db.VarChar(191)
-  emailVerified       DateTime?
-  name                String?                    @db.VarChar(120)
-  image               String?                    @db.VarChar(500)
-  passwordHash        String                     @db.VarChar(255)
-  status              UserStatus                 @default(ACTIVE)
-  createdAt           DateTime                   @default(now())
-  updatedAt           DateTime                   @updatedAt
-  roles               UserRole[]
-  sessions            Session[]
-  auditLogs           AuditLog[]                 @relation("AuditActor")
-  servicesCreated     CatalogueService[]         @relation("CatalogueServiceCreatedBy")
-  servicesUpdated     CatalogueService[]         @relation("CatalogueServiceUpdatedBy")
-  catalogueRevisions  CatalogueRevision[]        @relation("CatalogueRevisionActor")
-  catalogueStages     CatalogueServiceStage[]    @relation("CatalogueServiceStageUpdatedBy")
-  pricingRuleSets     PricingRuleSet[]           @relation("PricingRuleSetPublishedBy")
-  pricingRevisions    PricingRevision[]          @relation("PricingRevisionPublishedBy")
-  goldRateSets        GoldRateSet[]              @relation("GoldRateSetPublishedBy")
-  goldRateRevisions   GoldRateRevision[]         @relation("GoldRateRevisionPublishedBy")
-  goldLedgerEntries   GoldInventoryLedgerEntry[] @relation("GoldInventoryLedgerActor")
-  accountRevisions    AccountListingRevision[]   @relation("AccountListingRevisionPublishedBy")
-  accountHolds        AccountListingHold[]       @relation("AccountListingHoldCreatedBy")
-  accountHoldReleases AccountListingHold[]       @relation("AccountListingHoldReleasedBy")
+  id                           String                          @id @default(cuid()) @db.VarChar(30)
+  email                        String                          @unique @db.VarChar(191)
+  emailVerified                DateTime?
+  name                         String?                         @db.VarChar(120)
+  image                        String?                         @db.VarChar(500)
+  passwordHash                 String                          @db.VarChar(255)
+  status                       UserStatus                      @default(ACTIVE)
+  createdAt                    DateTime                        @default(now())
+  updatedAt                    DateTime                        @updatedAt
+  roles                        UserRole[]
+  sessions                     Session[]
+  auditLogs                    AuditLog[]                      @relation("AuditActor")
+  servicesCreated              CatalogueService[]              @relation("CatalogueServiceCreatedBy")
+  servicesUpdated              CatalogueService[]              @relation("CatalogueServiceUpdatedBy")
+  catalogueRevisions           CatalogueRevision[]             @relation("CatalogueRevisionActor")
+  catalogueStages              CatalogueServiceStage[]         @relation("CatalogueServiceStageUpdatedBy")
+  pricingRuleSets              PricingRuleSet[]                @relation("PricingRuleSetPublishedBy")
+  pricingRevisions             PricingRevision[]               @relation("PricingRevisionPublishedBy")
+  goldRateSets                 GoldRateSet[]                   @relation("GoldRateSetPublishedBy")
+  goldRateRevisions            GoldRateRevision[]              @relation("GoldRateRevisionPublishedBy")
+  goldLedgerEntries            GoldInventoryLedgerEntry[]      @relation("GoldInventoryLedgerActor")
+  accountRevisions             AccountListingRevision[]        @relation("AccountListingRevisionPublishedBy")
+  accountHolds                 AccountListingHold[]            @relation("AccountListingHoldCreatedBy")
+  accountHoldReleases          AccountListingHold[]            @relation("AccountListingHoldReleasedBy")
+  customBuildRuleSets          CustomBuildRuleSet[]            @relation("CustomBuildRuleSetPublishedBy")
+  customBuildRevisions         CustomBuildRevision[]           @relation("CustomBuildRevisionPublishedBy")
+  customBuildStatusEvents      CustomBuildRequestStatusEvent[] @relation("CustomBuildStatusEventActor")
+  customBuildAttachmentReviews CustomBuildAttachment[]         @relation("CustomBuildAttachmentReviewedBy")
+  customBuildQuoteRevisions    CustomBuildQuoteRevision[]      @relation("CustomBuildQuoteRevisionCreatedBy")
 
   @@index([status])
 }
@@ -457,6 +546,7 @@ model CatalogueService {
   pricingScopes                     PricingRuleApplicability[]
   goldMarket                        GoldMarket?
   accountMarketplace                AccountMarketplace?
+  customBuildService                CustomBuildService?
 
   @@unique([categoryId, slug])
   @@index([publicationStatus, publishAt, unpublishAt])
@@ -1397,6 +1487,357 @@ model AccountListingHandoverChecklist {
   createdAt                      DateTime                 @default(now())
   updatedAt                      DateTime                 @updatedAt
   listing                        AccountListing           @relation(fields: [listingId], references: [id], onDelete: Cascade)
+}
+
+model CustomBuildService {
+  id                            String                     @id @default(cuid()) @db.VarChar(30)
+  stableKey                     String                     @unique @db.VarChar(120)
+  serviceId                     String                     @unique @db.VarChar(30)
+  publicName                    String                     @db.VarChar(160)
+  slug                          String                     @unique @db.VarChar(180)
+  publicDescription             String                     @db.Text
+  publicInstructions            String                     @db.Text
+  privateInternalInstructions   String?                    @db.Text
+  currencyCode                  String                     @default("USD") @db.Char(3)
+  availabilityState             CatalogueAvailabilityState @default(PAUSED)
+  minimumAutomaticEstimateCents Int                        @default(0)
+  maximumAutomaticEstimateCents Int?
+  quoteValidityDaysDefault      Int                        @default(7)
+  attachmentPolicy              String                     @db.Text
+  maxAttachments                Int                        @default(5)
+  maxAttachmentBytes            Int                        @default(5242880)
+  maxTotalAttachmentBytes       Int                        @default(20971520)
+  customerNoteMaxLength         Int                        @default(2000)
+  consentPolicyVersion          String                     @default("custom-build-request-v1") @db.VarChar(80)
+  needsClientReview             Boolean                    @default(true)
+  concurrencyVersion            Int                        @default(1)
+  createdAt                     DateTime                   @default(now())
+  updatedAt                     DateTime                   @updatedAt
+  service                       CatalogueService           @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  ruleSets                      CustomBuildRuleSet[]
+  objectives                    CustomBuildObjective[]
+  revisions                     CustomBuildRevision[]
+  requests                      CustomBuildRequest[]
+
+  @@index([serviceId])
+  @@index([availabilityState])
+  @@index([currencyCode])
+}
+
+model CustomBuildRuleSet {
+  id                    String                       @id @default(cuid()) @db.VarChar(30)
+  customBuildServiceId  String                       @db.VarChar(30)
+  name                  String                       @db.VarChar(160)
+  description           String?                      @db.VarChar(500)
+  status                CustomBuildPublicationStatus @default(DRAFT)
+  currencyCode          String                       @default("USD") @db.Char(3)
+  snapshotSchemaVersion Int                          @default(1)
+  publishedAt           DateTime?
+  publishedById         String?                      @db.VarChar(30)
+  needsClientReview     Boolean                      @default(true)
+  internalNotes         String?                      @db.Text
+  concurrencyVersion    Int                          @default(1)
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+  service               CustomBuildService           @relation(fields: [customBuildServiceId], references: [id], onDelete: Cascade)
+  publishedBy           User?                        @relation("CustomBuildRuleSetPublishedBy", fields: [publishedById], references: [id], onDelete: SetNull)
+  skillRules            CustomBuildSkillRule[]
+  objectiveRules        CustomBuildObjectiveRule[]
+  revisions             CustomBuildRevision[]
+
+  @@index([customBuildServiceId, status, updatedAt])
+  @@index([publishedById])
+}
+
+model CustomBuildSkillRule {
+  id                 String                 @id @default(cuid()) @db.VarChar(30)
+  stableKey          String                 @unique @db.VarChar(160)
+  ruleSetId          String                 @db.VarChar(30)
+  skillKey           SkillingSkillKey
+  pricingMode        CustomBuildPricingMode @default(PER_XP)
+  gameMode           CatalogueGameMode?
+  minimumLevel       Int?
+  maximumLevel       Int?
+  minimumXp          BigInt?
+  maximumXp          BigInt?
+  centsPerMillionXp  Int?
+  levelBandStart     Int?
+  levelBandEnd       Int?
+  fixedPriceCents    Int?
+  minimumPriceCents  Int                    @default(0)
+  enabled            Boolean                @default(true)
+  manualReviewOnly   Boolean                @default(false)
+  needsClientReview  Boolean                @default(true)
+  concurrencyVersion Int                    @default(1)
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  ruleSet            CustomBuildRuleSet     @relation(fields: [ruleSetId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleSetId, skillKey, gameMode, minimumLevel, maximumLevel])
+  @@index([ruleSetId, enabled, skillKey])
+  @@index([skillKey, gameMode])
+}
+
+model CustomBuildObjective {
+  id                   String                        @id @default(cuid()) @db.VarChar(30)
+  stableKey            String                        @unique @db.VarChar(160)
+  customBuildServiceId String                        @db.VarChar(30)
+  objectiveType        CustomBuildObjectiveType
+  objectiveKey         String                        @db.VarChar(120)
+  publicName           String                        @db.VarChar(180)
+  publicDescription    String                        @db.Text
+  objectiveGroup       String?                       @db.VarChar(120)
+  difficultyTier       String?                       @db.VarChar(80)
+  gameMode             CatalogueGameMode?
+  prerequisiteText     String?                       @db.Text
+  sortOrder            Int                           @default(0)
+  enabled              Boolean                       @default(true)
+  needsClientReview    Boolean                       @default(true)
+  concurrencyVersion   Int                           @default(1)
+  createdAt            DateTime                      @default(now())
+  updatedAt            DateTime                      @updatedAt
+  service              CustomBuildService            @relation(fields: [customBuildServiceId], references: [id], onDelete: Cascade)
+  rules                CustomBuildObjectiveRule[]
+  requestObjectives    CustomBuildRequestObjective[]
+
+  @@unique([customBuildServiceId, objectiveKey])
+  @@index([customBuildServiceId, enabled, sortOrder])
+  @@index([objectiveType])
+  @@index([gameMode])
+}
+
+model CustomBuildObjectiveRule {
+  id                 String                 @id @default(cuid()) @db.VarChar(30)
+  stableKey          String                 @unique @db.VarChar(160)
+  ruleSetId          String                 @db.VarChar(30)
+  objectiveId        String                 @db.VarChar(30)
+  pricingMode        CustomBuildPricingMode @default(FIXED_ADDITION)
+  fixedPriceCents    Int?
+  percentBps         Int?
+  gameMode           CatalogueGameMode?
+  manualReviewOnly   Boolean                @default(false)
+  enabled            Boolean                @default(true)
+  needsClientReview  Boolean                @default(true)
+  concurrencyVersion Int                    @default(1)
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  ruleSet            CustomBuildRuleSet     @relation(fields: [ruleSetId], references: [id], onDelete: Cascade)
+  objective          CustomBuildObjective   @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleSetId, objectiveId, gameMode])
+  @@index([ruleSetId, enabled])
+  @@index([objectiveId])
+}
+
+model CustomBuildRevision {
+  id                    String               @id @default(cuid()) @db.VarChar(30)
+  customBuildServiceId  String               @db.VarChar(30)
+  ruleSetId             String?              @db.VarChar(30)
+  revisionNumber        Int
+  snapshotSchemaVersion Int                  @default(1)
+  snapshot              Json
+  publishedAt           DateTime             @default(now())
+  publishedById         String?              @db.VarChar(30)
+  createdAt             DateTime             @default(now())
+  service               CustomBuildService   @relation(fields: [customBuildServiceId], references: [id], onDelete: Restrict)
+  ruleSet               CustomBuildRuleSet?  @relation(fields: [ruleSetId], references: [id], onDelete: SetNull)
+  publishedBy           User?                @relation("CustomBuildRevisionPublishedBy", fields: [publishedById], references: [id], onDelete: SetNull)
+  requests              CustomBuildRequest[]
+
+  @@unique([customBuildServiceId, revisionNumber])
+  @@index([customBuildServiceId, publishedAt])
+  @@index([publishedById])
+  @@index([ruleSetId])
+}
+
+model CustomBuildRequest {
+  id                          String                          @id @default(cuid()) @db.VarChar(30)
+  publicRequestNumber         String                          @unique @db.VarChar(40)
+  customBuildServiceId        String                          @db.VarChar(30)
+  publishedRevisionId         String?                         @db.VarChar(30)
+  status                      CustomBuildRequestStatus        @default(SUBMITTED)
+  estimateState               CustomBuildEstimateState?
+  estimateSnapshot            Json?
+  gameMode                    CatalogueGameMode
+  displayName                 String                          @db.VarChar(120)
+  email                       String                          @db.VarChar(191)
+  discordUsername             String?                         @db.VarChar(80)
+  rsn                         String?                         @db.VarChar(12)
+  customerNotes               String?                         @db.Text
+  contactConsentAt            DateTime
+  contactConsentPolicyVersion String                          @db.VarChar(80)
+  trackingTokenHash           String                          @unique @db.Char(64)
+  idempotencyKeyHash          String?                         @unique @db.Char(64)
+  submittedAt                 DateTime                        @default(now())
+  updatedAt                   DateTime                        @updatedAt
+  concurrencyVersion          Int                             @default(1)
+  service                     CustomBuildService              @relation(fields: [customBuildServiceId], references: [id], onDelete: Restrict)
+  publishedRevision           CustomBuildRevision?            @relation(fields: [publishedRevisionId], references: [id], onDelete: SetNull)
+  skills                      CustomBuildRequestSkill[]
+  objectives                  CustomBuildRequestObjective[]
+  statusEvents                CustomBuildRequestStatusEvent[]
+  attachments                 CustomBuildAttachment[]
+  quote                       CustomBuildQuote?
+
+  @@index([customBuildServiceId, status, submittedAt])
+  @@index([publishedRevisionId])
+  @@index([email])
+}
+
+model CustomBuildRequestSkill {
+  id           String                    @id @default(cuid()) @db.VarChar(30)
+  requestId    String                    @db.VarChar(30)
+  skillKey     SkillingSkillKey
+  valueMode    CustomBuildSkillValueMode
+  currentLevel Int?
+  targetLevel  Int?
+  currentXp    BigInt?
+  targetXp     BigInt?
+  freshStart   Boolean                   @default(false)
+  sortOrder    Int                       @default(0)
+  request      CustomBuildRequest        @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@unique([requestId, skillKey])
+  @@index([requestId, sortOrder])
+  @@index([skillKey])
+}
+
+model CustomBuildRequestObjective {
+  id                       String                   @id @default(cuid()) @db.VarChar(30)
+  requestId                String                   @db.VarChar(30)
+  objectiveId              String?                  @db.VarChar(30)
+  objectiveStableKey       String                   @db.VarChar(160)
+  objectiveType            CustomBuildObjectiveType
+  publicName               String                   @db.VarChar(180)
+  customerAlreadyCompleted Boolean                  @default(false)
+  sortOrder                Int                      @default(0)
+  request                  CustomBuildRequest       @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  objective                CustomBuildObjective?    @relation(fields: [objectiveId], references: [id], onDelete: SetNull)
+
+  @@unique([requestId, objectiveStableKey])
+  @@index([requestId, sortOrder])
+  @@index([objectiveId])
+}
+
+model CustomBuildRequestStatusEvent {
+  id             String                    @id @default(cuid()) @db.VarChar(30)
+  requestId      String                    @db.VarChar(30)
+  previousStatus CustomBuildRequestStatus?
+  newStatus      CustomBuildRequestStatus
+  publicMessage  String?                   @db.VarChar(500)
+  internalReason String?                   @db.Text
+  actorId        String?                   @db.VarChar(30)
+  safeMetadata   Json?
+  createdAt      DateTime                  @default(now())
+  request        CustomBuildRequest        @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  actor          User?                     @relation("CustomBuildStatusEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([requestId, createdAt])
+  @@index([newStatus, createdAt])
+  @@index([actorId, createdAt])
+}
+
+model CustomBuildAttachment {
+  id                 String                          @id @default(cuid()) @db.VarChar(30)
+  stableKey          String                          @unique @db.VarChar(160)
+  requestId          String                          @db.VarChar(30)
+  originalFilename   String                          @db.VarChar(180)
+  storageFilename    String                          @db.VarChar(191)
+  storageRoot        String                          @db.VarChar(500)
+  detectedMime       String                          @db.VarChar(120)
+  extension          String                          @db.VarChar(12)
+  sizeBytes          Int
+  sha256             String                          @db.Char(64)
+  status             CustomBuildAttachmentStatus     @default(QUARANTINED)
+  scanStatus         CustomBuildAttachmentScanStatus @default(NOT_SCANNED)
+  reviewNote         String?                         @db.VarChar(500)
+  reviewedAt         DateTime?
+  reviewedById       String?                         @db.VarChar(30)
+  uploadedAt         DateTime                        @default(now())
+  concurrencyVersion Int                             @default(1)
+  request            CustomBuildRequest              @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  reviewedBy         User?                           @relation("CustomBuildAttachmentReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([requestId, status, uploadedAt])
+  @@index([sha256])
+  @@index([reviewedById, reviewedAt])
+}
+
+model CustomBuildQuote {
+  id                    String                     @id @default(cuid()) @db.VarChar(30)
+  publicQuoteNumber     String                     @unique @db.VarChar(40)
+  requestId             String                     @unique @db.VarChar(30)
+  currencyCode          String                     @default("USD") @db.Char(3)
+  status                CustomBuildQuoteStatus     @default(DRAFT)
+  currentRevisionNumber Int                        @default(0)
+  issuedAt              DateTime?
+  expiresAt             DateTime?
+  customerMessage       String?                    @db.Text
+  privateInternalNote   String?                    @db.Text
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+  concurrencyVersion    Int                        @default(1)
+  request               CustomBuildRequest         @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  revisions             CustomBuildQuoteRevision[]
+  decisions             CustomBuildQuoteDecision[]
+
+  @@index([status, expiresAt])
+  @@index([issuedAt])
+}
+
+model CustomBuildQuoteRevision {
+  id                    String                     @id @default(cuid()) @db.VarChar(30)
+  quoteId               String                     @db.VarChar(30)
+  revisionNumber        Int
+  snapshotSchemaVersion Int                        @default(1)
+  snapshot              Json
+  subtotalCents         Int
+  adjustmentsCents      Int                        @default(0)
+  finalTotalCents       Int
+  estimatedDeliveryText String                     @db.VarChar(240)
+  includedWorkSummary   String                     @db.Text
+  exclusions            String?                    @db.Text
+  customerSafeTerms     String                     @db.Text
+  createdById           String?                    @db.VarChar(30)
+  createdAt             DateTime                   @default(now())
+  sentAt                DateTime?
+  quote                 CustomBuildQuote           @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  createdBy             User?                      @relation("CustomBuildQuoteRevisionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  lines                 CustomBuildQuoteLine[]
+  decisions             CustomBuildQuoteDecision[]
+
+  @@unique([quoteId, revisionNumber])
+  @@index([quoteId, sentAt])
+  @@index([createdById])
+}
+
+model CustomBuildQuoteLine {
+  id                String                   @id @default(cuid()) @db.VarChar(30)
+  revisionId        String                   @db.VarChar(30)
+  lineType          String                   @default("SERVICE") @db.VarChar(40)
+  publicDescription String                   @db.VarChar(240)
+  quantity          Int                      @default(1)
+  unitAmountCents   Int
+  lineTotalCents    Int
+  sortOrder         Int                      @default(0)
+  revision          CustomBuildQuoteRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+
+  @@index([revisionId, sortOrder])
+}
+
+model CustomBuildQuoteDecision {
+  id              String                      @id @default(cuid()) @db.VarChar(30)
+  quoteId         String                      @db.VarChar(30)
+  revisionId      String                      @db.VarChar(30)
+  decision        CustomBuildCustomerDecision
+  customerMessage String?                     @db.VarChar(500)
+  decidedAt       DateTime                    @default(now())
+  concurrencyKey  String?                     @unique @db.VarChar(120)
+  quote           CustomBuildQuote            @relation(fields: [quoteId], references: [id], onDelete: Restrict)
+  revision        CustomBuildQuoteRevision    @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+
+  @@index([quoteId, decidedAt])
+  @@index([revisionId])
 }
 
 model PricingRuleSet {

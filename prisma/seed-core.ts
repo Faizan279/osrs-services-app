@@ -106,6 +106,8 @@ export const defaultRoles: Array<{
       permissions.chatRespond,
       permissions.goldView,
       permissions.accountsView,
+      permissions.customBuildsView,
+      permissions.customBuildsRequestsReview,
     ],
   },
 ];
@@ -142,6 +144,11 @@ export const defaultFeatureFlags = [
   [
     "account_marketplace_enabled",
     "Public account marketplace browsing and estimates",
+    false,
+  ],
+  [
+    "custom_account_build_enabled",
+    "Public custom account build estimates and request intake",
     false,
   ],
 ] as const;

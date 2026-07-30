@@ -45,14 +45,20 @@ export const serviceNavigation = [
   },
   {
     label: "Accounts",
-    href: "/#accounts-service",
-    description: "Marketplace and custom account-build requests.",
+    href: "/accounts",
+    description: "Published account listings and availability states.",
+  },
+  {
+    label: "Custom builds",
+    href: "/custom-account-build",
+    description: "Configure desired account stats, quests and unlocks.",
   },
 ] satisfies readonly ServiceNavigationItem[];
 
 export const primaryNavigation = [
   { label: "Gold", href: "/#gold-service" },
-  { label: "Accounts", href: "/#accounts-service" },
+  { label: "Accounts", href: "/accounts" },
+  { label: "Custom Build", href: "/custom-account-build" },
   { label: "Membership", href: "/#membership-service" },
   { label: "Help", href: "/#faq" },
 ] satisfies readonly PublicLink[];
@@ -72,7 +78,8 @@ export const footerNavigation = {
   ],
   marketplace: [
     { label: "Gold and items", href: "/#gold-service" },
-    { label: "Accounts", href: "/#accounts-service" },
+    { label: "Accounts", href: "/accounts" },
+    { label: "Custom account build", href: "/custom-account-build" },
     { label: "Membership and bonds", href: "/#membership-service" },
     { label: "Estimate preview", href: "/#calculator-preview" },
   ],

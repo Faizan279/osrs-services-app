@@ -72,6 +72,9 @@ export default async function ServiceDetailPage({
   if (service.engineType === "ACCOUNT_MARKETPLACE") {
     redirect("/accounts");
   }
+  if (service.engineType === "CUSTOM_ACCOUNT_BUILD") {
+    redirect("/custom-account-build");
+  }
   if (service.engineType === "CATALOGUE_CARD") {
     const search = typeof query.q === "string" ? query.q.slice(0, 80) : "";
     const mode =

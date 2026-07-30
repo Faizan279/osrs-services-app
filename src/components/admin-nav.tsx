@@ -4,6 +4,7 @@ import {
   Blocks,
   CircleDollarSign,
   Coins,
+  Hammer,
   LayoutDashboard,
   Library,
   Store,
@@ -37,6 +38,12 @@ const navigation = [
     href: "/admin/accounts",
     label: "Accounts",
     icon: Store,
+    exact: false,
+  },
+  {
+    href: "/admin/custom-builds",
+    label: "Custom builds",
+    icon: Hammer,
     exact: false,
   },
   {
