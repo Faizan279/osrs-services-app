@@ -335,7 +335,9 @@ async function captureAdminPages(browser: Browser) {
   await screenshot(page, "admin-product-inventory-1440.png");
 
   await page.goto(`${baseUrl}/admin/products/prodsourcebond012/reservations`);
-  await page.getByText("Expire stale reservations").waitFor();
+  await page
+    .getByRole("heading", { name: "Expire stale reservations" })
+    .waitFor();
   await page.getByText("2").first().waitFor();
   await screenshot(page, "admin-product-reservations-1440.png");
 
