@@ -378,7 +378,7 @@ test("search, filters, sorting, detail and estimates stay server-authoritative",
   await expect(
     page.getByRole("heading", { name: "Bond marketplace demo" }),
   ).toBeVisible();
-  await page.getByLabel("Quantity").fill("5");
+  await page.getByRole("spinbutton", { name: "Quantity" }).fill("5");
   await page.getByRole("button", { name: "Calculate estimate" }).click();
   await expect(page.getByText("Product handling")).toBeVisible();
   await expect(page.getByText("$42.95")).toBeVisible();
