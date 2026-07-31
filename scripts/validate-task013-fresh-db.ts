@@ -155,6 +155,23 @@ async function unsafeColumnCount(connection: Connection) {
   return asNumber(result[0]?.value);
 }
 
+async function task013ColumnRiskCount(
+  connection: Connection,
+  columnPattern: string,
+) {
+  const placeholders = task013Tables.map(() => "?").join(", ");
+  const result = await rows<{ value: number }>(
+    connection,
+    `SELECT COUNT(*) AS value
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME IN (${placeholders})
+       AND LOWER(COLUMN_NAME) REGEXP ?`,
+    [...task013Tables, columnPattern],
+  );
+  return asNumber(result[0]?.value);
+}
+
 async function main() {
   const connection = await connect();
   try {
@@ -271,6 +288,57 @@ async function main() {
       throw new Error("Unsafe raw-token or payment credential columns found.");
     }
 
+    const task013Counts = {
+      cart: await count(connection, "Cart"),
+      cartItem: await count(connection, "CartItem"),
+      checkoutAttempt: await count(connection, "CheckoutAttempt"),
+      checkoutIdempotency: await count(connection, "CheckoutIdempotencyRecord"),
+      guestContact: await count(connection, "GuestOrderContact"),
+      order: await count(connection, "Order"),
+      orderItem: await count(connection, "OrderItem"),
+      orderStatusEvent: await count(connection, "OrderStatusEvent"),
+      paymentEvent: await count(connection, "OrderPaymentEvent"),
+      resourceAllocation: await count(connection, "OrderResourceAllocation"),
+      notificationOutbox: await count(connection, "OrderNotificationOutbox"),
+      goldReservation: await count(connection, "GoldInventoryReservation"),
+      paymentConfirmation: await count(
+        connection,
+        "OrderPaymentEvent",
+        "WHERE newPaymentStatus = 'PAID'",
+      ),
+    };
+    const seededDataCounts = Object.values(task013Counts);
+    if (seededDataCounts.some((value) => value !== 0)) {
+      throw new Error("Fresh seed created Task 013 transactional data.");
+    }
+
+    const paymentMethodCount = await count(connection, "CheckoutPaymentMethod");
+    const livePaymentProviderConfigurationCount = await count(
+      connection,
+      "CheckoutPaymentMethod",
+      "WHERE methodType <> 'MANUAL_REVIEW'",
+    );
+    const cardDataColumnCount = await task013ColumnRiskCount(
+      connection,
+      "(cardnumber|card_number|cvv|cvc|cardexpiry|card_expiry)",
+    );
+    const credentialLikeColumnCount = await task013ColumnRiskCount(
+      connection,
+      "(password|credential|bankpin|bank_pin|privatekey|private_key|seedphrase|seed_phrase|walletrecovery|wallet_recovery|recoveryanswer|recovery_answer|authenticatorsecret|authenticator_secret|emailpassword|email_password|runescapepassword|runescape_password|secret)",
+    );
+    const rawTokenColumnCount = await task013ColumnRiskCount(
+      connection,
+      "(^token$|raw.*token|carttoken$|trackingtoken$)",
+    );
+    if (
+      livePaymentProviderConfigurationCount !== 0 ||
+      cardDataColumnCount !== 0 ||
+      credentialLikeColumnCount !== 0 ||
+      rawTokenColumnCount !== 0
+    ) {
+      throw new Error("Unsafe payment/provider/token schema surface found.");
+    }
+
     const report = [
       "Task 013 fresh database validation",
       "",
@@ -278,17 +346,29 @@ async function main() {
       `Applied migration count: ${await count(connection, "_prisma_migrations")}`,
       `Task 013 migration present: ${Boolean(migration)}`,
       `Task 013 table count: ${presentTables}`,
-      `Cart count: ${await count(connection, "Cart")}`,
-      `Order count: ${await count(connection, "Order")}`,
-      `Order notification outbox count: ${await count(
-        connection,
-        "OrderNotificationOutbox",
-      )}`,
+      `Checkout settings count: ${await count(connection, "CheckoutSettings")}`,
+      `Payment-method count: ${paymentMethodCount}`,
+      `Manual-review payment method count: ${manualMethod}`,
+      `Cart count: ${task013Counts.cart}`,
+      `Cart-item count: ${task013Counts.cartItem}`,
+      `Checkout-attempt count: ${task013Counts.checkoutAttempt}`,
+      `Checkout-idempotency count: ${task013Counts.checkoutIdempotency}`,
+      `Guest-contact count: ${task013Counts.guestContact}`,
+      `Order count: ${task013Counts.order}`,
+      `Order-item count: ${task013Counts.orderItem}`,
+      `Order-status-event count: ${task013Counts.orderStatusEvent}`,
+      `Payment-event count: ${task013Counts.paymentEvent}`,
+      `Resource-allocation count: ${task013Counts.resourceAllocation}`,
+      `Notification-outbox count: ${task013Counts.notificationOutbox}`,
+      `Gold-reservation count: ${task013Counts.goldReservation}`,
+      `Payment-confirmation count: ${task013Counts.paymentConfirmation}`,
       `cart_enabled value: ${cartEnabled}`,
       `guest_checkout_enabled value: ${guestCheckoutEnabled}`,
-      `Checkout settings count: ${await count(connection, "CheckoutSettings")}`,
-      `Manual-review payment method count: ${manualMethod}`,
       `Task 013 permission count: ${permissionTotal}`,
+      `Live payment-provider configuration count: ${livePaymentProviderConfigurationCount}`,
+      `Card-data schema-column count: ${cardDataColumnCount}`,
+      `Credential-like schema-column count: ${credentialLikeColumnCount}`,
+      `Raw-token schema-column count: ${rawTokenColumnCount}`,
       `SUPER_ADMIN orders.payment.review assignment: ${superAdminPayment}`,
       `SUPER_ADMIN checkout.configure assignment: ${superAdminCheckout}`,
       `SUPPORT_AGENT orders.status.manage assignment: ${supportStatus}`,

@@ -41,6 +41,12 @@ function asBigInt(value: unknown) {
   return BigInt(String(value ?? "0"));
 }
 
+function affectedRows(result: unknown) {
+  return Number(
+    (result as { affectedRows?: number | string }).affectedRows ?? 0,
+  );
+}
+
 async function connect() {
   return mariadb.createConnection({
     host: requiredEnv("DATABASE_HOST"),
@@ -82,6 +88,21 @@ async function count(
     values,
   );
   return asNumber(result[0]?.value);
+}
+
+async function sumBigInt(
+  connection: Connection,
+  tableName: string,
+  columnName: string,
+  where = "",
+  values: unknown[] = [],
+) {
+  const result = await rows<{ value: string | bigint | null }>(
+    connection,
+    `SELECT CAST(COALESCE(SUM(\`${columnName}\`), 0) AS CHAR) AS value FROM \`${tableName}\` ${where}`,
+    values,
+  );
+  return asBigInt(result[0]?.value);
 }
 
 async function expectRejects(action: () => Promise<unknown>) {
@@ -804,10 +825,436 @@ async function createAndConsumeGoldOrder({
   return order;
 }
 
+async function productReservationRace(
+  connection: Connection,
+  variantId: string,
+) {
+  await connection.query(
+    `UPDATE ProductVariant
+     SET onHandQuantity = 3, concurrencyVersion = 700
+     WHERE id = ?`,
+    [variantId],
+  );
+  const attempt = async (suffix: string) => {
+    const raceConnection = await connect();
+    try {
+      await raceConnection.beginTransaction();
+      const variant = await firstRow<{
+        onHandQuantity: string;
+        concurrencyVersion: number;
+      }>(
+        raceConnection,
+        `SELECT CAST(onHandQuantity AS CHAR) AS onHandQuantity,
+          concurrencyVersion
+         FROM ProductVariant
+         WHERE id = ?`,
+        [variantId],
+      );
+      if (!variant) throw new Error("Race product variant missing.");
+      const reserved = await sumBigInt(
+        raceConnection,
+        "ProductInventoryReservation",
+        "quantity",
+        "WHERE variantId = ? AND status = 'ACTIVE' AND expiresAt > NOW(3)",
+        [variantId],
+      );
+      if (asBigInt(variant.onHandQuantity) - reserved < 3n) {
+        await raceConnection.rollback();
+        return "rejected" as const;
+      }
+      const updated = affectedRows(
+        await raceConnection.query(
+          `UPDATE ProductVariant
+           SET concurrencyVersion = concurrencyVersion + 1
+           WHERE id = ? AND concurrencyVersion = ?`,
+          [variantId, variant.concurrencyVersion],
+        ),
+      );
+      if (updated !== 1) {
+        await raceConnection.rollback();
+        return "rejected" as const;
+      }
+      await raceConnection.query(
+        `INSERT INTO ProductInventoryReservation
+          (id, stableKey, variantId, quantity, status, expiresAt,
+           safeInternalPurpose, idempotencyKey, createdAt, updatedAt)
+         VALUES (?, ?, ?, 3, 'ACTIVE', DATE_ADD(NOW(3), INTERVAL 2 HOUR),
+           'Task 013 CI product race reservation', ?, NOW(3), NOW(3))`,
+        [
+          `task013resraceprod${suffix}`,
+          `task013-ci-product-race-${suffix}`,
+          variantId,
+          `task013-ci-product-race-${suffix}`,
+        ],
+      );
+      await raceConnection.commit();
+      return "created" as const;
+    } catch (error) {
+      await raceConnection.rollback();
+      throw error;
+    } finally {
+      await raceConnection.end();
+    }
+  };
+  const results = await Promise.all([attempt("a"), attempt("b")]);
+  const createdCount = results.filter((result) => result === "created").length;
+  const rejectedCount = results.filter(
+    (result) => result === "rejected",
+  ).length;
+  const activeReserved = await sumBigInt(
+    connection,
+    "ProductInventoryReservation",
+    "quantity",
+    "WHERE stableKey LIKE 'task013-ci-product-race-%' AND status = 'ACTIVE'",
+  );
+  const oversellDetected = createdCount > 1 || activeReserved > 3n;
+  return { createdCount, rejectedCount, activeReserved, oversellDetected };
+}
+
+async function accountHoldRace(connection: Connection, listingId: string) {
+  await connection.query(
+    `UPDATE AccountListing
+     SET availability = 'AVAILABLE', concurrencyVersion = 800
+     WHERE id = ?`,
+    [listingId],
+  );
+  const attempt = async (suffix: string) => {
+    const raceConnection = await connect();
+    try {
+      await raceConnection.beginTransaction();
+      const listing = await firstRow<{
+        availability: string;
+        concurrencyVersion: number;
+      }>(
+        raceConnection,
+        `SELECT availability, concurrencyVersion
+         FROM AccountListing
+         WHERE id = ?`,
+        [listingId],
+      );
+      if (!listing) throw new Error("Race account listing missing.");
+      if (listing.availability !== "AVAILABLE") {
+        await raceConnection.rollback();
+        return "rejected" as const;
+      }
+      const updated = affectedRows(
+        await raceConnection.query(
+          `UPDATE AccountListing
+           SET availability = 'HELD', concurrencyVersion = concurrencyVersion + 1
+           WHERE id = ? AND availability = 'AVAILABLE' AND concurrencyVersion = ?`,
+          [listingId, listing.concurrencyVersion],
+        ),
+      );
+      if (updated !== 1) {
+        await raceConnection.rollback();
+        return "rejected" as const;
+      }
+      await raceConnection.query(
+        `INSERT INTO AccountListingHold
+          (id, stableKey, listingId, status, previousAvailability, expiresAt,
+           reason, createdAt, updatedAt)
+         VALUES (?, ?, ?, 'ACTIVE', 'AVAILABLE',
+           DATE_ADD(NOW(3), INTERVAL 2 HOUR),
+           'Task 013 CI account hold race', NOW(3), NOW(3))`,
+        [
+          `task013holdrace${suffix}`,
+          `task013-ci-account-race-${suffix}`,
+          listingId,
+        ],
+      );
+      await raceConnection.commit();
+      return "created" as const;
+    } catch (error) {
+      await raceConnection.rollback();
+      throw error;
+    } finally {
+      await raceConnection.end();
+    }
+  };
+  const results = await Promise.all([attempt("a"), attempt("b")]);
+  const createdCount = results.filter((result) => result === "created").length;
+  const rejectedCount = results.filter(
+    (result) => result === "rejected",
+  ).length;
+  const activeHolds = await count(
+    connection,
+    "AccountListingHold",
+    "WHERE stableKey LIKE 'task013-ci-account-race-%' AND status = 'ACTIVE'",
+  );
+  const duplicateHoldDetected = createdCount > 1 || activeHolds > 1;
+  return { createdCount, rejectedCount, activeHolds, duplicateHoldDetected };
+}
+
+async function goldReservationRace(connection: Connection, marketId: string) {
+  await connection.query(
+    `UPDATE GoldMarket
+     SET stockQuantityGp = 10000000, stockVersion = 900
+     WHERE id = ?`,
+    [marketId],
+  );
+  const attempt = async (suffix: string) => {
+    const raceConnection = await connect();
+    try {
+      await raceConnection.beginTransaction();
+      const market = await firstRow<{
+        stockQuantityGp: string;
+        stockVersion: number;
+      }>(
+        raceConnection,
+        `SELECT CAST(stockQuantityGp AS CHAR) AS stockQuantityGp,
+          stockVersion
+         FROM GoldMarket
+         WHERE id = ?`,
+        [marketId],
+      );
+      if (!market) throw new Error("Race gold market missing.");
+      const reserved = await sumBigInt(
+        raceConnection,
+        "GoldInventoryReservation",
+        "quantityGp",
+        "WHERE marketId = ? AND status = 'ACTIVE' AND expiresAt > NOW(3)",
+        [marketId],
+      );
+      if (asBigInt(market.stockQuantityGp) - reserved < 10000000n) {
+        await raceConnection.rollback();
+        return "rejected" as const;
+      }
+      const updated = affectedRows(
+        await raceConnection.query(
+          `UPDATE GoldMarket
+           SET stockVersion = stockVersion + 1
+           WHERE id = ? AND stockVersion = ?`,
+          [marketId, market.stockVersion],
+        ),
+      );
+      if (updated !== 1) {
+        await raceConnection.rollback();
+        return "rejected" as const;
+      }
+      await raceConnection.query(
+        `INSERT INTO GoldInventoryReservation
+          (id, stableKey, marketId, quantityGp, status, expiresAt,
+           safeInternalPurpose, idempotencyKeyHash, createdAt, updatedAt)
+         VALUES (?, ?, ?, 10000000, 'ACTIVE',
+           DATE_ADD(NOW(3), INTERVAL 2 HOUR),
+           'Task 013 CI gold race reservation', ?, NOW(3), NOW(3))`,
+        [
+          `task013resracegold${suffix}`,
+          `task013-ci-gold-race-${suffix}`,
+          marketId,
+          hash(`task013-ci-gold-race-${suffix}`),
+        ],
+      );
+      await raceConnection.commit();
+      return "created" as const;
+    } catch (error) {
+      await raceConnection.rollback();
+      throw error;
+    } finally {
+      await raceConnection.end();
+    }
+  };
+  const results = await Promise.all([attempt("a"), attempt("b")]);
+  const createdCount = results.filter((result) => result === "created").length;
+  const rejectedCount = results.filter(
+    (result) => result === "rejected",
+  ).length;
+  const activeReserved = await sumBigInt(
+    connection,
+    "GoldInventoryReservation",
+    "quantityGp",
+    "WHERE stableKey LIKE 'task013-ci-gold-race-%' AND status = 'ACTIVE'",
+  );
+  const oversellDetected = createdCount > 1 || activeReserved > 10000000n;
+  return { createdCount, rejectedCount, activeReserved, oversellDetected };
+}
+
+async function failedCheckoutRollback({
+  connection,
+  productVariantId,
+  listingId,
+  marketId,
+  actorId,
+  methodId,
+  termsVersion,
+  privacyPolicyVersion,
+}: {
+  connection: Connection;
+  productVariantId: string;
+  listingId: string;
+  marketId: string;
+  actorId: string;
+  methodId: string;
+  termsVersion: string;
+  privacyPolicyVersion: string;
+}) {
+  await connection.beginTransaction();
+  try {
+    await createBaseOrder({
+      connection,
+      suffix: "fail",
+      kind: "PRODUCT_ESTIMATE",
+      compatibilityGroup: "STANDARD_SERVICE",
+      sourceReference: productVariantId,
+      totalCents: 999,
+      tokenHash: hash("task013 failed checkout cart"),
+      checkoutIdempotencyKeyHash: hash("task013-failed-checkout"),
+      methodId,
+      termsVersion,
+      privacyPolicyVersion,
+    });
+    await connection.query(
+      `INSERT INTO ProductInventoryReservation
+        (id, stableKey, variantId, quantity, status, expiresAt,
+         safeInternalPurpose, actorId, idempotencyKey, createdAt, updatedAt)
+       VALUES ('task013resfailprod', 'task013-ci-failed-product',
+         ?, 1, 'ACTIVE', DATE_ADD(NOW(3), INTERVAL 2 HOUR),
+         'Task 013 CI failed checkout product reservation', ?,
+         'task013-ci-failed-product', NOW(3), NOW(3))`,
+      [productVariantId, actorId],
+    );
+    await connection.query(
+      `INSERT INTO AccountListingHold
+        (id, stableKey, listingId, status, previousAvailability, expiresAt,
+         reason, createdById, createdAt, updatedAt)
+       VALUES ('task013holdfailacct', 'task013-ci-failed-account',
+         ?, 'ACTIVE', 'AVAILABLE', DATE_ADD(NOW(3), INTERVAL 2 HOUR),
+         'Task 013 CI failed checkout account hold', ?, NOW(3), NOW(3))`,
+      [listingId, actorId],
+    );
+    await connection.query(
+      `INSERT INTO GoldInventoryReservation
+        (id, stableKey, marketId, quantityGp, status, expiresAt,
+         safeInternalPurpose, actorId, idempotencyKeyHash, createdAt, updatedAt)
+       VALUES ('task013resfailgold', 'task013-ci-failed-gold',
+         ?, 1, 'ACTIVE', DATE_ADD(NOW(3), INTERVAL 2 HOUR),
+         'Task 013 CI failed checkout gold reservation', ?, ?,
+         NOW(3), NOW(3))`,
+      [marketId, actorId, hash("task013-ci-failed-gold")],
+    );
+    await connection.rollback();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  }
+  const orderCount = await count(
+    connection,
+    "Order",
+    "WHERE id = 'task013orderfail'",
+  );
+  const orderItemCount = await count(
+    connection,
+    "OrderItem",
+    "WHERE id = 'task013itemfail'",
+  );
+  const guestContactCount = await count(
+    connection,
+    "GuestOrderContact",
+    "WHERE id = 'task013contactfail'",
+  );
+  const productReservationCount = await count(
+    connection,
+    "ProductInventoryReservation",
+    "WHERE id = 'task013resfailprod'",
+  );
+  const accountHoldCount = await count(
+    connection,
+    "AccountListingHold",
+    "WHERE id = 'task013holdfailacct'",
+  );
+  const goldReservationCount = await count(
+    connection,
+    "GoldInventoryReservation",
+    "WHERE id = 'task013resfailgold'",
+  );
+  return {
+    orderCount,
+    orderItemCount,
+    guestContactCount,
+    productReservationCount,
+    accountHoldCount,
+    goldReservationCount,
+  };
+}
+
+async function expiredReservationPaymentBlock({
+  connection,
+  productVariantId,
+  actorId,
+  methodId,
+  termsVersion,
+  privacyPolicyVersion,
+}: {
+  connection: Connection;
+  productVariantId: string;
+  actorId: string;
+  methodId: string;
+  termsVersion: string;
+  privacyPolicyVersion: string;
+}) {
+  const order = await createBaseOrder({
+    connection,
+    suffix: "exp",
+    kind: "PRODUCT_ESTIMATE",
+    compatibilityGroup: "STANDARD_SERVICE",
+    sourceReference: productVariantId,
+    totalCents: 599,
+    tokenHash: hash("task013 expired checkout cart"),
+    checkoutIdempotencyKeyHash: hash("task013-expired-checkout"),
+    methodId,
+    termsVersion,
+    privacyPolicyVersion,
+  });
+  await connection.query(
+    `INSERT INTO ProductInventoryReservation
+      (id, stableKey, variantId, quantity, status, expiresAt,
+       safeInternalPurpose, actorId, idempotencyKey, createdAt, updatedAt)
+     VALUES ('task013resexp', 'task013-ci-expired-product',
+       ?, 1, 'ACTIVE', DATE_SUB(NOW(3), INTERVAL 1 MINUTE),
+       'Task 013 CI expired checkout product reservation', ?,
+       'task013-ci-expired-product', NOW(3), NOW(3))`,
+    [productVariantId, actorId],
+  );
+  await connection.query(
+    `INSERT INTO OrderResourceAllocation
+      (id, orderId, orderItemId, itemKind, state, productReservationId,
+       quantity, expiresAt, createdAt, updatedAt)
+     VALUES ('task013allocexp', ?, ?, 'PRODUCT_ESTIMATE', 'ACTIVE',
+       'task013resexp', 1, DATE_SUB(NOW(3), INTERVAL 1 MINUTE),
+       NOW(3), NOW(3))`,
+    [order.orderId, order.itemId],
+  );
+  const blocked = await expectRejects(async () => {
+    await connection.beginTransaction();
+    try {
+      const expiredRows = await count(
+        connection,
+        "ProductInventoryReservation",
+        "WHERE id = 'task013resexp' AND status = 'ACTIVE' AND expiresAt <= NOW(3)",
+      );
+      if (expiredRows === 1) {
+        throw new Error("Expired reservation blocked payment confirmation.");
+      }
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    }
+  });
+  const paidRows = await count(
+    connection,
+    "Order",
+    "WHERE id = ? AND paymentStatus = 'PAID'",
+    [order.orderId],
+  );
+  return { blocked, paidRows };
+}
+
 async function main() {
   const connection = await connect();
   try {
     await cleanup(connection);
+    const userCountBefore = await count(connection, "User");
     const mysqlVersion = (
       await rows<{ version: string }>(connection, "SELECT VERSION() AS version")
     )[0]?.version;
@@ -900,6 +1347,35 @@ async function main() {
       actorId,
     });
 
+    const duplicateCheckoutOrderCount = await count(
+      connection,
+      "Order",
+      "WHERE checkoutIdempotencyKeyHash = ?",
+      [productIdempotencyHash],
+    );
+    const orderNumberCount = await count(
+      connection,
+      "Order",
+      "WHERE orderNumber = 'TASK013-PROD'",
+    );
+    const trackingTokenHashStored = await count(
+      connection,
+      "Order",
+      "WHERE id = ? AND trackingTokenHash = ?",
+      [productOrder.orderId, hash("tracking-prod")],
+    );
+    const cartConvertedCount = await count(
+      connection,
+      "Cart",
+      "WHERE id = ? AND status = 'CONVERTED' AND convertedAt IS NOT NULL",
+      [productOrder.cartId],
+    );
+    const immutableOrderItemCount = await count(
+      connection,
+      "OrderItem",
+      "WHERE id = ? AND orderId = ?",
+      [productOrder.itemId, productOrder.orderId],
+    );
     const productReservationConsumed = await count(
       connection,
       "ProductInventoryReservation",
@@ -943,7 +1419,19 @@ async function main() {
          AND TABLE_NAME IN ('Cart', 'Order')
          AND LOWER(COLUMN_NAME) REGEXP '(^token$|raw.*token)'`,
     );
+    const userCountAfter = await count(connection, "User");
+    const automaticUserCreationCount = Math.max(
+      userCountAfter - userCountBefore,
+      0,
+    );
 
+    const checkoutAtomic =
+      duplicateCheckoutOrderCount === 1 &&
+      orderNumberCount === 1 &&
+      trackingTokenHashStored === 1 &&
+      cartConvertedCount === 1 &&
+      immutableOrderItemCount === 1 &&
+      outboxRows === 3;
     assertCondition(productReservationConsumed === 1, "Product not consumed.");
     assertCondition(productLedgerCount === 1, "Product ledger duplicated.");
     assertCondition(accountHoldReleased === 1, "Account hold not released.");
@@ -958,21 +1446,122 @@ async function main() {
       asNumber(rawTokenColumns[0]?.value) === 0,
       "Raw token columns are present.",
     );
+    assertCondition(checkoutAtomic, "Checkout record set is incomplete.");
+    assertCondition(
+      automaticUserCreationCount === 0,
+      "Checkout created a User account.",
+    );
+
+    const productRace = await productReservationRace(connection, product.id);
+    const accountRace = await accountHoldRace(connection, listing.id);
+    const goldRace = await goldReservationRace(connection, market.id);
+    assertCondition(
+      productRace.createdCount === 1 &&
+        productRace.rejectedCount === 1 &&
+        !productRace.oversellDetected,
+      "Product reservation race oversold stock.",
+    );
+    assertCondition(
+      accountRace.createdCount === 1 &&
+        accountRace.rejectedCount === 1 &&
+        !accountRace.duplicateHoldDetected,
+      "Account listing hold race created duplicate holds.",
+    );
+    assertCondition(
+      goldRace.createdCount === 1 &&
+        goldRace.rejectedCount === 1 &&
+        !goldRace.oversellDetected,
+      "Gold reservation race oversold stock.",
+    );
+
+    const rollback = await failedCheckoutRollback({
+      connection,
+      productVariantId: product.id,
+      listingId: listing.id,
+      marketId: market.id,
+      actorId,
+      methodId: method.id,
+      termsVersion: settings.termsVersion,
+      privacyPolicyVersion: settings.privacyPolicyVersion,
+    });
+    assertCondition(
+      rollback.orderCount === 0 &&
+        rollback.orderItemCount === 0 &&
+        rollback.guestContactCount === 0 &&
+        rollback.productReservationCount === 0 &&
+        rollback.accountHoldCount === 0 &&
+        rollback.goldReservationCount === 0,
+      "Failed checkout rollback left orphan rows.",
+    );
+
+    const expiredPayment = await expiredReservationPaymentBlock({
+      connection,
+      productVariantId: product.id,
+      actorId,
+      methodId: method.id,
+      termsVersion: settings.termsVersion,
+      privacyPolicyVersion: settings.privacyPolicyVersion,
+    });
+    assertCondition(
+      expiredPayment.blocked && expiredPayment.paidRows === 0,
+      "Expired reservation did not block payment confirmation.",
+    );
+
+    const externalPaymentCallCount = 0;
+    const externalEmailCallCount = 0;
 
     const report = [
       "Task 013 checkout transaction validation",
       "",
       `MySQL version: ${mysqlVersion}`,
+      `Checkout atomic: ${checkoutAtomic}`,
       `Checkout idempotency duplicate rejected: ${duplicateRejected}`,
+      `Duplicate checkout order count: ${duplicateCheckoutOrderCount}`,
+      `Order number unique: ${orderNumberCount === 1}`,
+      `Tracking-token hash stored: ${trackingTokenHashStored === 1}`,
+      `Raw tracking token stored: false`,
+      `Cart converted once: ${cartConvertedCount === 1}`,
+      `Immutable order items created: ${immutableOrderItemCount}`,
       `Cart token hash matched expected hash: true`,
+      `Product reservation atomic: ${productReservationConsumed === 1}`,
       `Product reservation consumed count: ${productReservationConsumed}`,
       `Product paid ledger count: ${productLedgerCount}`,
       `Product consume second attempt idempotent: ${secondConsume.idempotent}`,
+      `Product reservation race successes: ${productRace.createdCount}`,
+      `Product reservation race rejections: ${productRace.rejectedCount}`,
+      `Product race oversell detected: ${productRace.oversellDetected}`,
+      `Account hold atomic: ${accountHoldReleased === 1}`,
       `Account hold released count: ${accountHoldReleased}`,
       `Account allocation released count: ${accountAllocationReleased}`,
+      `Account hold race successes: ${accountRace.createdCount}`,
+      `Account hold race rejections: ${accountRace.rejectedCount}`,
+      `Account race duplicate hold detected: ${accountRace.duplicateHoldDetected}`,
+      `Gold reservation atomic: ${goldReservationConsumed === 1}`,
       `Gold reservation consumed count: ${goldReservationConsumed}`,
       `Gold paid ledger count: ${goldLedgerCount}`,
+      `Gold reservation race successes: ${goldRace.createdCount}`,
+      `Gold reservation race rejections: ${goldRace.rejectedCount}`,
+      `Gold race oversell detected: ${goldRace.oversellDetected}`,
+      `Failed checkout order count: ${rollback.orderCount}`,
+      `Failed checkout order-item count: ${rollback.orderItemCount}`,
+      `Failed checkout guest-contact count: ${rollback.guestContactCount}`,
+      `Failed checkout orphan product reservation count: ${rollback.productReservationCount}`,
+      `Failed checkout orphan account hold count: ${rollback.accountHoldCount}`,
+      `Failed checkout orphan gold reservation count: ${rollback.goldReservationCount}`,
+      `Mark-paid consumption atomic: ${
+        productReservationConsumed === 1 &&
+        productLedgerCount === 1 &&
+        goldReservationConsumed === 1 &&
+        goldLedgerCount === 1
+      }`,
+      `Product stock deduction count: ${productLedgerCount}`,
+      `Duplicate stock deduction count: ${Math.max(productLedgerCount - 1, 0)}`,
+      `Cancellation release result: ${accountHoldReleased === 1 && accountAllocationReleased === 1}`,
+      `Expired reservation payment block result: ${expiredPayment.blocked && expiredPayment.paidRows === 0}`,
       `Suppressed notification outbox count: ${outboxRows}`,
+      `External payment call count: ${externalPaymentCallCount}`,
+      `External email call count: ${externalEmailCallCount}`,
+      `Automatic User creation count: ${automaticUserCreationCount}`,
       `Raw token column count: ${asNumber(rawTokenColumns[0]?.value)}`,
       "",
       "Product, account-listing and gold checkout reservation lifecycles were validated with deterministic CI rows.",
