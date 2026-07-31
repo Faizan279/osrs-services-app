@@ -10,6 +10,7 @@
 - Accounts marketplace and custom account-build requests
 - Custom account-build quote tracking
 - Product marketplace for items, bonds and outfits
+- Secure guest cart, guest checkout and order tracking foundation
 - Gathering
 - Cart and guest checkout
 - Optional customer accounts and dashboard
@@ -40,13 +41,15 @@ Skilling, Quests, Achievement Diaries, Combat Achievements, Minigames, Bossing/P
 - Account marketplace listings, public stats, unlocks, feature tags, galleries, availability holds, sold state, approval/publication revisions, and secure-handover readiness metadata
 - Custom account-build configuration, desired-stat/objective rules, request review, private attachment metadata review, status history, and versioned quote revisions
 - Product marketplace categories, products, variants, price tiers, media, publication revisions, variant stock, append-only inventory ledgers, and internal reservation management
+- Order review, manual payment review, checkout settings, notification outbox and checkout resource allocations
 - Orders, quotes, customers, reviews, and staff
 - Live-chat monitoring
 - Notifications, feature flags, audit logs, exports, and backup preparation
 
 ## Later activation
 
-- Real payment-provider credentials
+- Real payment-provider credentials and live payment captures
+- Real email/notification provider delivery
 - Automatic subscription renewal
 - WhatsApp/n8n automation
 - Multi-node chat scaling

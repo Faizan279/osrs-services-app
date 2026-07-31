@@ -114,6 +114,15 @@ async function tableNameCount(connection: Connection, tableNames: string[]) {
   return asNumber(result[0]?.value);
 }
 
+async function optionalTableRowCount(
+  connection: Connection,
+  tableName: string,
+) {
+  const tableExists = await tableNameCount(connection, [tableName]);
+  if (tableExists === 0) return 0;
+  return count(connection, tableName);
+}
+
 async function trackedVariantId(connection: Connection) {
   const variant = await firstRow<{ id: string }>(
     connection,
@@ -1032,14 +1041,20 @@ async function main() {
 
     const reservationCustomerFieldCount =
       await reservationColumnRiskCount(connection);
-    const cartTableCount = await tableNameCount(connection, [
-      "Cart",
+    const cartRowCount = await optionalTableRowCount(connection, "Cart");
+    const cartItemRowCount = await optionalTableRowCount(
+      connection,
       "CartItem",
+    );
+    const orderRowCount = await optionalTableRowCount(connection, "Order");
+    const orderItemRowCount = await optionalTableRowCount(
+      connection,
+      "OrderItem",
+    );
+    const legacyCheckoutPaymentTableCount = await tableNameCount(connection, [
       "CheckoutSession",
+      "Payment",
     ]);
-    const orderTableCount = await tableNameCount(connection, ["Order"]);
-    const orderItemTableCount = await tableNameCount(connection, ["OrderItem"]);
-    const paymentTableCount = await tableNameCount(connection, ["Payment"]);
     const boundary = await publicApiBoundary();
 
     assertCondition(
@@ -1047,11 +1062,12 @@ async function main() {
       "Reservation table contains customer data fields.",
     );
     assertCondition(
-      cartTableCount === 0 &&
-        orderTableCount === 0 &&
-        orderItemTableCount === 0 &&
-        paymentTableCount === 0,
-      "Cart, order or payment tables were created.",
+      cartRowCount === 0 &&
+        cartItemRowCount === 0 &&
+        orderRowCount === 0 &&
+        orderItemRowCount === 0 &&
+        legacyCheckoutPaymentTableCount === 0,
+      "Task 012 validation created cart, order or payment data.",
     );
     assertCondition(
       !boundary.publicReservationRouteExists &&
@@ -1105,10 +1121,11 @@ async function main() {
       `Public reservation route exists: ${boundary.publicReservationRouteExists}`,
       `Public product API creates reservation: ${boundary.publicProductsApiCreatesReservation}`,
       "Public estimates create reservations: false",
-      `Cart model/table count: ${cartTableCount}`,
-      `Order model/table count: ${orderTableCount}`,
-      `OrderItem model/table count: ${orderItemTableCount}`,
-      `Payment model/table count: ${paymentTableCount}`,
+      `Cart row count: ${cartRowCount}`,
+      `Cart item row count: ${cartItemRowCount}`,
+      `Order row count: ${orderRowCount}`,
+      `Order item row count: ${orderItemRowCount}`,
+      `Legacy checkout/payment table count: ${legacyCheckoutPaymentTableCount}`,
       "Temporary validation markers cleaned before E2E: true",
       "",
       "Repeated seed inventory preservation is validated by the Task 011-to-Task 012 upgrade job.",

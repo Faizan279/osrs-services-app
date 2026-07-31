@@ -42,7 +42,9 @@
     "gold_engine_enabled": false,
     "account_marketplace_enabled": false,
     "custom_account_build_enabled": false,
-    "product_marketplace_enabled": false
+    "product_marketplace_enabled": false,
+    "cart_enabled": false,
+    "guest_checkout_enabled": false
   },
   "service_engines": {
     "custom_account_build": {
@@ -61,6 +63,15 @@
       "previewOnly": true,
       "createsReservationsPublicly": false,
       "createsOrdersOrPayments": false
+    },
+    "guest_checkout": {
+      "publicRoutes": ["/cart", "/checkout", "/orders/track/[token]"],
+      "adminRoutes": ["/admin/orders", "/admin/checkout"],
+      "featureFlags": ["cart_enabled", "guest_checkout_enabled"],
+      "paymentMode": "MANUAL_REVIEW",
+      "notificationDelivery": "OUTBOX_ONLY",
+      "storesRawCartToken": false,
+      "storesRawTrackingToken": false
     }
   }
 }

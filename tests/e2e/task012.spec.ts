@@ -307,14 +307,23 @@ async function acceptNextDialog(page: Page) {
   page.once("dialog", (dialog) => dialog.accept());
 }
 
-async function expectNoCartOrderPaymentTables() {
-  const rows = await databaseRows<{ value: number }>(
+async function expectNoPreviewCartOrderPaymentRows() {
+  const checkoutRows = await databaseRows<{ value: number }>(
+    `SELECT
+       (SELECT COUNT(*) FROM Cart WHERE id NOT LIKE 'task013%') +
+       (SELECT COUNT(*) FROM CartItem WHERE id NOT LIKE 'task013%') +
+       (SELECT COUNT(*) FROM \`Order\` WHERE id NOT LIKE 'task013%') +
+       (SELECT COUNT(*) FROM OrderItem WHERE id NOT LIKE 'task013%') AS value`,
+  );
+  expect(checkoutRows[0]?.value ?? 0).toBe(0);
+
+  const legacyTables = await databaseRows<{ value: number }>(
     `SELECT COUNT(*) AS value
      FROM information_schema.TABLES
      WHERE TABLE_SCHEMA = DATABASE()
-       AND TABLE_NAME IN ('Cart', 'CartItem', 'CheckoutSession', 'Order', 'OrderItem', 'Payment')`,
+       AND TABLE_NAME IN ('CheckoutSession', 'Payment')`,
   );
-  expect(rows[0]?.value ?? 0).toBe(0);
+  expect(legacyTables[0]?.value ?? 0).toBe(0);
 }
 
 test.describe.configure({ mode: "serial" });
@@ -347,7 +356,7 @@ test("public marketplace exposes disabled state and rejects estimates safely", a
   });
   expect(response.status()).toBe(400);
   expect((await response.json()).message).toMatch(/unavailable/i);
-  await expectNoCartOrderPaymentTables();
+  await expectNoPreviewCartOrderPaymentRows();
 });
 
 test("search, filters, sorting, detail and estimates stay server-authoritative", async ({
@@ -438,7 +447,7 @@ test("search, filters, sorting, detail and estimates stay server-authoritative",
     ),
   ).value;
   expect(afterReservations).toBe(beforeReservations);
-  await expectNoCartOrderPaymentTables();
+  await expectNoPreviewCartOrderPaymentRows();
 });
 
 test("manual-review product does not display a zero final total", async ({

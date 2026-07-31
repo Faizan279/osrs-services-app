@@ -104,7 +104,7 @@ export const defaultRoles: Array<{
       permissions.adminAccess,
       permissions.designSystemView,
       permissions.ordersView,
-      permissions.ordersUpdate,
+      permissions.ordersStatusManage,
       permissions.chatRespond,
       permissions.productsView,
       permissions.goldView,
@@ -159,6 +159,8 @@ export const defaultFeatureFlags = [
     "Public product marketplace browsing and preview estimates",
     false,
   ],
+  ["cart_enabled", "Secure guest cart foundation", false],
+  ["guest_checkout_enabled", "Guest checkout order submission", false],
 ] as const;
 
 export async function seedDatabase(

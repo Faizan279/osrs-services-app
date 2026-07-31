@@ -253,6 +253,7 @@ enum AccountHoldStatus {
   RELEASED
   EXPIRED
   CANCELLED
+  CONSUMED
 }
 
 enum AccountHandoverReadiness {
@@ -308,6 +309,7 @@ enum ProductReservationStatus {
   RELEASED
   EXPIRED
   CANCELLED
+  CONSUMED
 }
 
 enum ProductImageType {
@@ -413,6 +415,123 @@ enum CustomBuildSkillValueMode {
   FRESH_ACCOUNT
 }
 
+enum CartStatus {
+  ACTIVE
+  CHECKOUT_IN_PROGRESS
+  CONVERTED
+  EXPIRED
+  ABANDONED
+}
+
+enum CartItemKind {
+  SKILLING_ESTIMATE
+  BOSSING_ESTIMATE
+  PREMIUM_ESTIMATE
+  PRODUCT_ESTIMATE
+  ACCOUNT_LISTING_ESTIMATE
+  GOLD_BUY_ESTIMATE
+  ACCEPTED_CUSTOM_BUILD_QUOTE
+}
+
+enum CartCompatibilityGroup {
+  STANDARD_SERVICE
+  ACCOUNT_LISTING
+  GOLD_BUY
+  ACCEPTED_CUSTOM_QUOTE
+}
+
+enum CartItemValidationState {
+  VALID
+  REPRICE_REQUIRED
+  UNAVAILABLE
+  OUT_OF_STOCK
+  RESERVATION_REQUIRED
+  MANUAL_REVIEW_REQUIRED
+  INCOMPATIBLE
+}
+
+enum CheckoutAttemptStatus {
+  STARTED
+  SUCCEEDED
+  FAILED
+  REPRICE_REQUIRED
+  REJECTED
+}
+
+enum OrderStatus {
+  AWAITING_PAYMENT
+  PAYMENT_UNDER_REVIEW
+  PAID
+  AWAITING_ASSIGNMENT
+  ASSIGNED
+  IN_PROGRESS
+  WAITING_FOR_CUSTOMER
+  COMPLETED
+  CANCELLED
+  REFUNDED
+  DISPUTED
+  REQUIRES_REVIEW
+}
+
+enum OrderPaymentStatus {
+  NOT_STARTED
+  AWAITING_INSTRUCTIONS
+  AWAITING_PAYMENT
+  PAYMENT_UNDER_REVIEW
+  PAID
+  CANCELLED
+  REFUNDED
+  DISPUTED
+}
+
+enum OrderItemStatus {
+  ACTIVE
+  CANCELLED
+  COMPLETED
+}
+
+enum OrderResourceReservationState {
+  NONE
+  ACTIVE
+  RELEASED
+  EXPIRED
+  CONSUMED
+  FAILED
+}
+
+enum OrderStatusEventType {
+  CREATED
+  STATUS_CHANGED
+  PAYMENT_STATUS_CHANGED
+  PAYMENT_CONFIRMED
+  CANCELLED
+  RESERVATION_RELEASED
+  RESERVATION_EXPIRED
+  NOTIFICATION_CREATED
+}
+
+enum CheckoutNotificationType {
+  ORDER_CONFIRMATION
+}
+
+enum CheckoutNotificationStatus {
+  PENDING
+  SUPPRESSED_NOT_CONFIGURED
+  SENT
+  FAILED
+}
+
+enum CheckoutPaymentMethodType {
+  MANUAL_REVIEW
+}
+
+enum GoldInventoryReservationStatus {
+  ACTIVE
+  RELEASED
+  EXPIRED
+  CONSUMED
+}
+
 model User {
   id                           String                          @id @default(cuid()) @db.VarChar(30)
   email                        String                          @unique @db.VarChar(191)
@@ -447,6 +566,9 @@ model User {
   productInventoryEntries      ProductInventoryLedgerEntry[]   @relation("ProductInventoryLedgerActor")
   productReservations          ProductInventoryReservation[]   @relation("ProductReservationActor")
   productReservationEvents     ProductReservationEvent[]       @relation("ProductReservationEventActor")
+  orderStatusEvents            OrderStatusEvent[]              @relation("OrderStatusEventActor")
+  orderPaymentEvents           OrderPaymentEvent[]             @relation("OrderPaymentEventActor")
+  goldReservations             GoldInventoryReservation[]      @relation("GoldReservationActor")
 
   @@index([status])
 }
@@ -1231,6 +1353,7 @@ model GoldMarket {
   revisions                    GoldRateRevision[]
   quantityPresets              GoldQuantityPreset[]
   ledgerEntries                GoldInventoryLedgerEntry[]
+  reservations                 GoldInventoryReservation[]
 
   @@index([serviceId])
   @@index([availabilityState])
@@ -1528,6 +1651,7 @@ model AccountListingHold {
   listing              AccountListing             @relation(fields: [listingId], references: [id], onDelete: Restrict)
   createdBy            User?                      @relation("AccountListingHoldCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   releasedBy           User?                      @relation("AccountListingHoldReleasedBy", fields: [releasedById], references: [id], onDelete: SetNull)
+  orderAllocations     OrderResourceAllocation[]
 
   @@index([listingId, status, expiresAt])
   @@index([createdById, createdAt])
@@ -1799,6 +1923,7 @@ model ProductInventoryReservation {
   actor               User?                         @relation("ProductReservationActor", fields: [actorId], references: [id], onDelete: SetNull)
   events              ProductReservationEvent[]
   ledgerEntries       ProductInventoryLedgerEntry[]
+  orderAllocations    OrderResourceAllocation[]
 
   @@index([variantId, status, expiresAt])
   @@index([actorId, createdAt])
@@ -2251,4 +2376,363 @@ model PricingRevision {
   @@unique([ruleSetId, revisionNumber])
   @@index([publishedAt])
   @@index([publishedById])
+}
+
+model CheckoutSettings {
+  id                              String                  @id @default(cuid()) @db.VarChar(30)
+  stableKey                       String                  @unique @db.VarChar(120)
+  currencyCode                    String                  @default("USD") @db.Char(3)
+  maximumCartItems                Int                     @default(12)
+  cartExpiryMinutes               Int                     @default(4320)
+  checkoutReservationMinutes      Int                     @default(45)
+  orderNumberPrefix               String                  @default("OSRS") @db.VarChar(12)
+  termsVersion                    String                  @default("needs-client-review") @db.VarChar(80)
+  privacyPolicyVersion            String                  @default("needs-client-review") @db.VarChar(80)
+  publicCheckoutInstructions      String                  @db.Text
+  publicPaymentReviewInstructions String                  @db.Text
+  guestCheckoutEnabled            Boolean                 @default(false)
+  notificationProviderConfigured  Boolean                 @default(false)
+  needsClientReview               Boolean                 @default(true)
+  concurrencyVersion              Int                     @default(1)
+  createdAt                       DateTime                @default(now())
+  updatedAt                       DateTime                @updatedAt
+  paymentMethods                  CheckoutPaymentMethod[]
+
+  @@index([currencyCode])
+  @@index([needsClientReview])
+}
+
+model CheckoutPaymentMethod {
+  id                 String                    @id @default(cuid()) @db.VarChar(30)
+  stableKey          String                    @unique @db.VarChar(120)
+  settingsId         String                    @db.VarChar(30)
+  methodType         CheckoutPaymentMethodType @default(MANUAL_REVIEW)
+  publicName         String                    @db.VarChar(120)
+  publicDescription  String                    @db.VarChar(500)
+  publicInstructions String                    @db.Text
+  enabled            Boolean                   @default(true)
+  sortOrder          Int                       @default(0)
+  needsClientReview  Boolean                   @default(true)
+  concurrencyVersion Int                       @default(1)
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  settings           CheckoutSettings          @relation(fields: [settingsId], references: [id], onDelete: Restrict)
+  orders             Order[]
+
+  @@index([settingsId, enabled, sortOrder])
+  @@index([methodType, enabled])
+}
+
+model Cart {
+  id                   String                      @id @default(cuid()) @db.VarChar(30)
+  tokenHash            String                      @unique @db.Char(64)
+  status               CartStatus                  @default(ACTIVE)
+  compatibilityGroup   CartCompatibilityGroup?
+  currencyCode         String?                     @db.Char(3)
+  subtotalCents        Int                         @default(0)
+  adjustmentTotalCents Int                         @default(0)
+  finalTotalCents      Int                         @default(0)
+  itemCount            Int                         @default(0)
+  expiresAt            DateTime
+  convertedAt          DateTime?
+  abandonedAt          DateTime?
+  lastRevalidatedAt    DateTime?
+  priceAcceptedAt      DateTime?
+  concurrencyVersion   Int                         @default(1)
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
+  items                CartItem[]
+  checkoutAttempts     CheckoutAttempt[]
+  idempotencyRecords   CheckoutIdempotencyRecord[]
+  orders               Order[]
+
+  @@index([status, expiresAt])
+  @@index([compatibilityGroup])
+  @@index([currencyCode])
+}
+
+model CartItem {
+  id                            String                  @id @default(cuid()) @db.VarChar(30)
+  cartId                        String                  @db.VarChar(30)
+  kind                          CartItemKind
+  compatibilityGroup            CartCompatibilityGroup
+  sourceReference               String                  @db.VarChar(191)
+  publicSourceSlug              String?                 @db.VarChar(191)
+  quantity                      BigInt                  @default(1)
+  currencyCode                  String                  @db.Char(3)
+  customerSelections            Json?
+  snapshotSchemaVersion         Int                     @default(1)
+  customerSafeSnapshot          Json
+  sourcePublishedRevisionId     String?                 @db.VarChar(80)
+  sourcePublishedRevisionNumber Int?
+  globalPricingRevisionId       String?                 @db.VarChar(80)
+  globalPricingRevisionNumber   Int?
+  subtotalCents                 Int                     @default(0)
+  adjustmentTotalCents          Int                     @default(0)
+  finalTotalCents               Int                     @default(0)
+  validationState               CartItemValidationState @default(VALID)
+  repricingRequired             Boolean                 @default(false)
+  stockRecheckRequired          Boolean                 @default(false)
+  availabilityRecheckRequired   Boolean                 @default(false)
+  idempotencyKeyHash            String?                 @db.Char(64)
+  createdAt                     DateTime                @default(now())
+  updatedAt                     DateTime                @updatedAt
+  concurrencyVersion            Int                     @default(1)
+  cart                          Cart                    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  orderItems                    OrderItem[]
+
+  @@unique([cartId, idempotencyKeyHash])
+  @@index([cartId, createdAt])
+  @@index([kind])
+  @@index([compatibilityGroup])
+  @@index([validationState])
+  @@index([sourceReference])
+}
+
+model CheckoutAttempt {
+  id                 String                @id @default(cuid()) @db.VarChar(30)
+  cartId             String                @db.VarChar(30)
+  orderId            String?               @db.VarChar(30)
+  idempotencyKeyHash String                @db.Char(64)
+  requestHash        String?               @db.Char(64)
+  status             CheckoutAttemptStatus @default(STARTED)
+  failureCode        String?               @db.VarChar(80)
+  safeFailureSummary String?               @db.VarChar(240)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  cart               Cart                  @relation(fields: [cartId], references: [id], onDelete: Restrict)
+  order              Order?                @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@unique([cartId, idempotencyKeyHash])
+  @@index([status, createdAt])
+  @@index([orderId])
+}
+
+model CheckoutIdempotencyRecord {
+  id          String                @id @default(cuid()) @db.VarChar(30)
+  cartId      String?               @db.VarChar(30)
+  scopeKey    String                @db.VarChar(120)
+  keyHash     String                @db.Char(64)
+  requestHash String?               @db.Char(64)
+  status      CheckoutAttemptStatus @default(STARTED)
+  response    Json?
+  orderId     String?               @db.VarChar(30)
+  expiresAt   DateTime
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  cart        Cart?                 @relation(fields: [cartId], references: [id], onDelete: SetNull)
+  order       Order?                @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@unique([scopeKey, keyHash])
+  @@index([cartId, createdAt])
+  @@index([orderId])
+  @@index([expiresAt])
+}
+
+model GuestOrderContact {
+  id                   String   @id @default(cuid()) @db.VarChar(30)
+  displayName          String   @db.VarChar(120)
+  email                String   @db.VarChar(191)
+  discordUsername      String?  @db.VarChar(80)
+  rsn                  String?  @db.VarChar(12)
+  consentAt            DateTime
+  termsVersion         String   @db.VarChar(80)
+  privacyPolicyVersion String   @db.VarChar(80)
+  createdAt            DateTime @default(now())
+  orders               Order[]
+
+  @@index([email])
+  @@index([createdAt])
+}
+
+model Order {
+  id                         String                      @id @default(cuid()) @db.VarChar(30)
+  orderNumber                String                      @unique @db.VarChar(40)
+  cartId                     String?                     @db.VarChar(30)
+  guestContactId             String                      @db.VarChar(30)
+  paymentMethodId            String?                     @db.VarChar(30)
+  trackingTokenHash          String                      @unique @db.Char(64)
+  checkoutIdempotencyKeyHash String?                     @unique @db.Char(64)
+  status                     OrderStatus                 @default(AWAITING_PAYMENT)
+  paymentStatus              OrderPaymentStatus          @default(AWAITING_INSTRUCTIONS)
+  paymentMethodType          CheckoutPaymentMethodType   @default(MANUAL_REVIEW)
+  currencyCode               String                      @db.Char(3)
+  subtotalCents              Int                         @default(0)
+  adjustmentTotalCents       Int                         @default(0)
+  finalTotalCents            Int                         @default(0)
+  termsVersion               String                      @db.VarChar(80)
+  privacyPolicyVersion       String                      @db.VarChar(80)
+  paidAt                     DateTime?
+  cancelledAt                DateTime?
+  createdAt                  DateTime                    @default(now())
+  updatedAt                  DateTime                    @updatedAt
+  concurrencyVersion         Int                         @default(1)
+  cart                       Cart?                       @relation(fields: [cartId], references: [id], onDelete: SetNull)
+  guestContact               GuestOrderContact           @relation(fields: [guestContactId], references: [id], onDelete: Restrict)
+  paymentMethod              CheckoutPaymentMethod?      @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
+  items                      OrderItem[]
+  statusEvents               OrderStatusEvent[]
+  paymentEvents              OrderPaymentEvent[]
+  resourceAllocations        OrderResourceAllocation[]
+  notifications              OrderNotificationOutbox[]
+  checkoutAttempts           CheckoutAttempt[]
+  idempotencyRecords         CheckoutIdempotencyRecord[]
+
+  @@index([cartId])
+  @@index([guestContactId, createdAt])
+  @@index([paymentMethodId])
+  @@index([status, createdAt])
+  @@index([paymentStatus, createdAt])
+}
+
+model OrderItem {
+  id                            String                        @id @default(cuid()) @db.VarChar(30)
+  orderId                       String                        @db.VarChar(30)
+  cartItemId                    String?                       @db.VarChar(30)
+  kind                          CartItemKind
+  status                        OrderItemStatus               @default(ACTIVE)
+  publicTitle                   String                        @db.VarChar(180)
+  publicConfigurationSummary    String                        @db.Text
+  quantity                      BigInt                        @default(1)
+  currencyCode                  String                        @db.Char(3)
+  priceLines                    Json
+  subtotalCents                 Int                           @default(0)
+  adjustmentTotalCents          Int                           @default(0)
+  finalTotalCents               Int                           @default(0)
+  sourceReference               String                        @db.VarChar(191)
+  publicSourceSlug              String?                       @db.VarChar(191)
+  sourcePublishedRevisionId     String?                       @db.VarChar(80)
+  sourcePublishedRevisionNumber Int?
+  sourceSnapshotSchemaVersion   Int                           @default(1)
+  customerSafeSnapshot          Json
+  resourceReservationState      OrderResourceReservationState @default(NONE)
+  createdAt                     DateTime                      @default(now())
+  order                         Order                         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  cartItem                      CartItem?                     @relation(fields: [cartItemId], references: [id], onDelete: SetNull)
+  resourceAllocations           OrderResourceAllocation[]
+
+  @@index([orderId])
+  @@index([cartItemId])
+  @@index([kind])
+  @@index([resourceReservationState])
+}
+
+model OrderStatusEvent {
+  id                  String               @id @default(cuid()) @db.VarChar(30)
+  orderId             String               @db.VarChar(30)
+  eventType           OrderStatusEventType
+  previousStatus      OrderStatus?
+  newStatus           OrderStatus
+  actorId             String?              @db.VarChar(30)
+  publicNote          String?              @db.VarChar(500)
+  privateInternalNote String?              @db.Text
+  reasonCode          String               @db.VarChar(80)
+  sequence            Int
+  safeMetadata        Json?
+  createdAt           DateTime             @default(now())
+  order               Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actor               User?                @relation("OrderStatusEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@unique([orderId, sequence])
+  @@index([orderId, createdAt])
+  @@index([eventType, createdAt])
+  @@index([actorId, createdAt])
+}
+
+model OrderPaymentEvent {
+  id                    String                    @id @default(cuid()) @db.VarChar(30)
+  orderId               String                    @db.VarChar(30)
+  previousPaymentStatus OrderPaymentStatus?
+  newPaymentStatus      OrderPaymentStatus
+  paymentMethodType     CheckoutPaymentMethodType @default(MANUAL_REVIEW)
+  actorId               String?                   @db.VarChar(30)
+  publicNote            String?                   @db.VarChar(500)
+  privateInternalNote   String?                   @db.Text
+  reasonCode            String                    @db.VarChar(80)
+  sequence              Int
+  idempotencyKeyHash    String?                   @db.Char(64)
+  safeMetadata          Json?
+  createdAt             DateTime                  @default(now())
+  order                 Order                     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actor                 User?                     @relation("OrderPaymentEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@unique([orderId, sequence])
+  @@unique([orderId, idempotencyKeyHash])
+  @@index([orderId, createdAt])
+  @@index([newPaymentStatus, createdAt])
+  @@index([actorId, createdAt])
+}
+
+model OrderResourceAllocation {
+  id                   String                        @id @default(cuid()) @db.VarChar(30)
+  orderId              String                        @db.VarChar(30)
+  orderItemId          String                        @db.VarChar(30)
+  itemKind             CartItemKind
+  state                OrderResourceReservationState @default(ACTIVE)
+  productReservationId String?                       @unique @db.VarChar(30)
+  accountHoldId        String?                       @unique @db.VarChar(30)
+  goldReservationId    String?                       @unique @db.VarChar(30)
+  quantity             BigInt?
+  expiresAt            DateTime?
+  releasedAt           DateTime?
+  consumedAt           DateTime?
+  safeMetadata         Json?
+  createdAt            DateTime                      @default(now())
+  updatedAt            DateTime                      @updatedAt
+  concurrencyVersion   Int                           @default(1)
+  order                Order                         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderItem            OrderItem                     @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  productReservation   ProductInventoryReservation?  @relation(fields: [productReservationId], references: [id], onDelete: SetNull)
+  accountHold          AccountListingHold?           @relation(fields: [accountHoldId], references: [id], onDelete: SetNull)
+  goldReservation      GoldInventoryReservation?     @relation(fields: [goldReservationId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, state])
+  @@index([orderItemId])
+  @@index([itemKind, state])
+  @@index([expiresAt])
+}
+
+model OrderNotificationOutbox {
+  id                   String                     @id @default(cuid()) @db.VarChar(30)
+  orderId              String                     @db.VarChar(30)
+  notificationType     CheckoutNotificationType
+  status               CheckoutNotificationStatus @default(PENDING)
+  recipientHash        String?                    @db.Char(64)
+  templateVersion      String                     @db.VarChar(80)
+  payload              Json
+  deliveryAttemptCount Int                        @default(0)
+  nextAttemptAt        DateTime?
+  lastAttemptAt        DateTime?
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  order                Order                      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@index([notificationType, status])
+  @@index([nextAttemptAt])
+}
+
+model GoldInventoryReservation {
+  id                  String                         @id @default(cuid()) @db.VarChar(30)
+  stableKey           String                         @unique @db.VarChar(160)
+  marketId            String                         @db.VarChar(30)
+  quantityGp          BigInt
+  status              GoldInventoryReservationStatus @default(ACTIVE)
+  expiresAt           DateTime
+  releasedAt          DateTime?
+  consumedAt          DateTime?
+  safeInternalPurpose String                         @db.VarChar(240)
+  actorId             String?                        @db.VarChar(30)
+  idempotencyKeyHash  String?                        @unique @db.Char(64)
+  futureExternalRef   String?                        @db.VarChar(160)
+  concurrencyVersion  Int                            @default(1)
+  createdAt           DateTime                       @default(now())
+  updatedAt           DateTime                       @updatedAt
+  market              GoldMarket                     @relation(fields: [marketId], references: [id], onDelete: Restrict)
+  actor               User?                          @relation("GoldReservationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  orderAllocations    OrderResourceAllocation[]
+
+  @@index([marketId, status, expiresAt])
+  @@index([actorId, createdAt])
+  @@index([futureExternalRef])
 }

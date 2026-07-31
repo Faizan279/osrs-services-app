@@ -4,9 +4,11 @@ import {
   Blocks,
   CircleDollarSign,
   Coins,
+  CreditCard,
   Hammer,
   LayoutDashboard,
   Library,
+  ReceiptText,
   PackageSearch,
   Store,
 } from "lucide-react";
@@ -45,6 +47,18 @@ const navigation = [
     href: "/admin/products",
     label: "Products",
     icon: PackageSearch,
+    exact: false,
+  },
+  {
+    href: "/admin/orders",
+    label: "Orders",
+    icon: ReceiptText,
+    exact: false,
+  },
+  {
+    href: "/admin/checkout",
+    label: "Checkout",
+    icon: CreditCard,
     exact: false,
   },
   {

@@ -155,6 +155,14 @@ Product quantities are positive whole numbers, represented as strings in snapsho
 
 Task 008 global pricing may apply only after the product engine calculates an available or low-stock priced subtotal. Manual-review, unavailable and out-of-stock estimates do not receive invented global additions.
 
+## Task 013 cart and order pricing
+
+Task 013 turns approved charge-side estimates into cart items and orders without making the browser authoritative for price. The cart adapters reload the current published source, recalculate subtotal/global-pricing lines/final total, compare source revision references, and mark stale or changed lines as requiring review before checkout.
+
+`CartItemSnapshotV1` stores only customer-safe item titles, configuration summaries, line items, source references, published revision references, optional global-pricing revision references, repricing markers and reservation requirements. It excludes contact details, RSNs, Discord usernames, credentials, raw cart tokens, raw tracking tokens, internal inventory balances, ledger rows, reservation actors, audit rows and private notes.
+
+Checkout copies the reviewed cart item data into immutable `OrderItem` snapshots inside the order transaction. Current pricing changes can affect a cart during revalidation, but they never mutate an existing order item. Manual payment review can update order payment state later; it does not recalculate order totals or claim that a live provider payment happened.
+
 ## Initial prices
 
 - Existing WooCommerce prices are migration input.

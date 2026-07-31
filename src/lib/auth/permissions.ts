@@ -27,10 +27,15 @@ export const permissions = {
   customBuildsAttachmentsReview: "custom_builds.attachments.review",
   customBuildsQuotesManage: "custom_builds.quotes.manage",
   ordersView: "orders.view",
+  ordersManage: "orders.manage",
+  ordersStatusManage: "orders.status.manage",
+  ordersPaymentReview: "orders.payment.review",
+  ordersCancel: "orders.cancel",
   ordersUpdate: "orders.update",
   ordersRefund: "orders.refund",
   chatRespond: "chat.respond",
   chatMonitorAll: "chat.monitor_all",
+  checkoutConfigure: "checkout.configure",
   paymentsConfigure: "payments.configure",
   usersManage: "users.manage",
   auditView: "audit.view",
@@ -83,11 +88,20 @@ export const permissionDescriptions: Record<PermissionKey, string> = {
   [permissions.customBuildsQuotesManage]:
     "Create, revise, send and void custom account build quotes.",
   [permissions.ordersView]: "View customer orders.",
+  [permissions.ordersManage]: "Manage the order administration workspace.",
+  [permissions.ordersStatusManage]:
+    "Update non-payment order fulfilment status.",
+  [permissions.ordersPaymentReview]:
+    "Review manual payments and mark orders paid.",
+  [permissions.ordersCancel]:
+    "Cancel unpaid orders and release checkout reservations.",
   [permissions.ordersUpdate]: "Update order fulfilment state.",
   [permissions.ordersRefund]: "Initiate or record refunds.",
   [permissions.chatRespond]: "Respond to assigned customer conversations.",
   [permissions.chatMonitorAll]:
     "Monitor and transfer all support conversations.",
+  [permissions.checkoutConfigure]:
+    "Configure guest checkout settings and manual-review payment methods.",
   [permissions.paymentsConfigure]: "Configure payment providers and flags.",
   [permissions.usersManage]: "Manage customers and staff access.",
   [permissions.auditView]: "View sensitive administrative audit records.",
