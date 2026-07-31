@@ -180,6 +180,19 @@ async function cleanup(connection: Connection) {
   );
 }
 
+async function restoreSharedSeedState(connection: Connection) {
+  await cleanup(connection);
+  await connection.query(
+    "UPDATE FeatureFlag SET enabled = 0 WHERE `key` IN ('cart_enabled', 'guest_checkout_enabled')",
+  );
+  await connection.query(
+    "UPDATE CheckoutSettings SET guestCheckoutEnabled = 0 WHERE stableKey = 'checkout-default-settings'",
+  );
+  await productVariant(connection);
+  await accountListing(connection);
+  await goldMarket(connection);
+}
+
 async function adminActorId(connection: Connection) {
   const admin = await firstRow<{ id: string }>(
     connection,
@@ -1572,6 +1585,7 @@ async function main() {
     await mkdir(artifactDirectory, { recursive: true });
     await writeFile(reportPath, report, "utf8");
     console.log(report);
+    await restoreSharedSeedState(connection);
   } finally {
     await connection.end();
   }
