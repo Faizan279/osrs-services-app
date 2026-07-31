@@ -158,6 +158,15 @@ async function tableNameCount(connection: Connection, tableNames: string[]) {
   return asNumber(result[0]?.value);
 }
 
+async function optionalTableRowCount(
+  connection: Connection,
+  tableName: string,
+) {
+  const tableExists = await tableNameCount(connection, [tableName]);
+  if (tableExists === 0) return 0;
+  return count(connection, tableName);
+}
+
 const preservedTableGroups = [
   ["catalogueCategories", "catalogue categories", "CatalogueCategory"],
   ["catalogueServices", "catalogue services", "CatalogueService"],
@@ -711,14 +720,17 @@ async function productSummary(connection: Connection) {
     "SUPPORT_AGENT",
     "products.reservations.manage",
   );
-  const cartTableCount = await tableNameCount(connection, [
-    "Cart",
-    "CartItem",
+  const cartRowCount = await optionalTableRowCount(connection, "Cart");
+  const cartItemRowCount = await optionalTableRowCount(connection, "CartItem");
+  const orderRowCount = await optionalTableRowCount(connection, "Order");
+  const orderItemRowCount = await optionalTableRowCount(
+    connection,
+    "OrderItem",
+  );
+  const legacyCheckoutPaymentTableCount = await tableNameCount(connection, [
     "CheckoutSession",
+    "Payment",
   ]);
-  const orderTableCount = await tableNameCount(connection, ["Order"]);
-  const orderItemTableCount = await tableNameCount(connection, ["OrderItem"]);
-  const paymentTableCount = await tableNameCount(connection, ["Payment"]);
   if (
     permissionCount !== productPermissionKeys.length ||
     superAdminPublish !== 1 ||
@@ -730,12 +742,13 @@ async function productSummary(connection: Connection) {
     throw new Error("Product permissions are incorrect after upgrade.");
   }
   if (
-    cartTableCount !== 0 ||
-    orderTableCount !== 0 ||
-    orderItemTableCount !== 0 ||
-    paymentTableCount !== 0
+    cartRowCount !== 0 ||
+    cartItemRowCount !== 0 ||
+    orderRowCount !== 0 ||
+    orderItemRowCount !== 0 ||
+    legacyCheckoutPaymentTableCount !== 0
   ) {
-    throw new Error("Cart, order or payment tables were unexpectedly added.");
+    throw new Error("Task 012 validation created cart, order or payment data.");
   }
 
   return {
@@ -772,10 +785,11 @@ async function productSummary(connection: Connection) {
     supportPublish,
     supportInventory,
     supportReservations,
-    cartTableCount,
-    orderTableCount,
-    orderItemTableCount,
-    paymentTableCount,
+    cartRowCount,
+    cartItemRowCount,
+    orderRowCount,
+    orderItemRowCount,
+    legacyCheckoutPaymentTableCount,
   };
 }
 
@@ -847,10 +861,11 @@ async function verify() {
       `SUPPORT_AGENT products.publish assignment: ${summary.supportPublish}`,
       `SUPPORT_AGENT products.inventory.adjust assignment: ${summary.supportInventory}`,
       `SUPPORT_AGENT products.reservations.manage assignment: ${summary.supportReservations}`,
-      `Cart model/table count: ${summary.cartTableCount}`,
-      `Order model/table count: ${summary.orderTableCount}`,
-      `OrderItem model/table count: ${summary.orderItemTableCount}`,
-      `Payment model/table count: ${summary.paymentTableCount}`,
+      `Cart row count: ${summary.cartRowCount}`,
+      `Cart item row count: ${summary.cartItemRowCount}`,
+      `Order row count: ${summary.orderRowCount}`,
+      `Order item row count: ${summary.orderItemRowCount}`,
+      `Legacy checkout/payment table count: ${summary.legacyCheckoutPaymentTableCount}`,
       "",
       "Admin password hash equality and all Task 001-011 preservation markers were verified without printing passwords, hashes, contact fields, tokens, database URLs or secrets.",
       "No customer data, internal reservation reasons, actor details, private media paths or production secrets are included in this report.",

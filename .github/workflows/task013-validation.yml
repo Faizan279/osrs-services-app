@@ -194,6 +194,15 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+      - name: Upload transaction validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task013-transaction-validation-report
+          path: artifacts/task-013/task013-checkout-transaction-validation.txt
+          if-no-files-found: ignore
+          retention-days: 14
+
   task012-to-task013-upgrade:
     name: task012-to-task013-upgrade
     runs-on: ubuntu-latest

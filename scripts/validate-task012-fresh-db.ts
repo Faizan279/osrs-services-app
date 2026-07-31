@@ -84,6 +84,15 @@ async function tableNameCount(connection: Connection, tableNames: string[]) {
   return asNumber(result[0]?.value);
 }
 
+async function optionalTableRowCount(
+  connection: Connection,
+  tableName: string,
+) {
+  const tableExists = await tableNameCount(connection, [tableName]);
+  if (tableExists === 0) return 0;
+  return count(connection, tableName);
+}
+
 async function productPermissionCount(connection: Connection) {
   const placeholders = productPermissionKeys.map(() => "?").join(", ");
   const result = await rows<{ value: number }>(
@@ -134,14 +143,20 @@ async function main() {
       )
     )[0];
     const permissionCount = await productPermissionCount(connection);
-    const cartTableCount = await tableNameCount(connection, [
-      "Cart",
+    const cartRowCount = await optionalTableRowCount(connection, "Cart");
+    const cartItemRowCount = await optionalTableRowCount(
+      connection,
       "CartItem",
+    );
+    const orderRowCount = await optionalTableRowCount(connection, "Order");
+    const orderItemRowCount = await optionalTableRowCount(
+      connection,
+      "OrderItem",
+    );
+    const legacyCheckoutPaymentTableCount = await tableNameCount(connection, [
       "CheckoutSession",
+      "Payment",
     ]);
-    const orderTableCount = await tableNameCount(connection, ["Order"]);
-    const orderItemTableCount = await tableNameCount(connection, ["OrderItem"]);
-    const paymentTableCount = await tableNameCount(connection, ["Payment"]);
 
     if (!mysqlVersion) throw new Error("Could not read MySQL version.");
     if (!migration) throw new Error("Task 012 migration is not applied.");
@@ -153,12 +168,15 @@ async function main() {
       throw new Error("Product permissions are incomplete.");
     }
     if (
-      cartTableCount !== 0 ||
-      orderTableCount !== 0 ||
-      orderItemTableCount !== 0 ||
-      paymentTableCount !== 0
+      cartRowCount !== 0 ||
+      cartItemRowCount !== 0 ||
+      orderRowCount !== 0 ||
+      orderItemRowCount !== 0 ||
+      legacyCheckoutPaymentTableCount !== 0
     ) {
-      throw new Error("Cart, order or payment tables were unexpectedly added.");
+      throw new Error(
+        "Task 012 validation created cart, order or payment data.",
+      );
     }
 
     const superAdminPublish = await rolePermissionCount(
@@ -240,12 +258,13 @@ async function main() {
       `SUPPORT_AGENT products.publish assignment: ${supportPublish}`,
       `SUPPORT_AGENT products.inventory.adjust assignment: ${supportInventory}`,
       `SUPPORT_AGENT products.reservations.manage assignment: ${supportReservations}`,
-      `Cart model/table count: ${cartTableCount}`,
-      `Order model/table count: ${orderTableCount}`,
-      `OrderItem model/table count: ${orderItemTableCount}`,
-      `Payment model/table count: ${paymentTableCount}`,
+      `Cart row count: ${cartRowCount}`,
+      `Cart item row count: ${cartItemRowCount}`,
+      `Order row count: ${orderRowCount}`,
+      `Order item row count: ${orderItemRowCount}`,
+      `Legacy checkout/payment table count: ${legacyCheckoutPaymentTableCount}`,
       "",
-      "Task 012 did not add cart, checkout, order, order item or payment tables.",
+      "Task 012 validation did not create cart, checkout, order, order item or payment data.",
       "No database URLs, passwords, reservation reasons, actor details, private media paths, credentials, customer data or secrets are included in this report.",
       "",
     ].join("\n");
