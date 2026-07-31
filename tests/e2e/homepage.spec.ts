@@ -113,11 +113,13 @@ test("important homepage calls to action use the planned destinations", async ({
   ).toHaveAttribute("href", "/#calculator-preview");
   if (testInfo.project.name === "mobile-chromium") {
     await page.getByRole("button", { name: "Open mobile navigation" }).click();
-    await expect(
-      page
-        .getByRole("dialog", { name: "Mobile navigation" })
-        .getByRole("link", { name: "Sign in", exact: true }),
-    ).toHaveAttribute("href", "/login");
+    const mobileDialog = page.getByRole("dialog", {
+      name: "Mobile navigation",
+    });
+    await expect(mobileDialog).toBeVisible();
+    await expect(mobileDialog.locator('a[href="/login"]')).toContainText(
+      "Sign in",
+    );
   } else {
     await expect(
       page
