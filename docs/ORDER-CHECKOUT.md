@@ -20,6 +20,8 @@ Task 010 account marketplace estimates remain preview-only. `AccountListingSnaps
 
 Task 011 custom account-build requests are quote-only. `CustomBuildEstimateSnapshotV1` excludes display name, email, Discord username, RSN, customer notes, attachments, raw tracking tokens, internal notes and admin identities. Staff can create immutable quote revisions and send a secure guest tracking view; customer acceptance or decline records a quote decision only. Accepted quotes do not create carts, checkout sessions, orders, order items, payments, work assignments, customer accounts or credential handover.
 
+Task 012 product marketplace estimates remain preview-only. `ProductEstimateSnapshotV1` excludes internal product references, internal SKUs, ledger rows, reservation actors, reservation reasons, audit metadata, customer data and credentials. Future cart and checkout flows must reload the product, latest published product revision, variant stock, active reservations and applicable global-pricing revision before any order can exist. Public estimates never reserve stock; any future reservation must be created server-side by an authorized checkout flow using the internal reservation service.
+
 ## Suggested order statuses
 
 - Awaiting Payment

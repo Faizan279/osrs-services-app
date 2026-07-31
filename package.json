@@ -30,6 +30,7 @@
     "screenshots:task009": "tsx scripts/capture-task-009.ts",
     "screenshots:task010": "tsx scripts/capture-task-010.ts",
     "screenshots:task011": "tsx scripts/capture-task-011.ts",
+    "screenshots:task012": "tsx scripts/capture-task-012.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "prisma db seed",

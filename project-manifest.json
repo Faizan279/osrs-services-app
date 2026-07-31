@@ -41,7 +41,8 @@
     "global_pricing_enabled": false,
     "gold_engine_enabled": false,
     "account_marketplace_enabled": false,
-    "custom_account_build_enabled": false
+    "custom_account_build_enabled": false,
+    "product_marketplace_enabled": false
   },
   "service_engines": {
     "custom_account_build": {
@@ -50,6 +51,15 @@
       "adminRoute": "/admin/custom-builds",
       "featureFlag": "custom_account_build_enabled",
       "quoteOnly": true,
+      "createsOrdersOrPayments": false
+    },
+    "product_marketplace": {
+      "engineType": "PRODUCT_MARKETPLACE",
+      "publicRoute": "/products",
+      "adminRoute": "/admin/products",
+      "featureFlag": "product_marketplace_enabled",
+      "previewOnly": true,
+      "createsReservationsPublicly": false,
       "createsOrdersOrPayments": false
     }
   }

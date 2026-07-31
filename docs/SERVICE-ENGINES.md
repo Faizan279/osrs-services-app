@@ -120,4 +120,14 @@ This engine never collects account credentials and never creates cart, checkout,
 
 ## Product Marketplace Engine
 
-Used for Items, Bonds, and Outfits. Supports stock, quantity, price, search, filters, card layouts, and inventory reservation.
+Task 012 implements `PRODUCT_MARKETPLACE` for items, bonds and outfits. Public entry points are `/products`, `/products/[productSlug]`, `GET /api/products`, `GET /api/products/[productSlug]`, and `POST /api/products/estimate`.
+
+The public engine supports server-backed search, product-type/category/tag/price/availability/in-stock/featured filters, stable sorting, bounded pagination, product cards, detail galleries, variant selection, quantity validation and preview-only estimates. Public product content comes from immutable published product revisions; draft edits and archived products stay private.
+
+Price modes are fixed unit, quantity tier, fixed package and manual review. Product subtotals are calculated from server-stored integer-cent prices and validated integer quantities. Quantity-tier resolution is deterministic and overlapping published tiers fail safely. Manual-review estimates keep totals null instead of displaying a zero price.
+
+Variant stock supports tracked, unlimited and manual-review modes. Tracked availability is calculated from on-hand quantity minus active unexpired reservations, but public responses expose only customer-safe stock states. Estimates never reserve or deduct inventory.
+
+The admin engine supports `/admin/products`, categories, product drafts, variants, quantity tiers, media, draft preview, publish/discard/restore, inventory adjustments, append-only ledger history, internal reservation creation/release/expiry and revision history. Permissions are split across `products.view`, `products.edit`, `products.publish`, `products.inventory.adjust`, `products.reservations.manage` and `products.media.manage`.
+
+This engine does not create carts, checkout sessions, customer records, orders, order items, payments, public reservations, shipping or automatic delivery.

@@ -268,6 +268,67 @@ enum AccountImageType {
   UNLOCK_OVERVIEW
 }
 
+enum ProductType {
+  ITEM
+  BOND
+  OUTFIT
+}
+
+enum ProductPublicationStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ProductAvailabilityState {
+  AVAILABLE
+  LOW_STOCK
+  OUT_OF_STOCK
+  MANUAL_REVIEW_REQUIRED
+  PAUSED
+  UNAVAILABLE
+}
+
+enum ProductStockMode {
+  TRACKED
+  UNLIMITED
+  MANUAL_REVIEW
+}
+
+enum ProductInventoryEntryType {
+  STOCK_IN
+  STOCK_OUT
+  CORRECTION_IN
+  CORRECTION_OUT
+  INITIAL_BALANCE
+}
+
+enum ProductReservationStatus {
+  ACTIVE
+  RELEASED
+  EXPIRED
+  CANCELLED
+}
+
+enum ProductImageType {
+  COVER
+  GALLERY
+  PACKAGE
+}
+
+enum ProductPriceMode {
+  FIXED_UNIT
+  QUANTITY_TIER
+  FIXED_PACKAGE
+  MANUAL_REVIEW
+}
+
+enum ProductVariantStatus {
+  AVAILABLE
+  PAUSED
+  UNAVAILABLE
+}
+
 enum CustomBuildPublicationStatus {
   DRAFT
   PUBLISHED
@@ -382,6 +443,10 @@ model User {
   customBuildStatusEvents      CustomBuildRequestStatusEvent[] @relation("CustomBuildStatusEventActor")
   customBuildAttachmentReviews CustomBuildAttachment[]         @relation("CustomBuildAttachmentReviewedBy")
   customBuildQuoteRevisions    CustomBuildQuoteRevision[]      @relation("CustomBuildQuoteRevisionCreatedBy")
+  productRevisions             ProductRevision[]               @relation("ProductRevisionPublishedBy")
+  productInventoryEntries      ProductInventoryLedgerEntry[]   @relation("ProductInventoryLedgerActor")
+  productReservations          ProductInventoryReservation[]   @relation("ProductReservationActor")
+  productReservationEvents     ProductReservationEvent[]       @relation("ProductReservationEventActor")
 
   @@index([status])
 }
@@ -547,6 +612,7 @@ model CatalogueService {
   goldMarket                        GoldMarket?
   accountMarketplace                AccountMarketplace?
   customBuildService                CustomBuildService?
+  productMarketplace                ProductMarketplace?
 
   @@unique([categoryId, slug])
   @@index([publicationStatus, publishAt, unpublishAt])
@@ -1487,6 +1553,271 @@ model AccountListingHandoverChecklist {
   createdAt                      DateTime                 @default(now())
   updatedAt                      DateTime                 @updatedAt
   listing                        AccountListing           @relation(fields: [listingId], references: [id], onDelete: Cascade)
+}
+
+model ProductMarketplace {
+  id                            String                   @id @default(cuid()) @db.VarChar(30)
+  stableKey                     String                   @unique @db.VarChar(120)
+  serviceId                     String                   @unique @db.VarChar(30)
+  publicName                    String                   @db.VarChar(160)
+  slug                          String                   @unique @db.VarChar(180)
+  description                   String                   @db.Text
+  publicMarketplaceInstructions String                   @db.Text
+  internalNotes                 String?                  @db.Text
+  currencyCode                  String                   @default("USD") @db.Char(3)
+  availabilityState             ProductAvailabilityState @default(PAUSED)
+  defaultSort                   String                   @default("featured") @db.VarChar(40)
+  needsClientReview             Boolean                  @default(true)
+  concurrencyVersion            Int                      @default(1)
+  createdAt                     DateTime                 @default(now())
+  updatedAt                     DateTime                 @updatedAt
+  service                       CatalogueService         @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  categories                    ProductCategory[]
+  products                      Product[]
+  tags                          ProductTag[]
+
+  @@index([serviceId])
+  @@index([availabilityState])
+  @@index([currencyCode])
+}
+
+model ProductCategory {
+  id                 String             @id @default(cuid()) @db.VarChar(30)
+  stableKey          String             @unique @db.VarChar(120)
+  marketplaceId      String             @db.VarChar(30)
+  publicName         String             @db.VarChar(160)
+  slug               String             @unique @db.VarChar(180)
+  publicDescription  String?            @db.Text
+  productType        ProductType
+  sortOrder          Int                @default(0)
+  enabled            Boolean            @default(true)
+  needsClientReview  Boolean            @default(true)
+  concurrencyVersion Int                @default(1)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  marketplace        ProductMarketplace @relation(fields: [marketplaceId], references: [id], onDelete: Restrict)
+  products           Product[]
+
+  @@index([marketplaceId, enabled, sortOrder])
+  @@index([productType, enabled, sortOrder])
+}
+
+model Product {
+  id                    String                   @id @default(cuid()) @db.VarChar(30)
+  stableKey             String                   @unique @db.VarChar(120)
+  marketplaceId         String                   @db.VarChar(30)
+  categoryId            String                   @db.VarChar(30)
+  publicTitle           String                   @db.VarChar(180)
+  slug                  String                   @db.VarChar(180)
+  shortDescription      String                   @db.VarChar(500)
+  fullDescription       String                   @db.Text
+  internalReferenceCode String                   @unique @db.VarChar(120)
+  productType           ProductType
+  currencyCode          String                   @default("USD") @db.Char(3)
+  isFeatured            Boolean                  @default(false)
+  publicBadgeText       String?                  @db.VarChar(120)
+  publicationStatus     ProductPublicationStatus @default(DRAFT)
+  availabilityState     ProductAvailabilityState @default(PAUSED)
+  defaultImagePath      String?                  @db.VarChar(500)
+  sortOrder             Int                      @default(0)
+  needsClientReview     Boolean                  @default(true)
+  concurrencyVersion    Int                      @default(1)
+  publishedAt           DateTime?
+  archivedAt            DateTime?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  marketplace           ProductMarketplace       @relation(fields: [marketplaceId], references: [id], onDelete: Restrict)
+  category              ProductCategory          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  variants              ProductVariant[]
+  tags                  ProductTagAssignment[]
+  images                ProductImage[]
+  revisions             ProductRevision[]
+
+  @@unique([marketplaceId, slug])
+  @@index([marketplaceId, publicationStatus, availabilityState, sortOrder])
+  @@index([categoryId, publicationStatus, sortOrder])
+  @@index([productType, publicationStatus, sortOrder])
+  @@index([isFeatured, sortOrder])
+  @@index([publishedAt])
+}
+
+model ProductVariant {
+  id                 String                        @id @default(cuid()) @db.VarChar(30)
+  stableKey          String                        @unique @db.VarChar(160)
+  productId          String                        @db.VarChar(30)
+  publicName         String                        @db.VarChar(160)
+  publicSku          String?                       @db.VarChar(120)
+  internalSku        String                        @unique @db.VarChar(120)
+  unitLabel          String                        @default("unit") @db.VarChar(80)
+  priceMode          ProductPriceMode              @default(FIXED_UNIT)
+  baseUnitPriceCents Int                           @default(0)
+  minimumQuantity    BigInt                        @default(1)
+  maximumQuantity    BigInt                        @default(1)
+  quantityIncrement  BigInt                        @default(1)
+  stockMode          ProductStockMode              @default(TRACKED)
+  availabilityState  ProductAvailabilityState      @default(PAUSED)
+  status             ProductVariantStatus          @default(AVAILABLE)
+  onHandQuantity     BigInt                        @default(0)
+  lowStockThreshold  BigInt                        @default(0)
+  sortOrder          Int                           @default(0)
+  enabled            Boolean                       @default(true)
+  needsClientReview  Boolean                       @default(true)
+  concurrencyVersion Int                           @default(1)
+  createdAt          DateTime                      @default(now())
+  updatedAt          DateTime                      @updatedAt
+  product            Product                       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  priceTiers         ProductPriceTier[]
+  ledgerEntries      ProductInventoryLedgerEntry[]
+  reservations       ProductInventoryReservation[]
+
+  @@index([productId, enabled, sortOrder])
+  @@index([productId, status, availabilityState])
+  @@index([priceMode])
+  @@index([stockMode])
+}
+
+model ProductPriceTier {
+  id                 String         @id @default(cuid()) @db.VarChar(30)
+  stableKey          String         @unique @db.VarChar(160)
+  variantId          String         @db.VarChar(30)
+  minimumQuantity    BigInt
+  maximumQuantity    BigInt?
+  unitPriceCents     Int
+  sortOrder          Int            @default(0)
+  enabled            Boolean        @default(true)
+  needsClientReview  Boolean        @default(true)
+  concurrencyVersion Int            @default(1)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  variant            ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@index([variantId, enabled, minimumQuantity])
+}
+
+model ProductTag {
+  id                 String                 @id @default(cuid()) @db.VarChar(30)
+  stableKey          String                 @unique @db.VarChar(160)
+  marketplaceId      String                 @db.VarChar(30)
+  publicLabel        String                 @db.VarChar(160)
+  slug               String                 @db.VarChar(180)
+  enabled            Boolean                @default(true)
+  needsClientReview  Boolean                @default(true)
+  concurrencyVersion Int                    @default(1)
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  marketplace        ProductMarketplace     @relation(fields: [marketplaceId], references: [id], onDelete: Restrict)
+  products           ProductTagAssignment[]
+
+  @@unique([marketplaceId, slug])
+  @@index([marketplaceId, enabled, slug])
+}
+
+model ProductTagAssignment {
+  productId String     @db.VarChar(30)
+  tagId     String     @db.VarChar(30)
+  product   Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tag       ProductTag @relation(fields: [tagId], references: [id], onDelete: Restrict)
+
+  @@id([productId, tagId])
+  @@index([tagId])
+}
+
+model ProductImage {
+  id                 String           @id @default(cuid()) @db.VarChar(30)
+  stableKey          String           @unique @db.VarChar(160)
+  productId          String           @db.VarChar(30)
+  imageType          ProductImageType @default(GALLERY)
+  assetPath          String           @db.VarChar(500)
+  altText            String           @db.VarChar(240)
+  caption            String?          @db.VarChar(240)
+  sortOrder          Int              @default(0)
+  isPublic           Boolean          @default(true)
+  needsClientReview  Boolean          @default(true)
+  concurrencyVersion Int              @default(1)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  product            Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, imageType, isPublic, sortOrder])
+}
+
+model ProductRevision {
+  id                    String   @id @default(cuid()) @db.VarChar(30)
+  productId             String   @db.VarChar(30)
+  revisionNumber        Int
+  snapshotSchemaVersion Int      @default(1)
+  snapshot              Json
+  publishedAt           DateTime @default(now())
+  publishedById         String?  @db.VarChar(30)
+  createdAt             DateTime @default(now())
+  product               Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  publishedBy           User?    @relation("ProductRevisionPublishedBy", fields: [publishedById], references: [id], onDelete: SetNull)
+
+  @@unique([productId, revisionNumber])
+  @@index([productId, publishedAt])
+  @@index([publishedById])
+}
+
+model ProductInventoryLedgerEntry {
+  id                      String                       @id @default(cuid()) @db.VarChar(30)
+  variantId               String                       @db.VarChar(30)
+  entryType               ProductInventoryEntryType
+  quantity                BigInt
+  resultingOnHandQuantity BigInt
+  reason                  String                       @db.VarChar(240)
+  internalNote            String?                      @db.Text
+  actorId                 String?                      @db.VarChar(30)
+  referenceKey            String?                      @unique @db.VarChar(160)
+  reservationId           String?                      @db.VarChar(30)
+  createdAt               DateTime                     @default(now())
+  variant                 ProductVariant               @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  actor                   User?                        @relation("ProductInventoryLedgerActor", fields: [actorId], references: [id], onDelete: SetNull)
+  reservation             ProductInventoryReservation? @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+
+  @@index([variantId, createdAt])
+  @@index([entryType, createdAt])
+  @@index([actorId, createdAt])
+  @@index([reservationId])
+}
+
+model ProductInventoryReservation {
+  id                  String                        @id @default(cuid()) @db.VarChar(30)
+  stableKey           String                        @unique @db.VarChar(160)
+  variantId           String                        @db.VarChar(30)
+  quantity            BigInt
+  status              ProductReservationStatus      @default(ACTIVE)
+  expiresAt           DateTime
+  releasedAt          DateTime?
+  safeInternalPurpose String                        @db.VarChar(240)
+  actorId             String?                       @db.VarChar(30)
+  idempotencyKey      String?                       @unique @db.VarChar(160)
+  futureExternalRef   String?                       @db.VarChar(160)
+  concurrencyVersion  Int                           @default(1)
+  createdAt           DateTime                      @default(now())
+  updatedAt           DateTime                      @updatedAt
+  variant             ProductVariant                @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  actor               User?                         @relation("ProductReservationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  events              ProductReservationEvent[]
+  ledgerEntries       ProductInventoryLedgerEntry[]
+
+  @@index([variantId, status, expiresAt])
+  @@index([actorId, createdAt])
+  @@index([futureExternalRef])
+}
+
+model ProductReservationEvent {
+  id            String                      @id @default(cuid()) @db.VarChar(30)
+  reservationId String                      @db.VarChar(30)
+  eventType     ProductReservationStatus
+  safeMetadata  Json?
+  actorId       String?                     @db.VarChar(30)
+  createdAt     DateTime                    @default(now())
+  reservation   ProductInventoryReservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  actor         User?                       @relation("ProductReservationEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([reservationId, createdAt])
+  @@index([eventType, createdAt])
+  @@index([actorId, createdAt])
 }
 
 model CustomBuildService {

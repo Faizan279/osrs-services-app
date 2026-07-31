@@ -160,6 +160,11 @@ describe("database seed idempotence", () => {
     )!;
     expect(customBuildFlag.enabled).toBe(false);
     customBuildFlag.enabled = true;
+    const productMarketplaceFlag = state.featureFlags.get(
+      "product_marketplace_enabled",
+    )!;
+    expect(productMarketplaceFlag.enabled).toBe(false);
+    productMarketplaceFlag.enabled = true;
 
     const editor = state.roles.get("EDITOR")!;
     const manualPermission = state.permissions.get("orders.view")!;
@@ -187,6 +192,7 @@ describe("database seed idempotence", () => {
     expect(goldFlag.enabled).toBe(true);
     expect(accountsFlag.enabled).toBe(true);
     expect(customBuildFlag.enabled).toBe(true);
+    expect(productMarketplaceFlag.enabled).toBe(true);
     expect(state.rolePermissions.has(manualAssignment)).toBe(true);
     expect(state.rolePermissions.has(missingDefaultAssignment)).toBe(true);
     const superAdmin = state.roles.get("SUPER_ADMIN")!;
@@ -216,6 +222,14 @@ describe("database seed idempotence", () => {
     const customBuildsQuotesManage = state.permissions.get(
       "custom_builds.quotes.manage",
     )!;
+    const productsPublish = state.permissions.get("products.publish")!;
+    const productsInventoryAdjust = state.permissions.get(
+      "products.inventory.adjust",
+    )!;
+    const productsReservationsManage = state.permissions.get(
+      "products.reservations.manage",
+    )!;
+    const productsMediaManage = state.permissions.get("products.media.manage")!;
     expect(
       state.rolePermissions.has(`${superAdmin.id}:${pricingPublish.id}`),
     ).toBe(true);
@@ -231,7 +245,39 @@ describe("database seed idempotence", () => {
       ),
     ).toBe(true);
     expect(
+      state.rolePermissions.has(
+        `${superAdmin.id}:${productsInventoryAdjust.id}`,
+      ),
+    ).toBe(true);
+    expect(
+      state.rolePermissions.has(
+        `${superAdmin.id}:${productsReservationsManage.id}`,
+      ),
+    ).toBe(true);
+    expect(
+      state.rolePermissions.has(`${editor.id}:${productsPublish.id}`),
+    ).toBe(true);
+    expect(
+      state.rolePermissions.has(`${editor.id}:${productsMediaManage.id}`),
+    ).toBe(true);
+    expect(
       state.rolePermissions.has(`${supportAgent.id}:${pricingPublish.id}`),
+    ).toBe(false);
+    expect(
+      state.rolePermissions.has(`${supportAgent.id}:${defaultPermission.id}`),
+    ).toBe(true);
+    expect(
+      state.rolePermissions.has(`${supportAgent.id}:${productsPublish.id}`),
+    ).toBe(false);
+    expect(
+      state.rolePermissions.has(
+        `${supportAgent.id}:${productsInventoryAdjust.id}`,
+      ),
+    ).toBe(false);
+    expect(
+      state.rolePermissions.has(
+        `${supportAgent.id}:${productsReservationsManage.id}`,
+      ),
     ).toBe(false);
     expect(state.rolePermissions.has(`${supportAgent.id}:${goldView.id}`)).toBe(
       true,

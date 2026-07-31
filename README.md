@@ -112,6 +112,18 @@ Custom-build snapshots exclude contact details, RSNs, customer notes, attachment
 
 Admin users with `custom_builds.view` can access `/admin/custom-builds`; edits require `custom_builds.edit`; publish/discard/restore require `custom_builds.publish`; request status review requires `custom_builds.requests.review`; attachment review/download requires `custom_builds.attachments.review`; quote creation/revision/send/void requires `custom_builds.quotes.manage`. Seeds create the Custom Account Builds category/service, draft rules, representative skill/objective pricing, one neutral published revision and `custom_account_build_enabled=false`.
 
+## Task 012 product marketplace engine
+
+`PRODUCT_MARKETPLACE` pages now support preview-only product browsing at `/products` and product details at `/products/[productSlug]`. Public APIs are `GET /api/products`, `GET /api/products/[productSlug]`, and `POST /api/products/estimate`.
+
+The engine supports item, bond and outfit products, admin categories, products, variants, quantity limits, fixed-unit pricing, quantity-tier pricing, fixed-package pricing, manual-review pricing, public tags, safe placeholder images, immutable published product revisions and customer-safe availability states. Public product data comes from the latest published product revision plus live operational availability.
+
+Inventory is tracked at the variant level with tracked, unlimited and manual-review stock modes. Stock adjustments use append-only ledger rows, idempotency keys, optimistic concurrency and safe audit metadata. Internal reservations support create, release, cancel and expiry for future checkout work, but Task 012 exposes no public reservation API and public estimates never reserve or deduct stock.
+
+Product estimates use integer-cent arithmetic, validated integer quantities and JSON-safe `ProductEstimateSnapshotV1` payloads. Available and low-stock product estimates may receive Task 008 global-pricing additions when `global_pricing_enabled` is enabled; manual-review, unavailable and out-of-stock states do not show misleading zero totals or invented adjustments.
+
+Admin users with `products.view` can access `/admin/products`; product/category/variant/tier edits require `products.edit`; publish/discard/restore require `products.publish`; stock adjustments require `products.inventory.adjust`; reservations require `products.reservations.manage`; media changes require `products.media.manage`. Seeds create the Products category/service, Product Marketplace config, Items/Bonds/Outfits categories, representative review-safe products, zero stock ledgers, no active reservations and `product_marketplace_enabled=false`.
+
 ### Requirements
 
 - Node.js 24 LTS
@@ -132,7 +144,7 @@ Normal seed runs preserve an existing administrator password. Set `ADMIN_SEED_RE
 
 `DATABASE_ALLOW_PUBLIC_KEY_RETRIEVAL=true` supports the non-TLS Docker MySQL account locally. Leave it disabled in production and use the database provider's TLS configuration.
 
-Local MySQL is optional for Task 007, Task 008, Task 009, Task 010 and Task 011 handoff validation. Task-specific GitHub Actions workflows, including `.github/workflows/task011-validation.yml`, run migrations, seeds, unit tests, E2E tests, screenshots and review-pack generation against temporary GitHub-hosted MySQL 8.4 service containers. Those CI credentials are disposable validation-only values and are not production secrets.
+Local MySQL is optional for Task 007 through Task 012 handoff validation. Task-specific GitHub Actions workflows, including `.github/workflows/task012-validation.yml`, run migrations, seeds, unit tests, E2E tests, screenshots and review-pack generation against temporary GitHub-hosted MySQL 8.4 service containers. Those CI credentials are disposable validation-only values and are not production secrets.
 
 ```bash
 pnpm install --frozen-lockfile
@@ -171,13 +183,14 @@ pnpm screenshots:task008
 pnpm screenshots:task009
 pnpm screenshots:task010
 pnpm screenshots:task011
+pnpm screenshots:task012
 pnpm format:check
 pnpm build
 ```
 
-Task 002 through Task 011 screenshot capture expects the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
+Task 002 through Task 012 screenshot capture expects the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
 
-For Task 011, the GitHub Actions workflow uploads Playwright results, screenshots, validation reports and the final review ZIP as workflow artifacts. Production deployment still requires a real persistent MySQL database and must not use the temporary CI service container.
+For Task 012, the GitHub Actions workflow uploads Playwright results, screenshots, validation reports and the final review ZIP as workflow artifacts. Production deployment still requires a real persistent MySQL database and must not use the temporary CI service container.
 
 ### Database commands
 
