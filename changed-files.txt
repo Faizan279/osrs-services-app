@@ -52,4 +52,7 @@ src/tests/checkout-security.test.ts
 src/tests/seed-idempotence.test.ts
 task-013-review-summary.txt
 tasks/CODEX-TASK-013.md
+tests/e2e/task010.spec.ts
+tests/e2e/task011.spec.ts
+tests/e2e/task012.spec.ts
 tests/e2e/task013.spec.ts

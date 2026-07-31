@@ -142,7 +142,9 @@ test.describe("Task 013 cart and guest checkout", () => {
 
     await page.goto("/cart");
     await expect(page.getByRole("heading", { name: "Cart" })).toBeVisible();
-    await expect(page.getByText("Bond marketplace demo")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Bond marketplace demo" }),
+    ).toBeVisible();
     await expect(page.getByRole("link", { name: "Checkout" })).toBeVisible();
 
     await page.goto("/checkout");

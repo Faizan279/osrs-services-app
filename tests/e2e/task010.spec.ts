@@ -207,13 +207,12 @@ test("held and sold states are explicit and do not create orders", async ({
     data: { listingSlug: "pvm-ready-main-account" },
   });
   expect(heldEstimate.status()).toBe(400);
-  const orderTables = await databaseRows<{ value: number }>(
-    `SELECT COUNT(*) AS value
-     FROM information_schema.TABLES
-     WHERE TABLE_SCHEMA = DATABASE()
-       AND TABLE_NAME IN ('Order', 'OrderItem')`,
+  const orderRows = await databaseRows<{ value: number }>(
+    `SELECT
+       (SELECT COUNT(*) FROM \`Order\` WHERE id NOT LIKE 'task013%') +
+       (SELECT COUNT(*) FROM OrderItem WHERE id NOT LIKE 'task013%') AS value`,
   );
-  expect(orderTables[0]?.value ?? 0).toBe(0);
+  expect(orderRows[0]?.value ?? 0).toBe(0);
 
   await databaseRows(
     "UPDATE AccountListing SET availability = 'SOLD' WHERE id = ?",

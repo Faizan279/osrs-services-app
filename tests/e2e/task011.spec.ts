@@ -238,14 +238,21 @@ async function createSentQuoteForRequest({
   return { quoteId, revisionNumber: 1 };
 }
 
-async function expectNoOrderOrPaymentTables() {
-  const rows = await databaseRows<{ value: number }>(
+async function expectNoPreviewOrderOrPaymentRows() {
+  const orderRows = await databaseRows<{ value: number }>(
+    `SELECT
+       (SELECT COUNT(*) FROM \`Order\` WHERE id NOT LIKE 'task013%') +
+       (SELECT COUNT(*) FROM OrderItem WHERE id NOT LIKE 'task013%') AS value`,
+  );
+  expect(orderRows[0]?.value ?? 0).toBe(0);
+
+  const paymentTables = await databaseRows<{ value: number }>(
     `SELECT COUNT(*) AS value
      FROM information_schema.TABLES
      WHERE TABLE_SCHEMA = DATABASE()
-       AND TABLE_NAME IN ('Order', 'OrderItem', 'Payment')`,
+       AND TABLE_NAME = 'Payment'`,
   );
-  expect(rows[0]?.value ?? 0).toBe(0);
+  expect(paymentTables[0]?.value ?? 0).toBe(0);
 }
 
 test.describe.configure({ mode: "serial" });
@@ -380,7 +387,7 @@ test("estimate endpoint covers automatic, partial, manual and validation states"
     },
   });
   expect(invalid.status()).toBe(400);
-  await expectNoOrderOrPaymentTables();
+  await expectNoPreviewOrderOrPaymentRows();
 });
 
 test("public request, private attachment, admin review and quote acceptance stay quote-only", async ({
@@ -511,7 +518,7 @@ test("public request, private attachment, admin review and quote acceptance stay
   await expect(page.getByText("Quote accepted.")).toBeVisible({
     timeout: 30_000,
   });
-  await expectNoOrderOrPaymentTables();
+  await expectNoPreviewOrderOrPaymentRows();
 });
 
 test("quote decline, expiry and invalid tracking token remain safe", async ({
