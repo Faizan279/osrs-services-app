@@ -1,0 +1,46 @@
+CODEX TASK 013 REVIEW SUMMARY
+
+Repository: Faizan279/osrs-services-app
+Worktree: E:\Codex\osrs-services-task-013
+Branch: codex/task-013-cart-guest-checkout
+Base: 9289febf2af34b577835a833aab840d9fa269af8
+
+Implemented a secure cart, guest checkout and manual-review order foundation.
+
+Primary additions:
+- Additive migration 20260731150000_task013_cart_guest_checkout.
+- cart_enabled and guest_checkout_enabled feature flags, seeded disabled.
+- CheckoutSettings and safe MANUAL_REVIEW payment method seed data.
+- Guest carts with hashed database tokens and HttpOnly cookies.
+- Cart adapters for skilling, bossing, premium, product, account listing, gold-buy and accepted custom-build quote sources.
+- Compatibility groups for standard service/product carts, account-listing carts, gold-buy carts and accepted-quote carts.
+- Public APIs for cart read, mutation, revalidation and checkout.
+- Public pages for cart, checkout, confirmation and secure order tracking.
+- Guest contact/consent storage without customer account creation.
+- Immutable order item snapshots, order numbers, hashed tracking tokens and status/payment timelines.
+- Manual payment-review admin flow with product/account/gold reservation consumption.
+- Checkout configuration and admin order-management screens.
+- Checkout/order permissions and safe audit events.
+- Notification outbox foundation with no external email provider.
+- GitHub Actions validation with temporary MySQL 8.4.
+- Fresh DB, upgrade, transaction, screenshot and review-pack scripts.
+
+Security and privacy boundaries:
+- Raw cart and tracking tokens are never stored in MySQL.
+- Public order/cart views exclude customer email, Discord username, credentials, internal notes, audit data and private reservation details.
+- Checkout rejects credential-like service details.
+- Payment review does not collect cards, CVV, bank credentials, crypto secrets or RuneScape passwords.
+- Audit metadata and review artifacts avoid PII and raw tokens.
+
+Explicitly not implemented:
+- Live payment providers
+- Payment webhooks
+- Automatic paid state
+- Real external email delivery
+- Customer accounts or dashboards
+- Shipping or automatic delivery
+- Work assignment
+- Deployment
+- Task 014
+
+Local MySQL/Docker validation was not run. Database-backed validation is configured for GitHub Actions temporary MySQL 8.4.

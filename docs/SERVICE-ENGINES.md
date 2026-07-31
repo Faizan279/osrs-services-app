@@ -29,7 +29,7 @@ Normal seed runs keep the public skilling calculator feature flag disabled until
 
 The admin engine supports service-scoped skilling rules, skill enable/order updates, method create/edit, method range/rate fields, client-review markers, staged preview, optimistic concurrency, audit logging and Task 003 publication staging. Published skilling edits stay private until republish; public pages keep using the last published rules. Older staged snapshots without skilling data upgrade safely with `skilling: null`.
 
-This engine does not create carts, checkout sessions, orders, payment records, quote records, global discounts or global price history. Estimate values are preview-only and remain scoped to skilling services.
+Task 013 can add priced skilling estimates to the standard cart after reloading the current published service configuration and applicable global-pricing revision. The skilling engine itself still does not create orders, payment records, quote records, global discounts or global price history.
 
 ## Bossing Engine
 
@@ -54,7 +54,7 @@ Normal seed runs keep the public bossing calculator feature flag disabled until 
 
 The admin engine supports service-scoped bossing rules, boss create/edit/order/enable fields, method create/edit, kill-count ranges, price fields, stat and gear requirement text configuration, client-review markers, staged preview, optimistic concurrency, audit logging and Task 003 publication staging. Published bossing edits stay private until republish; public pages keep using the last published rules. Older staged snapshots without bossing data upgrade safely with `bossing: null`.
 
-This engine does not create carts, checkout sessions, orders, payment records, quote records, global discounts or global price history. Estimate values are preview-only and remain scoped to bossing services.
+Task 013 can add priced bossing estimates to the standard cart after reloading the current published service configuration and applicable global-pricing revision. The bossing engine itself still does not create orders, payment records, quote records, global discounts or global price history.
 
 ## Premium Service Configurator
 
@@ -78,13 +78,13 @@ Normal seed runs keep the public premium configurator feature flag disabled unti
 
 The admin engine supports service-scoped premium rules, package create/edit, option create/edit, package requirement groups, package FAQs, client-review markers, staged preview, optimistic concurrency, audit logging and Task 003 publication staging. Published premium edits stay private until republish; public pages keep using the last published rules. Older staged snapshots without premium data upgrade safely with `premium: null`.
 
-This engine does not create carts, checkout sessions, orders, payment records, quote records, fake reviews, global discounts or global price history. Estimate values are preview-only and remain scoped to premium services.
+Task 013 can add priced premium estimates to the standard cart after reloading the current published service configuration and applicable global-pricing revision. The premium engine itself still does not create orders, payment records, quote records, fake reviews, global discounts or global price history.
 
 ## Global Pricing Layer
 
 Task 008 adds global pricing as a shared layer above the skilling, bossing and premium preview engines. Each engine still owns its service-specific subtotal, line items and validation. When `global_pricing_enabled` is enabled, the public estimate route passes that server-calculated subtotal into the latest published pricing revision and appends global adjustment lines to the response.
 
-Global pricing supports fixed additions, percentage additions, minimum totals and maximum totals scoped globally, by engine type, by category or by service. Draft rules are managed at `/admin/pricing`; public estimates only use published `PricingRevision` snapshots. Cart, checkout, quote, order and payment flows remain deferred.
+Global pricing supports fixed additions, percentage additions, minimum totals and maximum totals scoped globally, by engine type, by category or by service. Draft rules are managed at `/admin/pricing`; public estimates and Task 013 cart adapters only use published `PricingRevision` snapshots. Quote automation and live payment flows remain deferred.
 
 ## Gold Engine
 
@@ -92,7 +92,7 @@ Task 009 implements `GOLD_ENGINE` for buy/sell gold trading estimates. The publi
 
 Gold quantities are parsed on the server into whole-GP `BigInt` values and serialized as decimal strings. Rates are integer minor units per 1,000,000 GP and use deterministic half-up rounding to whole minor units. Public estimates use only the latest published gold-rate revision; draft edits stay private until published.
 
-The admin engine supports `/admin/gold`, market settings, draft buy/sell rate editing, presets, inventory and buying-capacity adjustment, append-only ledger history, revision history, restore-to-draft, optimistic concurrency, permissions and audit logs. Estimates never reserve or deduct inventory and do not create cart, checkout, quote, order or payment records.
+The admin engine supports `/admin/gold`, market settings, draft buy/sell rate editing, presets, inventory and buying-capacity adjustment, append-only ledger history, revision history, restore-to-draft, optimistic concurrency, permissions and audit logs. Estimates never reserve or deduct inventory. Task 013 accepts customer-buy estimates into an exclusive gold-buy cart only after server recalculation; customer-sell estimates remain excluded from charge checkout.
 
 ## Account Marketplace Engine
 
@@ -100,7 +100,7 @@ Task 010 implements `ACCOUNT_MARKETPLACE` for prebuilt account listing browsing 
 
 Public listing visibility requires `approvalStatus=APPROVED`, `publicationStatus=PUBLISHED`, an immutable published listing revision, an available marketplace, and `account_marketplace_enabled=true`. Draft edits remain private. Operational availability is mutable separately from published content so held, sold, paused and unavailable states can be reflected without rewriting revision history.
 
-The engine supports server-side search, filters, sorting, pagination, public game modes, stats, unlocks, feature tags and image galleries. Estimate responses use the server-stored integer-cent listing price and may append Task 008 global-pricing lines when `global_pricing_enabled` is enabled. No public endpoint creates holds, reservations, orders, payments or customer records.
+The engine supports server-side search, filters, sorting, pagination, public game modes, stats, unlocks, feature tags and image galleries. Estimate responses use the server-stored integer-cent listing price and may append Task 008 global-pricing lines when `global_pricing_enabled` is enabled. Task 013 accepts available listing estimates into an exclusive account-listing cart and creates holds only inside checkout transactions.
 
 The admin engine supports `/admin/accounts`, listing creation/editing, stats, unlocks, features, media, approval/rejection, publish/discard/restore, availability, temporary holds, sold/reopen actions, secure-handover readiness and revision history. Secure handover stores booleans/statuses only and never stores credentials.
 
@@ -116,7 +116,7 @@ Persistent requests store minimum contact details, consent timestamp/version, se
 
 Admin routes under `/admin/custom-builds` support overview, configuration, skill/objective rules, preview, publish/discard/restore, request review, status transitions, attachment metadata review/download, quote revision creation, quote sending, quote voiding and quote history. Permissions are split across `custom_builds.view`, `custom_builds.edit`, `custom_builds.publish`, `custom_builds.requests.review`, `custom_builds.attachments.review` and `custom_builds.quotes.manage`.
 
-This engine never collects account credentials and never creates cart, checkout, order, order item, payment, customer account, project delivery or account credential handover records. Accepted quotes remain accepted quotes only.
+This engine never collects account credentials. Task 013 can convert active accepted quotes into an exclusive accepted-quote cart after verifying the quote is accepted, unexpired and not already converted. Customer account creation, project delivery and account credential handover remain excluded.
 
 ## Product Marketplace Engine
 
@@ -130,4 +130,12 @@ Variant stock supports tracked, unlimited and manual-review modes. Tracked avail
 
 The admin engine supports `/admin/products`, categories, product drafts, variants, quantity tiers, media, draft preview, publish/discard/restore, inventory adjustments, append-only ledger history, internal reservation creation/release/expiry and revision history. Permissions are split across `products.view`, `products.edit`, `products.publish`, `products.inventory.adjust`, `products.reservations.manage` and `products.media.manage`.
 
-This engine does not create carts, checkout sessions, customer records, orders, order items, payments, public reservations, shipping or automatic delivery.
+Task 013 can add available or low-stock product estimates to the standard cart and create checkout-only reservations for tracked variants. Public product estimates still never reserve stock, deduct stock, create customer records, create orders, create payments, shipping or automatic delivery.
+
+## Cart and Guest Checkout Foundation
+
+Task 013 adds the cross-engine checkout foundation. Public entry points are `/cart`, `/checkout`, `/checkout/confirmation/[token]` and `/orders/track/[token]`. Admin entry points are `/admin/orders`, `/admin/orders/[orderId]`, `/admin/checkout` and `/admin/checkout/payment-methods`.
+
+The cart accepts `SKILLING_ESTIMATE`, `BOSSING_ESTIMATE`, `PREMIUM_ESTIMATE`, `PRODUCT_ESTIMATE`, `ACCOUNT_LISTING_ESTIMATE`, `GOLD_BUY_ESTIMATE` and `ACCEPTED_CUSTOM_BUILD_QUOTE`. Manual-review, unavailable, out-of-stock, draft, expired, customer-sell-gold and already-converted quote sources are rejected. The raw cart token lives only in an HttpOnly cookie; MySQL stores `tokenHash`.
+
+Checkout creates manual-review orders only. It writes guest contact consent, order/order item rows, status/payment events, checkout attempt and idempotency records, resource allocations, tracking-token hashes and notification outbox rows. Product, account and gold resources are reserved during checkout, then consumed or released by guarded admin order actions. Live payment providers, email delivery, shipping, work assignment, customer accounts and credential handover remain deferred.

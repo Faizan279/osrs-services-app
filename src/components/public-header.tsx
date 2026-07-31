@@ -7,6 +7,7 @@ import {
   MessageCircle,
   Search,
   ShieldCheck,
+  ShoppingCart,
   UserRound,
   X,
 } from "lucide-react";
@@ -233,6 +234,13 @@ export function PublicHeader({ discordHref }: { discordHref: string }) {
               Sign in
             </Link>
             <Link
+              href="/cart"
+              className="text-text-secondary hover:text-text-primary focus-visible:ring-primary flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition focus-visible:ring-2 focus-visible:outline-none"
+            >
+              <ShoppingCart aria-hidden="true" className="size-4" />
+              Cart
+            </Link>
+            <Link
               href={publicCtaLinks.browseServices}
               className={buttonVariants({ size: "sm" })}
             >
@@ -345,6 +353,14 @@ export function PublicHeader({ discordHref }: { discordHref: string }) {
                 onClick={closeMobileMenu}
               >
                 Sign in
+              </Link>
+              <Link
+                href="/cart"
+                tabIndex={mobileOpen ? 0 : -1}
+                className={buttonVariants({ variant: "secondary" })}
+                onClick={closeMobileMenu}
+              >
+                Cart
               </Link>
               <Link
                 href={discordHref}

@@ -165,6 +165,12 @@ describe("database seed idempotence", () => {
     )!;
     expect(productMarketplaceFlag.enabled).toBe(false);
     productMarketplaceFlag.enabled = true;
+    const cartFlag = state.featureFlags.get("cart_enabled")!;
+    expect(cartFlag.enabled).toBe(false);
+    cartFlag.enabled = true;
+    const guestCheckoutFlag = state.featureFlags.get("guest_checkout_enabled")!;
+    expect(guestCheckoutFlag.enabled).toBe(false);
+    guestCheckoutFlag.enabled = true;
 
     const editor = state.roles.get("EDITOR")!;
     const manualPermission = state.permissions.get("orders.view")!;
@@ -193,6 +199,8 @@ describe("database seed idempotence", () => {
     expect(accountsFlag.enabled).toBe(true);
     expect(customBuildFlag.enabled).toBe(true);
     expect(productMarketplaceFlag.enabled).toBe(true);
+    expect(cartFlag.enabled).toBe(true);
+    expect(guestCheckoutFlag.enabled).toBe(true);
     expect(state.rolePermissions.has(manualAssignment)).toBe(true);
     expect(state.rolePermissions.has(missingDefaultAssignment)).toBe(true);
     const superAdmin = state.roles.get("SUPER_ADMIN")!;
@@ -230,6 +238,10 @@ describe("database seed idempotence", () => {
       "products.reservations.manage",
     )!;
     const productsMediaManage = state.permissions.get("products.media.manage")!;
+    const ordersStatusManage = state.permissions.get("orders.status.manage")!;
+    const ordersPaymentReview = state.permissions.get("orders.payment.review")!;
+    const ordersCancel = state.permissions.get("orders.cancel")!;
+    const checkoutConfigure = state.permissions.get("checkout.configure")!;
     expect(
       state.rolePermissions.has(`${superAdmin.id}:${pricingPublish.id}`),
     ).toBe(true);
@@ -261,6 +273,12 @@ describe("database seed idempotence", () => {
       state.rolePermissions.has(`${editor.id}:${productsMediaManage.id}`),
     ).toBe(true);
     expect(
+      state.rolePermissions.has(`${superAdmin.id}:${ordersPaymentReview.id}`),
+    ).toBe(true);
+    expect(
+      state.rolePermissions.has(`${superAdmin.id}:${checkoutConfigure.id}`),
+    ).toBe(true);
+    expect(
       state.rolePermissions.has(`${supportAgent.id}:${pricingPublish.id}`),
     ).toBe(false);
     expect(
@@ -278,6 +296,18 @@ describe("database seed idempotence", () => {
       state.rolePermissions.has(
         `${supportAgent.id}:${productsReservationsManage.id}`,
       ),
+    ).toBe(false);
+    expect(
+      state.rolePermissions.has(`${supportAgent.id}:${ordersStatusManage.id}`),
+    ).toBe(true);
+    expect(
+      state.rolePermissions.has(`${supportAgent.id}:${ordersPaymentReview.id}`),
+    ).toBe(false);
+    expect(
+      state.rolePermissions.has(`${supportAgent.id}:${ordersCancel.id}`),
+    ).toBe(false);
+    expect(
+      state.rolePermissions.has(`${supportAgent.id}:${checkoutConfigure.id}`),
     ).toBe(false);
     expect(state.rolePermissions.has(`${supportAgent.id}:${goldView.id}`)).toBe(
       true,

@@ -16,7 +16,7 @@ Local MySQL is also optional for Task 008 handoff validation. `.github/workflows
 
 Local MySQL remains optional for Task 009 handoff validation. `.github/workflows/task009-validation.yml` runs fresh MySQL validation, Task 008-to-Task 009 upgrade validation, tests, screenshots and review-pack generation on GitHub-hosted MySQL 8.4 service containers.
 
-Local MySQL remains optional for Task 010, Task 011 and Task 012 handoff validation. `.github/workflows/task010-validation.yml`, `.github/workflows/task011-validation.yml` and `.github/workflows/task012-validation.yml` run their database-backed checks on GitHub-hosted MySQL 8.4 service containers with disposable CI credentials.
+Local MySQL remains optional for Task 010, Task 011, Task 012 and Task 013 handoff validation. `.github/workflows/task010-validation.yml`, `.github/workflows/task011-validation.yml`, `.github/workflows/task012-validation.yml` and `.github/workflows/task013-validation.yml` run their database-backed checks on GitHub-hosted MySQL 8.4 service containers with disposable CI credentials.
 
 ## Staging
 
@@ -207,3 +207,27 @@ Before enabling product marketplace browsing outside validation:
 - keep public reservations, cart, checkout, order, order item, payment, shipping and automatic delivery flows disabled until later tasks implement them
 
 Rollback is manual. First disable `product_marketplace_enabled`, then export any admin-edited products, published revisions, inventory ledger entries, active reservations and audit rows that must be retained. Remove reservation events, reservations, ledger entries, revisions, images, tag assignments, tags, price tiers, variants, products, categories and marketplace rows in dependency order only after review. Do not use `prisma migrate reset` against shared or production data.
+
+## Cart and guest checkout deployment notes
+
+Task 013 adds migration `20260731150000_task013_cart_guest_checkout`. It is additive and creates checkout settings, manual-review payment methods, secure carts, cart items, checkout attempts/idempotency records, guest order contacts, orders, order items, order status/payment events, resource allocations, notification outbox rows and gold inventory reservations. It also extends product and account reservation status enums with `CONSUMED`.
+
+Seed creates:
+
+- `cart_enabled` disabled
+- `guest_checkout_enabled` disabled
+- default checkout settings marked `Needs client review`
+- one enabled `MANUAL_REVIEW` payment method marked `Needs client review`
+- order and checkout permissions for Super Admin, with Support Agent limited to order status management
+
+Before enabling cart or guest checkout outside validation:
+
+- run `pnpm db:migrate` without reset
+- run `pnpm db:seed` twice and confirm edited flags and role assignments are preserved
+- review `/admin/checkout` and `/admin/checkout/payment-methods`
+- confirm payment copy is manual-review only and contains no provider credentials, bank details, card instructions, wallet seeds or secrets
+- confirm notification delivery remains outbox-only unless a later approved task adds a real provider
+- confirm `cart_enabled` and `guest_checkout_enabled` are intentionally enabled only after client review
+- verify product, account and gold reservation release/consume behavior in the GitHub Actions Task 013 validation artifacts
+
+Rollback is manual. First disable `guest_checkout_enabled` and `cart_enabled`, then export orders, contacts, status/payment events, notification outbox rows, carts, reservations and audit rows that must be retained. Release active checkout holds before removing order allocations, order events, order items, orders, guest contacts, checkout attempts, idempotency rows, cart items, carts, payment methods and settings in dependency order. Do not use `prisma migrate reset` against shared or production data.

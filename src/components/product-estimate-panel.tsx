@@ -1,6 +1,6 @@
 "use client";
 
-import { Calculator } from "lucide-react";
+import { Calculator, ShoppingCart } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -55,10 +55,13 @@ export function ProductEstimatePanel({
   );
   const [estimate, setEstimate] = useState<EstimatePayload | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cartMessage, setCartMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isCartPending, startCartTransition] = useTransition();
 
   function submitEstimate() {
     setError(null);
+    setCartMessage(null);
     startTransition(async () => {
       const response = await fetch("/api/products/estimate", {
         method: "POST",
@@ -82,6 +85,35 @@ export function ProductEstimatePanel({
         return;
       }
       setEstimate(payload.estimate);
+    });
+  }
+
+  function addToCart() {
+    setCartMessage(null);
+    startCartTransition(async () => {
+      const response = await fetch("/api/cart/items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "PRODUCT_ESTIMATE",
+          source: {
+            productSlug,
+            variantStableKey,
+            quantity,
+          },
+          quantity,
+          idempotencyKey: `product-${productSlug}-${variantStableKey}-${quantity}-${crypto.randomUUID()}`,
+        }),
+      });
+      const payload = (await response.json()) as
+        { ok: true } | { ok: false; message: string };
+      if (!response.ok || !payload.ok) {
+        setCartMessage(
+          payload.ok ? "Item could not be added." : payload.message,
+        );
+        return;
+      }
+      setCartMessage("Added to cart.");
     });
   }
 
@@ -190,6 +222,23 @@ export function ProductEstimatePanel({
               </p>
             )}
             <p className="text-text-muted text-xs">{estimate.finalPriceNote}</p>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={addToCart}
+              disabled={isCartPending || estimate.estimatedTotal == null}
+            >
+              <ShoppingCart className="size-4" aria-hidden="true" />
+              {isCartPending ? "Adding" : "Add to cart"}
+            </Button>
+            {cartMessage && (
+              <p
+                className="text-text-secondary text-sm font-semibold"
+                role="status"
+              >
+                {cartMessage}
+              </p>
+            )}
           </div>
         ) : (
           <p className="text-text-muted text-sm">

@@ -124,6 +124,16 @@ Product estimates use integer-cent arithmetic, validated integer quantities and 
 
 Admin users with `products.view` can access `/admin/products`; product/category/variant/tier edits require `products.edit`; publish/discard/restore require `products.publish`; stock adjustments require `products.inventory.adjust`; reservations require `products.reservations.manage`; media changes require `products.media.manage`. Seeds create the Products category/service, Product Marketplace config, Items/Bonds/Outfits categories, representative review-safe products, zero stock ledgers, no active reservations and `product_marketplace_enabled=false`.
 
+## Task 013 cart and guest checkout foundation
+
+Guest cart and checkout now support secure public cart review at `/cart`, guest checkout at `/checkout`, secure order confirmation/tracking, and admin order/configuration pages at `/admin/orders` and `/admin/checkout`.
+
+The cart stores only a SHA-256 token hash in MySQL; the raw token is held only in the `osrs_guest_cart` HttpOnly, same-site cookie. Cart items persist customer-safe snapshots from skilling, bossing, premium, product, account listing, gold-buy, and accepted custom-build quote sources. Manual-review, sell-gold, unavailable, draft, expired and already-converted sources are rejected before cart insertion.
+
+Checkout is manual payment review only. Task 013 creates orders, order items, status/payment events, guest contact consent records, resource allocations, checkout attempt/idempotency rows, secure tracking-token hashes, and notification outbox rows. It does not collect card data, provider credentials, passwords, PINs, recovery data or raw tracking tokens, and it does not send email. Product reservations, account holds and gold reservations are created during checkout and released or consumed by guarded admin order actions.
+
+Seeds add `cart_enabled=false`, `guest_checkout_enabled=false`, default checkout settings, and one `MANUAL_REVIEW` payment method marked for client review. Admin order actions are split across `orders.view`, `orders.status.manage`, `orders.payment.review`, `orders.cancel`, and `checkout.configure`.
+
 ### Requirements
 
 - Node.js 24 LTS
@@ -144,7 +154,7 @@ Normal seed runs preserve an existing administrator password. Set `ADMIN_SEED_RE
 
 `DATABASE_ALLOW_PUBLIC_KEY_RETRIEVAL=true` supports the non-TLS Docker MySQL account locally. Leave it disabled in production and use the database provider's TLS configuration.
 
-Local MySQL is optional for Task 007 through Task 012 handoff validation. Task-specific GitHub Actions workflows, including `.github/workflows/task012-validation.yml`, run migrations, seeds, unit tests, E2E tests, screenshots and review-pack generation against temporary GitHub-hosted MySQL 8.4 service containers. Those CI credentials are disposable validation-only values and are not production secrets.
+Local MySQL is optional for Task 007 through Task 013 handoff validation. Task-specific GitHub Actions workflows, including `.github/workflows/task013-validation.yml`, run migrations, seeds, unit tests, E2E tests, screenshots and review-pack generation against temporary GitHub-hosted MySQL 8.4 service containers. Those CI credentials are disposable validation-only values and are not production secrets.
 
 ```bash
 pnpm install --frozen-lockfile
@@ -184,13 +194,14 @@ pnpm screenshots:task009
 pnpm screenshots:task010
 pnpm screenshots:task011
 pnpm screenshots:task012
+pnpm screenshots:task013
 pnpm format:check
 pnpm build
 ```
 
-Task 002 through Task 012 screenshot capture expects the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
+Task 002 through Task 013 screenshot capture expects the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
 
-For Task 012, the GitHub Actions workflow uploads Playwright results, screenshots, validation reports and the final review ZIP as workflow artifacts. Production deployment still requires a real persistent MySQL database and must not use the temporary CI service container.
+For Task 013, the GitHub Actions workflow uploads Playwright results, screenshots, validation reports and the final review ZIP as workflow artifacts. Production deployment still requires a real persistent MySQL database and must not use the temporary CI service container.
 
 ### Database commands
 
