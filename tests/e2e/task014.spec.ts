@@ -642,6 +642,15 @@ test.describe("Task 014 customer accounts", () => {
     ).toBeVisible();
     await expect(page.getByText("Staff permissions")).toBeVisible();
     await page.getByRole("button", { name: "Disable customer" }).click();
-    await expect(page.getByRole("status")).toContainText("Customer disabled");
+    await expect(page.getByRole("status")).toContainText(
+      "Customer status updated.",
+    );
+    await expect(page.getByText("DISABLED", { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Disable customer" }),
+    ).toBeDisabled();
+    await expect(
+      page.getByRole("button", { name: "Re-enable customer" }),
+    ).toBeEnabled();
   });
 });
