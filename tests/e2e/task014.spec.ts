@@ -629,12 +629,14 @@ test.describe("Task 014 customer accounts", () => {
     await expect(
       page.getByRole("heading", { name: "Customers" }),
     ).toBeVisible();
-    await expect(page.getByText("Task 014 E2E Customer")).toBeVisible();
-    await page
-      .getByRole("link", { name: "Open" })
-      .filter({ has: page.getByText("Open") })
-      .first()
-      .click();
+    const customerRow = page
+      .getByRole("row")
+      .filter({
+        has: page.getByRole("cell", { name: "Task 014 E2E Customer" }),
+      })
+      .first();
+    await expect(customerRow).toBeVisible();
+    await customerRow.getByRole("link", { name: "Open" }).click();
     await expect(
       page.getByRole("heading", { name: "Task 014 E2E Customer" }),
     ).toBeVisible();
