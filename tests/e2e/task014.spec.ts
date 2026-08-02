@@ -14,6 +14,16 @@ const orderLinkId = "task014e2elink";
 const notificationId = "task014e2enotification";
 const customerSessionToken = deriveToken("task014 e2e customer session");
 const otherSessionToken = deriveToken("task014 e2e other customer session");
+const notificationPreferenceTypes = [
+  "ACCOUNT",
+  "SECURITY",
+  "ORDER_STATUS_CHANGED",
+] as const;
+const notificationPreferenceIds = {
+  ACCOUNT: "t014prefaccount",
+  SECURITY: "t014prefsecurity",
+  ORDER_STATUS_CHANGED: "t014prefstatus",
+} satisfies Record<(typeof notificationPreferenceTypes)[number], string>;
 
 function deriveToken(label: string) {
   return createHash("sha256")
@@ -316,17 +326,13 @@ async function prepareTask014Fixture() {
       JSON_OBJECT('safe', true), NOW(3), NOW(3))`,
     [notificationId, customerId, orderId],
   );
-  for (const type of ["ACCOUNT", "SECURITY", "ORDER_STATUS_CHANGED"]) {
+  for (const type of notificationPreferenceTypes) {
     await databaseRows(
       `INSERT INTO CustomerNotificationPreference
         (id, userId, type, inAppEnabled, emailEnabled, marketingConsent,
          createdAt, updatedAt)
        VALUES (?, ?, ?, 1, 0, 0, NOW(3), NOW(3))`,
-      [
-        `task014e2epref${type.toLowerCase().replace(/_/g, "")}`,
-        customerId,
-        type,
-      ],
+      [notificationPreferenceIds[type], customerId, type],
     );
   }
 }

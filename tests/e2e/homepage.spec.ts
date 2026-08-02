@@ -117,15 +117,15 @@ test("important homepage calls to action use the planned destinations", async ({
       name: "Mobile navigation",
     });
     await expect(mobileDialog).toBeVisible();
-    await expect(mobileDialog.locator('a[href="/login"]')).toContainText(
-      "Sign in",
-    );
+    await expect(
+      mobileDialog.locator('a[href="/account/login"]'),
+    ).toContainText("Sign in");
   } else {
     await expect(
       page
         .getByRole("banner")
         .getByRole("link", { name: "Sign in", exact: true }),
-    ).toHaveAttribute("href", "/login");
+    ).toHaveAttribute("href", "/account/login");
   }
 });
 
