@@ -551,7 +551,7 @@ test.describe("Task 014 customer accounts", () => {
       .getByLabel("Current password")
       .fill(requiredEnv("TASK014_CUSTOMER_TEST_PASSWORD"));
     await page
-      .getByLabel("New password")
+      .getByRole("textbox", { name: "New password", exact: true })
       .fill(`${requiredEnv("TASK014_CUSTOMER_TEST_PASSWORD")} updated`);
     await page
       .getByLabel("Confirm new password")
