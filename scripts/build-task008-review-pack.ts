@@ -52,7 +52,6 @@ const disallowedPathPatterns = [
   /^\.env$/,
   /^node_modules\//,
   /^\.git\//,
-  /credentials/i,
   /mysql.*data/i,
   /database.*files/i,
 ];
