@@ -368,6 +368,21 @@ function visibleAlert(page: Page, text?: string | RegExp) {
   return page.getByRole("alert").filter({ hasText: text ?? /.+/ });
 }
 
+async function signOutCustomer(page: Page) {
+  const headerSignOut = page
+    .getByRole("banner")
+    .getByRole("button", { name: "Sign out" });
+  if (await headerSignOut.isVisible()) {
+    await headerSignOut.click();
+    return;
+  }
+
+  await page
+    .getByRole("complementary")
+    .getByRole("button", { name: "Sign out" })
+    .click();
+}
+
 test.describe.configure({ mode: "serial" });
 
 test.describe("Task 014 customer accounts", () => {
@@ -484,7 +499,7 @@ test.describe("Task 014 customer accounts", () => {
       .fill(requiredEnv("TASK014_CUSTOMER_TEST_PASSWORD"));
     await page.getByRole("button", { name: "Sign in" }).click();
     await page.waitForURL((url) => url.pathname === "/account");
-    await page.getByRole("button", { name: "Sign out" }).click();
+    await signOutCustomer(page);
     await page.waitForURL((url) => url.pathname === "/account/login");
   });
 

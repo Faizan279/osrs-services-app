@@ -69,6 +69,18 @@ export function CustomerAccountShell({
           })}
         </nav>
 
+        <div className="border-border bg-surface-2/65 mx-4 mb-4 flex items-center justify-between gap-3 rounded-xl border px-3 py-3 lg:hidden">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold">
+              {user.name ?? "Customer"}
+            </p>
+            <p className="screenshot-sensitive text-text-muted truncate text-xs">
+              {user.email}
+            </p>
+          </div>
+          <CustomerLogoutButton />
+        </div>
+
         <div className="border-border bg-background/25 absolute inset-x-0 bottom-0 hidden border-t p-4 lg:block">
           <div className="border-border bg-surface-2/65 mb-3 rounded-xl border px-3 py-3">
             <p className="truncate text-sm font-semibold">
