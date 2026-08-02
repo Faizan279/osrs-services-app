@@ -18,6 +18,14 @@ const orderLinkId = "task014shotlink";
 const sessionId = "task014shotsession";
 const notificationId = "task014shotnotification";
 const paymentNotificationId = "task014shotpaynotification";
+const notificationPreferences = [
+  ["task014prefacct", "ACCOUNT"],
+  ["task014prefsec", "SECURITY"],
+  ["task014prefstatus", "ORDER_STATUS_CHANGED"],
+  ["task014prefpay", "ORDER_PAYMENT_CHANGED"],
+  ["task014prefemail", "EMAIL_VERIFICATION"],
+  ["task014prefreset", "PASSWORD_RECOVERY"],
+] as const;
 const sessionToken = deriveToken("task014 screenshot customer session");
 const featureFlagKeys = [
   "customer_accounts_enabled",
@@ -302,24 +310,13 @@ async function prepareRows(connection: Connection) {
       orderId,
     ],
   );
-  for (const type of [
-    "ACCOUNT",
-    "SECURITY",
-    "ORDER_STATUS_CHANGED",
-    "ORDER_PAYMENT_CHANGED",
-    "EMAIL_VERIFICATION",
-    "PASSWORD_RECOVERY",
-  ]) {
+  for (const [id, type] of notificationPreferences) {
     await connection.query(
       `INSERT INTO CustomerNotificationPreference
         (id, userId, type, inAppEnabled, emailEnabled, marketingConsent,
          createdAt, updatedAt)
        VALUES (?, ?, ?, 1, 0, 0, NOW(3), NOW(3))`,
-      [
-        `task014shotpref${type.toLowerCase().replace(/_/g, "")}`,
-        customerId,
-        type,
-      ],
+      [id, customerId, type],
     );
   }
 }
