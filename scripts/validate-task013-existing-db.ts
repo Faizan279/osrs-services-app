@@ -9,6 +9,7 @@ type Row = Record<string, unknown>;
 type TableSnapshot = {
   tableName: string;
   keyFields: string[];
+  columns: string[];
   identifiers: string[];
   fingerprint: string;
   count: number;
@@ -74,6 +75,10 @@ function normalize(value: unknown): unknown {
   return value;
 }
 
+function projectRow(row: Row, columns: string[]) {
+  return Object.fromEntries(columns.map((column) => [column, row[column]]));
+}
+
 function identifier(row: Row, fields: string[]) {
   return fields.map((field) => String(row[field] ?? "")).join("\u001f");
 }
@@ -134,6 +139,19 @@ async function tableNames(connection: Connection) {
   return result.map((row) => row.TABLE_NAME);
 }
 
+async function tableColumns(connection: Connection, tableName: string) {
+  const result = await rows<{ COLUMN_NAME: string }>(
+    connection,
+    `SELECT COLUMN_NAME
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = ?
+     ORDER BY ORDINAL_POSITION`,
+    [tableName],
+  );
+  return result.map((row) => row.COLUMN_NAME);
+}
+
 async function primaryKeyFields(connection: Connection, tableName: string) {
   const result = await rows<{ COLUMN_NAME: string }>(
     connection,
@@ -146,16 +164,7 @@ async function primaryKeyFields(connection: Connection, tableName: string) {
     [tableName],
   );
   if (result.length) return result.map((row) => row.COLUMN_NAME);
-  const columns = await rows<{ COLUMN_NAME: string }>(
-    connection,
-    `SELECT COLUMN_NAME
-     FROM information_schema.COLUMNS
-     WHERE TABLE_SCHEMA = DATABASE()
-       AND TABLE_NAME = ?
-     ORDER BY ORDINAL_POSITION`,
-    [tableName],
-  );
-  return columns.map((row) => row.COLUMN_NAME);
+  return tableColumns(connection, tableName);
 }
 
 async function tableRows(
@@ -170,13 +179,16 @@ async function tableRows(
 function createSnapshot(
   tableName: string,
   keyFields: string[],
+  columns: string[],
   rowsToSnapshot: Row[],
 ) {
+  const projectedRows = rowsToSnapshot.map((row) => projectRow(row, columns));
   return {
     tableName,
     keyFields,
+    columns,
     identifiers: rowsToSnapshot.map((row) => identifier(row, keyFields)),
-    fingerprint: fingerprint(rowsToSnapshot, keyFields),
+    fingerprint: fingerprint(projectedRows, keyFields),
     count: rowsToSnapshot.length,
   } satisfies TableSnapshot;
 }
@@ -192,7 +204,7 @@ function preservedRows(currentRows: Row[], snapshot: TableSnapshot) {
         `Missing preserved row ${rowIdentifier} in ${snapshot.tableName}.`,
       );
     }
-    return row;
+    return projectRow(row, snapshot.columns);
   });
 }
 
@@ -202,9 +214,11 @@ async function snapshot() {
     const tables: Record<string, TableSnapshot> = {};
     for (const tableName of await tableNames(connection)) {
       const keyFields = await primaryKeyFields(connection, tableName);
+      const columns = await tableColumns(connection, tableName);
       tables[tableName] = createSnapshot(
         tableName,
         keyFields,
+        columns,
         await tableRows(connection, tableName, keyFields),
       );
     }
