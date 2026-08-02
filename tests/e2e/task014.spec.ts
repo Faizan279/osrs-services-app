@@ -364,6 +364,10 @@ async function signInAdmin(page: Page) {
   await page.waitForURL((url) => url.pathname === "/admin/customers");
 }
 
+function visibleAlert(page: Page, text?: string | RegExp) {
+  return page.getByRole("alert").filter({ hasText: text ?? /.+/ });
+}
+
 test.describe.configure({ mode: "serial" });
 
 test.describe("Task 014 customer accounts", () => {
@@ -416,7 +420,7 @@ test.describe("Task 014 customer accounts", () => {
     await page.getByLabel("Password", { exact: true }).fill("short");
     await page.getByLabel("Confirm password").fill("different");
     await page.getByRole("button", { name: "Create account" }).click();
-    await expect(page.getByRole("alert")).toBeVisible();
+    await expect(visibleAlert(page)).toBeVisible();
   });
 
   test("customer registration creates CUSTOMER without staff roles", async ({
@@ -468,9 +472,9 @@ test.describe("Task 014 customer accounts", () => {
       .fill("missing-customer@example.test");
     await page.getByLabel("Password").fill("incorrect");
     await page.getByRole("button", { name: "Sign in" }).click();
-    await expect(page.getByRole("alert")).toContainText(
-      "Email or password is incorrect",
-    );
+    await expect(
+      visibleAlert(page, "Email or password is incorrect."),
+    ).toBeVisible();
 
     await page
       .getByLabel("Email address")
@@ -551,7 +555,7 @@ test.describe("Task 014 customer accounts", () => {
       .getByLabel("Secure tracking token")
       .fill(deriveToken("invalid claim"));
     await page.getByRole("button", { name: "Claim order" }).click();
-    await expect(page.getByRole("alert")).toBeVisible();
+    await expect(visibleAlert(page)).toBeVisible();
 
     const otherContext = await browser.newContext();
     await addCustomerCookie(otherContext, otherSessionToken);
@@ -581,9 +585,9 @@ test.describe("Task 014 customer accounts", () => {
       .getByLabel("Password")
       .fill(requiredEnv("TASK014_CUSTOMER_TEST_PASSWORD"));
     await page.getByRole("button", { name: "Sign in" }).click();
-    await expect(page.getByRole("alert")).toContainText(
-      "Email or password is incorrect",
-    );
+    await expect(
+      visibleAlert(page, "Email or password is incorrect."),
+    ).toBeVisible();
   });
 
   test("admin customer overview, detail and disable controls are guarded", async ({
