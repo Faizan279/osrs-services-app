@@ -512,7 +512,9 @@ test.describe("Task 014 customer accounts", () => {
     await expect(
       page.getByRole("heading", { name: "Dashboard" }),
     ).toBeVisible();
-    await expect(page.getByText("TASK014-E2E")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "TASK014-E2E" }),
+    ).toBeVisible();
     await page.goto("/account/orders");
     await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();
     await expect(page.getByText("Task 014 linked order")).toBeVisible();
