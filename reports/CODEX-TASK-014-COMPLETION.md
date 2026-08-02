@@ -80,4 +80,4 @@ Review pack builder: `scripts/build-task014-review-pack.ts`, output `task-014-fi
 
 Customer accounts remain disabled by default until client review. Email verification and password recovery are provider-neutral foundations only; no live delivery is configured. Customer notifications are in-app only. Admin-assisted order linking is modeled and permissioned, but no public reassignment/unlink flow is provided.
 
-No deployment, PR creation, merge, live provider setup or Task 015 work occurred.
+Draft PR #15 was updated for hosted validation after branch publication was requested. No merge, deployment, live provider setup, local MySQL/Docker install or Task 015 work occurred.

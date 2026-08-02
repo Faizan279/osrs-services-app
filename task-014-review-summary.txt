@@ -22,4 +22,4 @@ Validation:
 Local non-database validation is run before handoff. MySQL-backed validation is configured in GitHub Actions with temporary MySQL 8.4 and CI-only credentials.
 
 Restrictions honored:
-No push, PR, merge, deployment, local MySQL/Docker install or Task 015 work.
+Draft PR #15 was updated from this branch after the later publish instruction. No merge, deployment, local MySQL/Docker install, live provider setup or Task 015 work.
