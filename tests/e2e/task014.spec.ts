@@ -544,7 +544,7 @@ test.describe("Task 014 customer accounts", () => {
     await page.goto("/account/notifications");
     await expect(page.getByText("Order update")).toBeVisible();
     await page.getByRole("button", { name: "Mark read" }).click();
-    await expect(page.getByText("Read")).toBeVisible();
+    await expect(page.getByText(/^Read$/)).toBeVisible();
 
     await page.goto("/account/security");
     await page
