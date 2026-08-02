@@ -577,8 +577,20 @@ test.describe("Task 014 customer accounts", () => {
     const otherContext = await browser.newContext();
     await addCustomerCookie(otherContext, otherSessionToken);
     const otherPage = await otherContext.newPage();
-    const response = await otherPage.goto("/account/orders/TASK014-E2E");
-    expect(response?.status()).toBe(404);
+    await otherPage.goto("/account/orders/TASK014-E2E");
+    await expect(
+      otherPage.getByRole("heading", { name: "This route does not exist." }),
+    ).toBeVisible();
+    await expect(
+      otherPage.getByRole("heading", { name: "TASK014-E2E" }),
+    ).toHaveCount(0);
+    const otherLinks = await databaseRows<{ linkCount: bigint | number }>(
+      `SELECT COUNT(*) AS linkCount
+       FROM CustomerOrderLink
+       WHERE userId = ? AND orderId = ?`,
+      [otherCustomerId, orderId],
+    );
+    expect(Number(requiredRow(otherLinks).linkCount)).toBe(0);
     await otherContext.close();
   });
 
