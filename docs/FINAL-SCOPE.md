@@ -28,6 +28,7 @@ Skilling, Quests, Achievement Diaries, Combat Achievements, Minigames, Bossing/P
 - Check public RSN statistics
 - View automatic, customer-confirmed, and support-verified requirements
 - Track orders and payment state
+- Use an optional customer dashboard for linked orders, in-app notifications, profile edits, password changes and session revocation
 - Use live chat and review completed orders
 
 ## Admin capabilities
@@ -42,6 +43,7 @@ Skilling, Quests, Achievement Diaries, Combat Achievements, Minigames, Bossing/P
 - Custom account-build configuration, desired-stat/objective rules, request review, private attachment metadata review, status history, and versioned quote revisions
 - Product marketplace categories, products, variants, price tiers, media, publication revisions, variant stock, append-only inventory ledgers, and internal reservation management
 - Order review, manual payment review, checkout settings, notification outbox and checkout resource allocations
+- Customer account settings, customer overview/detail, account disabling and customer-session revocation
 - Orders, quotes, customers, reviews, and staff
 - Live-chat monitoring
 - Notifications, feature flags, audit logs, exports, and backup preparation
@@ -50,6 +52,7 @@ Skilling, Quests, Achievement Diaries, Combat Achievements, Minigames, Bossing/P
 
 - Real payment-provider credentials and live payment captures
 - Real email/notification provider delivery
+- Social login, OAuth, passkeys and multi-factor authentication
 - Automatic subscription renewal
 - WhatsApp/n8n automation
 - Multi-node chat scaling

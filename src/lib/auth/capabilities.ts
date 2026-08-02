@@ -9,10 +9,13 @@ export function hasCapability(
 
 export function canAccessPath(
   pathname: string,
-  session: { capabilities: ReadonlySet<string> | readonly string[] } | null,
+  session: {
+    capabilities: ReadonlySet<string> | readonly string[];
+    user?: { accountType?: "STAFF" | "CUSTOMER" };
+  } | null,
 ) {
   if (pathname.startsWith("/account")) {
-    return session !== null;
+    return session?.user?.accountType === "CUSTOMER";
   }
 
   if (pathname.startsWith("/admin/design-system")) {

@@ -14,6 +14,14 @@ export async function requireUser(returnTo: string) {
   return session;
 }
 
+export async function requireCustomer(returnTo: string) {
+  const session = await getCurrentSession("CUSTOMER");
+  if (!session) {
+    redirect(`/account/login?next=${encodeURIComponent(returnTo)}`);
+  }
+  return session;
+}
+
 export async function requireCapability(
   capability: PermissionKey,
   returnTo: string,

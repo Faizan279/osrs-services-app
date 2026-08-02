@@ -15,6 +15,7 @@ export type CredentialUser = {
   name: string | null;
   passwordHash: string;
   status: "ACTIVE" | "DISABLED";
+  accountType?: "STAFF" | "CUSTOMER";
 };
 
 type FindUser = (email: string) => Promise<CredentialUser | null>;
@@ -27,6 +28,7 @@ export async function authenticateCredentialsWith(
   input: unknown,
   findUser: FindUser,
   verify: VerifyPassword,
+  expectedAccountType: "STAFF" | "CUSTOMER" = "STAFF",
 ) {
   const parsed = credentialsSchema.safeParse(input);
   if (!parsed.success) {
@@ -34,7 +36,11 @@ export async function authenticateCredentialsWith(
   }
 
   const user = await findUser(parsed.data.email);
-  if (!user || user.status !== "ACTIVE") {
+  if (
+    !user ||
+    user.status !== "ACTIVE" ||
+    (user.accountType ?? "STAFF") !== expectedAccountType
+  ) {
     return { ok: false as const };
   }
 

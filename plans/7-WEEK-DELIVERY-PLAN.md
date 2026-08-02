@@ -22,7 +22,7 @@ Buy and sell Gold, stock and rates, prebuilt accounts, custom builds, Items, Bon
 
 ## Week 6 — Customer dashboard and live chat
 
-Customer dashboard, tracking, progress, Membership, Reviews, custom Socket.IO chat, support dashboard, notifications, retention, and archive.
+Customer dashboard, tracking, progress, Membership, Reviews, custom Socket.IO chat, support dashboard, notifications, retention, and archive. Task 014 completes the customer account and dashboard foundation with customer-safe order ownership, in-app notifications, admin customer management and provider-neutral verification/recovery foundations; live chat, reviews, membership benefits and live email delivery remain later work.
 
 ## Week 7 — Operations, migration, QA, and staging
 

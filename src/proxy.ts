@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const cookieName = process.env.AUTH_SESSION_COOKIE ?? "osrs_session";
+const staffCookieName = process.env.AUTH_SESSION_COOKIE ?? "osrs_session";
+const customerCookieName =
+  process.env.CUSTOMER_SESSION_COOKIE ?? "osrs_customer_session";
 const customBuildTrackingPrefix = "/custom-account-build/track/";
+const publicAccountPrefixes = [
+  "/account/login",
+  "/account/register",
+  "/account/recovery",
+  "/account/reset/",
+];
 
 function notFound() {
   return new NextResponse("Not found", {
@@ -24,11 +32,30 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = request.cookies.get(cookieName)?.value;
+  if (request.nextUrl.pathname.startsWith("/admin")) {
+    const token = request.cookies.get(staffCookieName)?.value;
+    if (!token) {
+      const login = new URL("/login", request.url);
+      login.searchParams.set("next", request.nextUrl.pathname);
+      return NextResponse.redirect(login);
+    }
+    return NextResponse.next();
+  }
+
+  if (
+    request.nextUrl.pathname.startsWith("/account") &&
+    publicAccountPrefixes.some((prefix) =>
+      request.nextUrl.pathname.startsWith(prefix),
+    )
+  ) {
+    return NextResponse.next();
+  }
+
+  const token = request.cookies.get(customerCookieName)?.value;
   if (!token) {
-    const login = new URL("/login", request.url);
-    login.searchParams.set("next", request.nextUrl.pathname);
-    return NextResponse.redirect(login);
+    const accountLogin = new URL("/account/login", request.url);
+    accountLogin.searchParams.set("next", request.nextUrl.pathname);
+    return NextResponse.redirect(accountLogin);
   }
 
   return NextResponse.next();

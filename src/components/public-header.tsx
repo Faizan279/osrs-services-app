@@ -227,7 +227,7 @@ export function PublicHeader({ discordHref }: { discordHref: string }) {
               Search
             </Link>
             <Link
-              href="/login"
+              href="/account/login"
               className="text-text-secondary hover:text-text-primary focus-visible:ring-primary flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition focus-visible:ring-2 focus-visible:outline-none"
             >
               <UserRound aria-hidden="true" className="size-4" />
@@ -347,7 +347,7 @@ export function PublicHeader({ discordHref }: { discordHref: string }) {
             </Link>
             <div className="grid grid-cols-2 gap-3">
               <Link
-                href="/login"
+                href="/account/login"
                 tabIndex={mobileOpen ? 0 : -1}
                 className={buttonVariants({ variant: "secondary" })}
                 onClick={closeMobileMenu}

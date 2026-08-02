@@ -44,7 +44,10 @@
     "custom_account_build_enabled": false,
     "product_marketplace_enabled": false,
     "cart_enabled": false,
-    "guest_checkout_enabled": false
+    "guest_checkout_enabled": false,
+    "customer_accounts_enabled": false,
+    "customer_registration_enabled": false,
+    "customer_dashboard_enabled": false
   },
   "service_engines": {
     "custom_account_build": {
@@ -72,6 +75,20 @@
       "notificationDelivery": "OUTBOX_ONLY",
       "storesRawCartToken": false,
       "storesRawTrackingToken": false
+    },
+    "customer_accounts": {
+      "publicRoutes": ["/account/login", "/account/register", "/account"],
+      "adminRoutes": ["/admin/customers"],
+      "featureFlags": [
+        "customer_accounts_enabled",
+        "customer_registration_enabled",
+        "customer_dashboard_enabled"
+      ],
+      "sessionCookie": "osrs_customer_session",
+      "accountType": "CUSTOMER",
+      "emailDelivery": "NOT_CONFIGURED",
+      "storesRawAuthTokens": false,
+      "grantsStaffPermissions": false
     }
   }
 }

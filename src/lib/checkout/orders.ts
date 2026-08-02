@@ -22,6 +22,10 @@ import {
   paymentReviewMessage,
 } from "@/lib/checkout/constants";
 import {
+  linkAuthenticatedCheckoutOrder,
+  notifyLinkedOrderCustomer,
+} from "@/lib/customer/account";
+import {
   CheckoutSecurityError,
   createSecureToken,
   expiredCartCookieOptions,
@@ -51,6 +55,7 @@ export class CheckoutError extends Error {
 type CheckoutInput = {
   rawCartToken?: string | null;
   idempotencyKey: string;
+  authenticatedCustomer?: { userId: string; email: string } | null;
   contact: {
     displayName: unknown;
     email: unknown;
@@ -652,6 +657,15 @@ export async function submitGuestCheckout(input: CheckoutInput) {
     await resolveCartByRawToken(input.rawCartToken),
   );
   const contact: NormalizedGuestContact = normalizeGuestContact(input.contact);
+  if (
+    input.authenticatedCustomer &&
+    contact.email !== input.authenticatedCustomer.email
+  ) {
+    throw new CheckoutError(
+      "Checkout email must match the signed-in customer account.",
+      403,
+    );
+  }
   const paymentMethod =
     settings.paymentMethods.find(
       (method) => method.stableKey === input.paymentMethodStableKey,
@@ -740,6 +754,13 @@ export async function submitGuestCheckout(input: CheckoutInput) {
         privacyPolicyVersion: settings.privacyPolicyVersion,
       },
     });
+    if (input.authenticatedCustomer) {
+      await linkAuthenticatedCheckoutOrder({
+        transaction,
+        userId: input.authenticatedCustomer.userId,
+        orderId: order.id,
+      });
+    }
     for (const item of locked.items) {
       const orderItem = await transaction.orderItem.create({
         data: orderItemData(order.id, item, input.serviceDetails),
@@ -1092,6 +1113,15 @@ export async function markOrderPaymentUnderReview({
         sequence: statusSequence,
       },
     });
+    await notifyLinkedOrderCustomer({
+      transaction,
+      orderId: order.id,
+      type: "ORDER_PAYMENT_CHANGED",
+      title: "Payment under review",
+      body: "Payment is under review for this order.",
+      dedupeKey: `payment-under-review:${order.id}`,
+      safeMetadata: { paymentStatus: "PAYMENT_UNDER_REVIEW" },
+    });
     await transaction.auditLog.create({
       data: {
         actorId,
@@ -1201,6 +1231,15 @@ export async function markOrderPaid({
         reasonCode: "PAYMENT_CONFIRMED",
         sequence: statusSequence,
       },
+    });
+    await notifyLinkedOrderCustomer({
+      transaction,
+      orderId: order.id,
+      type: "ORDER_PAYMENT_CHANGED",
+      title: "Payment confirmed",
+      body: "Payment was confirmed. Staff will prepare the next step.",
+      dedupeKey: `payment-paid:${order.id}`,
+      safeMetadata: { paymentStatus: "PAID" },
     });
     await transaction.auditLog.create({
       data: {
@@ -1351,6 +1390,15 @@ export async function cancelOrder({
         idempotencyKeyHash,
       },
     });
+    await notifyLinkedOrderCustomer({
+      transaction,
+      orderId: order.id,
+      type: "ORDER_STATUS_CHANGED",
+      title: "Order cancelled",
+      body: "Order was cancelled before payment.",
+      dedupeKey: `order-cancelled:${order.id}`,
+      safeMetadata: { status: "CANCELLED" },
+    });
     await transaction.auditLog.create({
       data: {
         actorId,
@@ -1423,6 +1471,15 @@ export async function updateOrderFulfillmentStatus({
         reasonCode: "FULFILMENT_STATUS_UPDATED",
         sequence: statusSequence,
       },
+    });
+    await notifyLinkedOrderCustomer({
+      transaction,
+      orderId: order.id,
+      type: "ORDER_STATUS_CHANGED",
+      title: "Order status updated",
+      body: publicNote?.slice(0, 500) ?? "Order status was updated.",
+      dedupeKey: `order-status:${order.id}:${nextStatus}:${statusSequence}`,
+      safeMetadata: { status: nextStatus },
     });
     await transaction.auditLog.create({
       data: {

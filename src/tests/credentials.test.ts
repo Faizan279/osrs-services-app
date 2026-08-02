@@ -39,4 +39,42 @@ describe("credentials authentication", () => {
     expect(result).toEqual({ ok: false });
     expect(verify).not.toHaveBeenCalled();
   });
+
+  it("keeps staff and customer credential lanes isolated", async () => {
+    const customerUser = {
+      id: "customer-1",
+      email: "customer@example.test",
+      name: "Customer",
+      passwordHash: "stored-hash",
+      status: "ACTIVE" as const,
+      accountType: "CUSTOMER" as const,
+    };
+    const verify = vi.fn().mockResolvedValue(true);
+
+    await expect(
+      authenticateCredentialsWith(
+        { email: customerUser.email, password: "correct-password" },
+        async () => customerUser,
+        verify,
+        "STAFF",
+      ),
+    ).resolves.toEqual({ ok: false });
+    expect(verify).not.toHaveBeenCalled();
+
+    await expect(
+      authenticateCredentialsWith(
+        { email: customerUser.email, password: "correct-password" },
+        async () => customerUser,
+        verify,
+        "CUSTOMER",
+      ),
+    ).resolves.toEqual({
+      ok: true,
+      user: {
+        id: customerUser.id,
+        email: customerUser.email,
+        name: customerUser.name,
+      },
+    });
+  });
 });

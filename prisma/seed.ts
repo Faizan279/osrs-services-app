@@ -6,6 +6,7 @@ import { PrismaClient } from "../src/generated/prisma/client";
 import { seedAccountMarketplace } from "./account-seed";
 import { seedCatalogue, type CatalogueSeedClient } from "./catalogue-seed";
 import { seedCheckout } from "./checkout-seed";
+import { seedCustomerAccounts } from "./customer-seed";
 import { seedCustomBuild } from "./custom-build-seed";
 import { seedGold } from "./gold-seed";
 import { seedPricing } from "./pricing-seed";
@@ -75,6 +76,7 @@ async function main() {
   await seedCustomBuild(prisma);
   await seedProductMarketplace(prisma);
   await seedCheckout(prisma);
+  await seedCustomerAccounts(prisma);
 }
 
 main()

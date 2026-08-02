@@ -6,6 +6,7 @@ import {
   sanitizeCheckoutError,
   submitGuestCheckout,
 } from "@/lib/checkout/orders";
+import { getCurrentCustomerSession } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -44,9 +45,16 @@ export async function POST(request: NextRequest) {
         400,
       );
     }
+    const customerSession = await getCurrentCustomerSession();
     const result = await submitGuestCheckout({
       ...parsed.data,
       rawCartToken: request.cookies.get(CART_COOKIE_NAME)?.value,
+      authenticatedCustomer: customerSession
+        ? {
+            userId: customerSession.user.id,
+            email: customerSession.user.email,
+          }
+        : null,
     });
     const response = json({ ok: true, ...result });
     if ("cookie" in result && result.cookie) {
