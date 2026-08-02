@@ -88,14 +88,24 @@ async function rolePermissionCount(
   return Number(result[0]?.value ?? 0);
 }
 
-async function schemaColumnCount(connection: Connection, regexp: string) {
+async function schemaColumnCount(
+  connection: Connection,
+  regexp: string,
+  safeColumnNames: string[] = [],
+) {
+  const safeColumnPredicate = safeColumnNames.length
+    ? `AND LOWER(COLUMN_NAME) NOT IN (${safeColumnNames
+        .map(() => "?")
+        .join(", ")})`
+    : "";
   const result = await rows<{ value: number }>(
     connection,
     `SELECT COUNT(*) AS value
      FROM INFORMATION_SCHEMA.COLUMNS
      WHERE TABLE_SCHEMA = DATABASE()
-       AND LOWER(COLUMN_NAME) REGEXP ?`,
-    [regexp],
+       AND LOWER(COLUMN_NAME) REGEXP ?
+       ${safeColumnPredicate}`,
+    [regexp, ...safeColumnNames],
   );
   return Number(result[0]?.value ?? 0);
 }
@@ -207,6 +217,7 @@ async function main() {
     const credentialColumnCount = await schemaColumnCount(
       connection,
       "(runescapepassword|emailpassword|recoveryanswer|authenticatorsecret|bankpin|cardnumber|cvv|credential)",
+      ["bankpinresetrequired"],
     );
     const externalProviderConfigurationCount = await count(
       connection,
