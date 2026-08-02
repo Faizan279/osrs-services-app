@@ -595,16 +595,19 @@ test.describe("Task 014 customer accounts", () => {
   });
 
   test("staff/customer route isolation and disabled customer login are enforced", async ({
-    context,
+    browser,
     page,
   }) => {
     await signInAdmin(page);
     await page.goto("/account");
     await expect(page).toHaveURL(/\/account\/login/);
 
-    await addCustomerCookie(context);
-    await page.goto("/admin");
-    await expect(page).toHaveURL(/\/login/);
+    const customerOnlyContext = await browser.newContext();
+    await addCustomerCookie(customerOnlyContext);
+    const customerOnlyPage = await customerOnlyContext.newPage();
+    await customerOnlyPage.goto("/admin");
+    await expect(customerOnlyPage).toHaveURL(/\/login/);
+    await customerOnlyContext.close();
 
     await page.goto("/account/login");
     await page
