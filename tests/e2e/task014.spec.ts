@@ -421,10 +421,13 @@ test.describe("Task 014 customer accounts", () => {
 
   test("customer registration creates CUSTOMER without staff roles", async ({
     page,
-  }) => {
+  }, testInfo) => {
+    const projectSlug = testInfo.project.name.replace(/[^a-z0-9]+/gi, "-");
+    const registeredEmail = `task014-e2e-new-${projectSlug}@example.test`;
+
     await page.goto("/account/register");
     await page.getByLabel("Display name").fill("Task 014 New Customer");
-    await page.getByLabel("Email address").fill("task014-e2e-new@example.test");
+    await page.getByLabel("Email address").fill(registeredEmail);
     await page
       .getByLabel("Password", { exact: true })
       .fill(requiredEnv("TASK014_CUSTOMER_TEST_PASSWORD"));
@@ -440,14 +443,20 @@ test.describe("Task 014 customer accounts", () => {
       page.getByRole("heading", { name: "Dashboard" }),
     ).toBeVisible();
 
-    const rows = await databaseRows<{ accountType: string; roleCount: number }>(
+    const rows = await databaseRows<{
+      accountType: string;
+      roleCount: bigint | number;
+    }>(
       `SELECT userRecord.accountType, COUNT(userRole.roleId) AS roleCount
        FROM User userRecord
        LEFT JOIN UserRole userRole ON userRole.userId = userRecord.id
-       WHERE userRecord.email = 'task014-e2e-new@example.test'
+       WHERE userRecord.email = ?
        GROUP BY userRecord.accountType`,
+      [registeredEmail],
     );
-    expect(rows[0]).toMatchObject({ accountType: "CUSTOMER", roleCount: 0 });
+    const row = requiredRow(rows);
+    expect(row.accountType).toBe("CUSTOMER");
+    expect(Number(row.roleCount)).toBe(0);
   });
 
   test("customer login, logout and generic invalid login work", async ({
