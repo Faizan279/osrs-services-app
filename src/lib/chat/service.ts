@@ -79,6 +79,15 @@ function auditMetadata(value: Record<string, unknown>) {
   return safeJson(value) as Prisma.InputJsonValue;
 }
 
+function isPrismaUniqueConstraintError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "P2002"
+  );
+}
+
 async function featureEnabled(prisma: Db, key: string) {
   const flag = await prisma.featureFlag.findUnique({
     where: { key },
@@ -229,23 +238,34 @@ async function consumeChatRateLimit({
   const identityKey = createHash("sha256")
     .update(`chat:${actorIdentity(actor)}`)
     .digest("hex");
-  const bucket = await prisma.publicRateLimitBucket.upsert({
-    where: {
-      identityKey_actionKey_windowStart: {
-        identityKey,
-        actionKey: action.slice(0, 80),
-        windowStart,
+  const actionKey = action.slice(0, 80);
+  const bucketKey = {
+    identityKey,
+    actionKey,
+    windowStart,
+  };
+  let bucket;
+  try {
+    bucket = await prisma.publicRateLimitBucket.upsert({
+      where: {
+        identityKey_actionKey_windowStart: bucketKey,
       },
-    },
-    create: {
-      identityKey,
-      actionKey: action.slice(0, 80),
-      windowStart,
-      expiresAt,
-      count: 1,
-    },
-    update: { count: { increment: 1 }, expiresAt },
-  });
+      create: {
+        identityKey,
+        actionKey,
+        windowStart,
+        expiresAt,
+        count: 1,
+      },
+      update: { count: { increment: 1 }, expiresAt },
+    });
+  } catch (error) {
+    if (!isPrismaUniqueConstraintError(error)) throw error;
+    bucket = await prisma.publicRateLimitBucket.update({
+      where: { identityKey_actionKey_windowStart: bucketKey },
+      data: { count: { increment: 1 }, expiresAt },
+    });
+  }
   void prisma.publicRateLimitBucket
     .deleteMany({ where: { expiresAt: { lt: now } } })
     .catch(() => undefined);
