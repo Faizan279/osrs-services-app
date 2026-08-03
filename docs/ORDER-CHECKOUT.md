@@ -6,6 +6,8 @@ Guests may order with email, display name, RSN/game ID, optional Discord usernam
 
 Task 013 implements the foundation with manual payment review only. It stores guest contact consent, order totals, order items, order status/payment timelines, resource allocations, checkout attempt/idempotency rows, secure tracking-token hashes and notification outbox rows. It does not collect card data, provider credentials, account passwords, bank PINs, recovery data or raw tracking tokens, and it does not send email.
 
+Task 014 adds optional customer ownership without changing guest snapshots. Logged-in customer checkout creates one `CustomerOrderLink` inside the checkout transaction only after the checkout email matches the authenticated customer email. Post-checkout account creation and guest-order claiming require a valid secure tracking token; order number alone is never enough. `GuestOrderContact` and `OrderItem` rows remain immutable historical records.
+
 ## Cart
 
 - Support multiple compatible services.
@@ -53,6 +55,8 @@ Reservation state is exposed to admins and customers as lifecycle state, not as 
 Every status change records the previous status, new status, actor, timestamp, public note, internal note, and reason.
 
 Task 013 admin actions are guarded separately: `orders.status.manage` for fulfillment status, `orders.payment.review` for manual payment review and paid confirmation, `orders.cancel` for unpaid cancellation and hold release, and `checkout.configure` for checkout settings/payment method configuration.
+
+Task 014 customer order views expose customer-safe status/payment timelines and public notes only. They exclude staff actors, internal notes, audit metadata, reservation reasons, raw tracking tokens and guest contact records.
 
 ## Quotes
 

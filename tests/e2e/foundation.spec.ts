@@ -18,9 +18,9 @@ test("anonymous users are denied the customer account route", async ({
   page,
 }) => {
   await page.goto("/account");
-  await expect(page).toHaveURL(/\/login\?next=%2Faccount/);
+  await expect(page).toHaveURL(/\/account\/login\?next=%2Faccount/);
   await expect(
-    page.getByRole("heading", { name: "Sign in to continue" }),
+    page.getByRole("heading", { name: "Customer sign in" }),
   ).toBeVisible();
 });
 

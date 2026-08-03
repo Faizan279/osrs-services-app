@@ -15,6 +15,86 @@ enum UserStatus {
   DISABLED
 }
 
+enum UserAccountType {
+  STAFF
+  CUSTOMER
+}
+
+enum SessionAudience {
+  STAFF
+  CUSTOMER
+}
+
+enum CustomerEmailVerificationStatus {
+  UNVERIFIED
+  PENDING_VERIFICATION
+  VERIFIED
+  DELIVERY_UNAVAILABLE
+}
+
+enum CustomerAuthTokenPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+enum CustomerAuthTokenStatus {
+  ACTIVE
+  CONSUMED
+  EXPIRED
+  REVOKED
+}
+
+enum CustomerOrderLinkSource {
+  AUTHENTICATED_CHECKOUT
+  POST_CHECKOUT_ACCOUNT_CREATION
+  SECURE_GUEST_CLAIM
+  ADMIN_ASSISTED
+}
+
+enum CustomerNotificationType {
+  ACCOUNT
+  SECURITY
+  ORDER_CREATED
+  ORDER_STATUS_CHANGED
+  ORDER_PAYMENT_CHANGED
+  EMAIL_VERIFICATION
+  PASSWORD_RECOVERY
+}
+
+enum CustomerNotificationStatus {
+  UNREAD
+  READ
+  ARCHIVED
+}
+
+enum CustomerSecurityEventType {
+  REGISTRATION
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  LOGOUT
+  PASSWORD_CHANGED
+  PASSWORD_RESET_REQUESTED
+  PASSWORD_RESET_COMPLETED
+  EMAIL_VERIFICATION_REQUESTED
+  EMAIL_VERIFIED
+  SESSION_REVOKED
+  ORDER_CLAIMED
+  PROFILE_UPDATED
+  ACCOUNT_DISABLED
+  ACCOUNT_ENABLED
+}
+
+enum CustomerAccountEventType {
+  CREATED
+  PROFILE_UPDATED
+  SETTINGS_UPDATED
+  ORDER_LINKED
+  ORDER_CLAIMED
+  NOTIFICATION_UPDATED
+  DISABLED
+  ENABLED
+}
+
 enum CatalogueServiceType {
   SERVICE
   PRODUCT
@@ -533,44 +613,57 @@ enum GoldInventoryReservationStatus {
 }
 
 model User {
-  id                           String                          @id @default(cuid()) @db.VarChar(30)
-  email                        String                          @unique @db.VarChar(191)
+  id                           String                           @id @default(cuid()) @db.VarChar(30)
+  email                        String                           @unique @db.VarChar(191)
   emailVerified                DateTime?
-  name                         String?                         @db.VarChar(120)
-  image                        String?                         @db.VarChar(500)
-  passwordHash                 String                          @db.VarChar(255)
-  status                       UserStatus                      @default(ACTIVE)
-  createdAt                    DateTime                        @default(now())
-  updatedAt                    DateTime                        @updatedAt
+  name                         String?                          @db.VarChar(120)
+  image                        String?                          @db.VarChar(500)
+  passwordHash                 String                           @db.VarChar(255)
+  status                       UserStatus                       @default(ACTIVE)
+  accountType                  UserAccountType                  @default(STAFF)
+  createdAt                    DateTime                         @default(now())
+  updatedAt                    DateTime                         @updatedAt
   roles                        UserRole[]
   sessions                     Session[]
-  auditLogs                    AuditLog[]                      @relation("AuditActor")
-  servicesCreated              CatalogueService[]              @relation("CatalogueServiceCreatedBy")
-  servicesUpdated              CatalogueService[]              @relation("CatalogueServiceUpdatedBy")
-  catalogueRevisions           CatalogueRevision[]             @relation("CatalogueRevisionActor")
-  catalogueStages              CatalogueServiceStage[]         @relation("CatalogueServiceStageUpdatedBy")
-  pricingRuleSets              PricingRuleSet[]                @relation("PricingRuleSetPublishedBy")
-  pricingRevisions             PricingRevision[]               @relation("PricingRevisionPublishedBy")
-  goldRateSets                 GoldRateSet[]                   @relation("GoldRateSetPublishedBy")
-  goldRateRevisions            GoldRateRevision[]              @relation("GoldRateRevisionPublishedBy")
-  goldLedgerEntries            GoldInventoryLedgerEntry[]      @relation("GoldInventoryLedgerActor")
-  accountRevisions             AccountListingRevision[]        @relation("AccountListingRevisionPublishedBy")
-  accountHolds                 AccountListingHold[]            @relation("AccountListingHoldCreatedBy")
-  accountHoldReleases          AccountListingHold[]            @relation("AccountListingHoldReleasedBy")
-  customBuildRuleSets          CustomBuildRuleSet[]            @relation("CustomBuildRuleSetPublishedBy")
-  customBuildRevisions         CustomBuildRevision[]           @relation("CustomBuildRevisionPublishedBy")
-  customBuildStatusEvents      CustomBuildRequestStatusEvent[] @relation("CustomBuildStatusEventActor")
-  customBuildAttachmentReviews CustomBuildAttachment[]         @relation("CustomBuildAttachmentReviewedBy")
-  customBuildQuoteRevisions    CustomBuildQuoteRevision[]      @relation("CustomBuildQuoteRevisionCreatedBy")
-  productRevisions             ProductRevision[]               @relation("ProductRevisionPublishedBy")
-  productInventoryEntries      ProductInventoryLedgerEntry[]   @relation("ProductInventoryLedgerActor")
-  productReservations          ProductInventoryReservation[]   @relation("ProductReservationActor")
-  productReservationEvents     ProductReservationEvent[]       @relation("ProductReservationEventActor")
-  orderStatusEvents            OrderStatusEvent[]              @relation("OrderStatusEventActor")
-  orderPaymentEvents           OrderPaymentEvent[]             @relation("OrderPaymentEventActor")
-  goldReservations             GoldInventoryReservation[]      @relation("GoldReservationActor")
+  customerProfile              CustomerProfile?
+  customerAuthTokens           CustomerAuthToken[]
+  customerOrderLinks           CustomerOrderLink[]              @relation("CustomerOrderLinkCustomer")
+  customerOrderLinksCreated    CustomerOrderLink[]              @relation("CustomerOrderLinkCreatedBy")
+  customerOrderClaimEvents     CustomerOrderClaimEvent[]        @relation("CustomerOrderClaimCustomer")
+  customerNotifications        CustomerNotification[]
+  customerNotificationPrefs    CustomerNotificationPreference[]
+  customerSecurityEvents       CustomerSecurityEvent[]          @relation("CustomerSecurityEventCustomer")
+  customerAccountEvents        CustomerAccountEvent[]           @relation("CustomerAccountEventCustomer")
+  customerAccountEventsActed   CustomerAccountEvent[]           @relation("CustomerAccountEventActor")
+  auditLogs                    AuditLog[]                       @relation("AuditActor")
+  servicesCreated              CatalogueService[]               @relation("CatalogueServiceCreatedBy")
+  servicesUpdated              CatalogueService[]               @relation("CatalogueServiceUpdatedBy")
+  catalogueRevisions           CatalogueRevision[]              @relation("CatalogueRevisionActor")
+  catalogueStages              CatalogueServiceStage[]          @relation("CatalogueServiceStageUpdatedBy")
+  pricingRuleSets              PricingRuleSet[]                 @relation("PricingRuleSetPublishedBy")
+  pricingRevisions             PricingRevision[]                @relation("PricingRevisionPublishedBy")
+  goldRateSets                 GoldRateSet[]                    @relation("GoldRateSetPublishedBy")
+  goldRateRevisions            GoldRateRevision[]               @relation("GoldRateRevisionPublishedBy")
+  goldLedgerEntries            GoldInventoryLedgerEntry[]       @relation("GoldInventoryLedgerActor")
+  accountRevisions             AccountListingRevision[]         @relation("AccountListingRevisionPublishedBy")
+  accountHolds                 AccountListingHold[]             @relation("AccountListingHoldCreatedBy")
+  accountHoldReleases          AccountListingHold[]             @relation("AccountListingHoldReleasedBy")
+  customBuildRuleSets          CustomBuildRuleSet[]             @relation("CustomBuildRuleSetPublishedBy")
+  customBuildRevisions         CustomBuildRevision[]            @relation("CustomBuildRevisionPublishedBy")
+  customBuildStatusEvents      CustomBuildRequestStatusEvent[]  @relation("CustomBuildStatusEventActor")
+  customBuildAttachmentReviews CustomBuildAttachment[]          @relation("CustomBuildAttachmentReviewedBy")
+  customBuildQuoteRevisions    CustomBuildQuoteRevision[]       @relation("CustomBuildQuoteRevisionCreatedBy")
+  productRevisions             ProductRevision[]                @relation("ProductRevisionPublishedBy")
+  productInventoryEntries      ProductInventoryLedgerEntry[]    @relation("ProductInventoryLedgerActor")
+  productReservations          ProductInventoryReservation[]    @relation("ProductReservationActor")
+  productReservationEvents     ProductReservationEvent[]        @relation("ProductReservationEventActor")
+  orderStatusEvents            OrderStatusEvent[]               @relation("OrderStatusEventActor")
+  orderPaymentEvents           OrderPaymentEvent[]              @relation("OrderPaymentEventActor")
+  goldReservations             GoldInventoryReservation[]       @relation("GoldReservationActor")
 
   @@index([status])
+  @@index([accountType])
+  @@index([status, accountType])
 }
 
 model Role {
@@ -617,18 +710,88 @@ model RolePermission {
 }
 
 model Session {
-  id           String   @id @default(cuid()) @db.VarChar(30)
-  sessionToken String   @unique @db.VarChar(191)
-  userId       String   @db.VarChar(30)
+  id           String          @id @default(cuid()) @db.VarChar(30)
+  sessionToken String          @unique @db.VarChar(191)
+  userId       String          @db.VarChar(30)
+  audience     SessionAudience @default(STAFF)
   expires      DateTime
-  createdAt    DateTime @default(now())
-  lastSeenAt   DateTime @default(now())
-  ipAddress    String?  @db.VarChar(64)
-  userAgent    String?  @db.VarChar(500)
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revokedAt    DateTime?
+  createdAt    DateTime        @default(now())
+  lastSeenAt   DateTime        @default(now())
+  ipAddress    String?         @db.VarChar(64)
+  userAgent    String?         @db.VarChar(500)
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([audience, userId])
+  @@index([audience, expires])
   @@index([expires])
+  @@index([revokedAt])
+}
+
+model CustomerProfile {
+  id                      String                          @id @default(cuid()) @db.VarChar(30)
+  userId                  String                          @unique @db.VarChar(30)
+  displayName             String                          @db.VarChar(120)
+  discordUsername         String?                         @db.VarChar(80)
+  defaultRsn              String?                         @db.VarChar(12)
+  timezone                String?                         @db.VarChar(80)
+  locale                  String?                         @db.VarChar(16)
+  emailVerificationStatus CustomerEmailVerificationStatus @default(UNVERIFIED)
+  emailVerifiedAt         DateTime?
+  registrationSource      String                          @default("PUBLIC_REGISTRATION") @db.VarChar(80)
+  needsReview             Boolean                         @default(true)
+  termsVersion            String                          @default("needs-client-review") @db.VarChar(80)
+  privacyPolicyVersion    String                          @default("needs-client-review") @db.VarChar(80)
+  termsAcceptedAt         DateTime?
+  privacyAcceptedAt       DateTime?
+  concurrencyVersion      Int                             @default(1)
+  createdAt               DateTime                        @default(now())
+  updatedAt               DateTime                        @updatedAt
+  user                    User                            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([emailVerificationStatus])
+  @@index([createdAt])
+}
+
+model CustomerAccountSettings {
+  id                             String   @id @default(cuid()) @db.VarChar(30)
+  stableKey                      String   @unique @db.VarChar(120)
+  registrationEnabled            Boolean  @default(false)
+  dashboardEnabled               Boolean  @default(false)
+  emailVerificationRequired      Boolean  @default(false)
+  passwordRecoveryEnabled        Boolean  @default(false)
+  customerSessionDurationHours   Int      @default(168)
+  maximumActiveCustomerSessions  Int      @default(5)
+  publicRegistrationInstructions String   @db.Text
+  publicRecoveryInstructions     String   @db.Text
+  notificationProviderConfigured Boolean  @default(false)
+  needsClientReview              Boolean  @default(true)
+  concurrencyVersion             Int      @default(1)
+  createdAt                      DateTime @default(now())
+  updatedAt                      DateTime @updatedAt
+
+  @@index([needsClientReview])
+}
+
+model CustomerAuthToken {
+  id             String                   @id @default(cuid()) @db.VarChar(30)
+  userId         String                   @db.VarChar(30)
+  purpose        CustomerAuthTokenPurpose
+  status         CustomerAuthTokenStatus  @default(ACTIVE)
+  tokenHash      String                   @unique @db.Char(64)
+  expiresAt      DateTime
+  consumedAt     DateTime?
+  lastAttemptAt  DateTime?
+  attemptCount   Int                      @default(0)
+  maxAttempts    Int                      @default(5)
+  notificationId String?                  @db.VarChar(30)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  user           User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose, status])
+  @@index([expiresAt])
 }
 
 model FeatureFlag {
@@ -2575,6 +2738,9 @@ model Order {
   paymentEvents              OrderPaymentEvent[]
   resourceAllocations        OrderResourceAllocation[]
   notifications              OrderNotificationOutbox[]
+  customerOrderLink          CustomerOrderLink?
+  customerOrderClaimEvents   CustomerOrderClaimEvent[]
+  customerNotifications      CustomerNotification[]
   checkoutAttempts           CheckoutAttempt[]
   idempotencyRecords         CheckoutIdempotencyRecord[]
 
@@ -2583,6 +2749,113 @@ model Order {
   @@index([paymentMethodId])
   @@index([status, createdAt])
   @@index([paymentStatus, createdAt])
+}
+
+model CustomerOrderLink {
+  id                   String                    @id @default(cuid()) @db.VarChar(30)
+  userId               String                    @db.VarChar(30)
+  orderId              String                    @unique @db.VarChar(30)
+  source               CustomerOrderLinkSource
+  linkedAt             DateTime                  @default(now())
+  createdById          String?                   @db.VarChar(30)
+  safeCreatedByContext String?                   @db.VarChar(120)
+  concurrencyVersion   Int                       @default(1)
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  customer             User                      @relation("CustomerOrderLinkCustomer", fields: [userId], references: [id], onDelete: Restrict)
+  order                Order                     @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  createdBy            User?                     @relation("CustomerOrderLinkCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  claimEvents          CustomerOrderClaimEvent[]
+
+  @@unique([userId, orderId])
+  @@index([userId, linkedAt])
+  @@index([source, linkedAt])
+  @@index([createdById])
+}
+
+model CustomerOrderClaimEvent {
+  id           String                  @id @default(cuid()) @db.VarChar(30)
+  userId       String                  @db.VarChar(30)
+  orderId      String                  @db.VarChar(30)
+  orderLinkId  String?                 @db.VarChar(30)
+  source       CustomerOrderLinkSource @default(SECURE_GUEST_CLAIM)
+  result       String                  @db.VarChar(80)
+  safeMetadata Json?
+  createdAt    DateTime                @default(now())
+  customer     User                    @relation("CustomerOrderClaimCustomer", fields: [userId], references: [id], onDelete: Restrict)
+  order        Order                   @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  orderLink    CustomerOrderLink?      @relation(fields: [orderLinkId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([orderId, createdAt])
+  @@index([source, createdAt])
+}
+
+model CustomerNotification {
+  id           String                     @id @default(cuid()) @db.VarChar(30)
+  userId       String                     @db.VarChar(30)
+  orderId      String?                    @db.VarChar(30)
+  type         CustomerNotificationType
+  status       CustomerNotificationStatus @default(UNREAD)
+  title        String                     @db.VarChar(160)
+  body         String                     @db.VarChar(500)
+  dedupeKey    String?                    @db.VarChar(160)
+  safeMetadata Json?
+  readAt       DateTime?
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
+  customer     User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order        Order?                     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, status, createdAt])
+  @@index([orderId, createdAt])
+  @@index([type, createdAt])
+}
+
+model CustomerNotificationPreference {
+  id                 String                   @id @default(cuid()) @db.VarChar(30)
+  userId             String                   @db.VarChar(30)
+  type               CustomerNotificationType
+  inAppEnabled       Boolean                  @default(true)
+  emailEnabled       Boolean                  @default(false)
+  marketingConsent   Boolean                  @default(false)
+  concurrencyVersion Int                      @default(1)
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  customer           User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+  @@index([userId])
+}
+
+model CustomerSecurityEvent {
+  id            String                    @id @default(cuid()) @db.VarChar(30)
+  userId        String                    @db.VarChar(30)
+  eventType     CustomerSecurityEventType
+  ipHash        String?                   @db.Char(64)
+  userAgentHash String?                   @db.Char(64)
+  safeMetadata  Json?
+  createdAt     DateTime                  @default(now())
+  customer      User                      @relation("CustomerSecurityEventCustomer", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([eventType, createdAt])
+}
+
+model CustomerAccountEvent {
+  id           String                   @id @default(cuid()) @db.VarChar(30)
+  userId       String                   @db.VarChar(30)
+  eventType    CustomerAccountEventType
+  actorId      String?                  @db.VarChar(30)
+  safeMetadata Json?
+  createdAt    DateTime                 @default(now())
+  customer     User                     @relation("CustomerAccountEventCustomer", fields: [userId], references: [id], onDelete: Cascade)
+  actor        User?                    @relation("CustomerAccountEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([eventType, createdAt])
 }
 
 model OrderItem {

@@ -154,7 +154,7 @@ Normal seed runs preserve an existing administrator password. Set `ADMIN_SEED_RE
 
 `DATABASE_ALLOW_PUBLIC_KEY_RETRIEVAL=true` supports the non-TLS Docker MySQL account locally. Leave it disabled in production and use the database provider's TLS configuration.
 
-Local MySQL is optional for Task 007 through Task 013 handoff validation. Task-specific GitHub Actions workflows, including `.github/workflows/task013-validation.yml`, run migrations, seeds, unit tests, E2E tests, screenshots and review-pack generation against temporary GitHub-hosted MySQL 8.4 service containers. Those CI credentials are disposable validation-only values and are not production secrets.
+Local MySQL is optional for Task 007 through Task 014 handoff validation. Task-specific GitHub Actions workflows, including `.github/workflows/task014-validation.yml`, run migrations, seeds, unit tests, E2E tests, screenshots and review-pack generation against temporary GitHub-hosted MySQL 8.4 service containers. Those CI credentials are disposable validation-only values and are not production secrets.
 
 ```bash
 pnpm install --frozen-lockfile
@@ -195,13 +195,14 @@ pnpm screenshots:task010
 pnpm screenshots:task011
 pnpm screenshots:task012
 pnpm screenshots:task013
+pnpm screenshots:task014
 pnpm format:check
 pnpm build
 ```
 
-Task 002 through Task 013 screenshot capture expects the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
+Task 002 through Task 014 screenshot capture expects the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
 
-For Task 013, the GitHub Actions workflow uploads Playwright results, screenshots, validation reports and the final review ZIP as workflow artifacts. Production deployment still requires a real persistent MySQL database and must not use the temporary CI service container.
+For Task 014, the GitHub Actions workflow uploads Playwright results, customer screenshots, validation reports and the final review ZIP as workflow artifacts. Production deployment still requires a real persistent MySQL database and must not use the temporary CI service container.
 
 ### Database commands
 
@@ -218,6 +219,7 @@ pnpm db:reset
 
 - Email/password credentials use Argon2id hashes.
 - Opaque session secrets are held in secure, HTTP-only, same-site cookies; only HMAC digests are stored in MySQL.
+- Staff and customer sessions are isolated by `SessionAudience`; customer sessions use `CUSTOMER_SESSION_COOKIE`.
 - Proxy checks provide the first redirect boundary. Server layouts then validate the database session and required capability.
 - The Super Admin seed is created only when both environment variables are explicitly supplied.
 

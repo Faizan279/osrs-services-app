@@ -1,0 +1,25 @@
+Task 014 review summary
+
+Branch:
+codex/task-014-customer-accounts-dashboard
+
+Starting SHA and Task 013 merge commit:
+31b8b761b3f89dba75f379ba12a6d8b6fece4b8b
+
+Primary delivery:
+Customer accounts and dashboard foundation with explicit staff/customer account-type isolation, customer session audience isolation, customer profile/security pages, customer order ownership links, guest-order claiming, in-app notifications, admin customer management, conservative seeds, MySQL-backed CI validation, E2E coverage, screenshots and review-pack generation.
+
+Migration:
+20260801150000_task014_customer_accounts_dashboard
+
+Provider truth:
+Task 014 does not configure live email, SMS, OAuth or payment providers. Verification and recovery create hashed one-time token rows and truthful notification/outbox state only.
+
+Seed safety:
+Fresh normal seed creates zero customer accounts or customer transactional rows. Seed reruns preserve customer settings edits, feature flag edits, customer users, password hashes, profiles, sessions, order links, auth tokens, notifications, preferences, security events, audit markers and manual staff permission edits.
+
+Validation:
+Local non-database validation is run before handoff. MySQL-backed validation is configured in GitHub Actions with temporary MySQL 8.4 and CI-only credentials.
+
+Restrictions honored:
+Draft PR #15 was updated from this branch after the later publish instruction. No merge, deployment, local MySQL/Docker install, live provider setup or Task 015 work.

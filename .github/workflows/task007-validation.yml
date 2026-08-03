@@ -27,6 +27,8 @@ env:
   ADMIN_SEED_PASSWORD: Task007-CI-Admin-Password-Only
   ADMIN_SEED_NAME: Task 007 CI Admin
   ADMIN_SEED_RESET_PASSWORD: "false"
+  TASK014_CUSTOMER_TEST_PASSWORD: Task014-CI-Customer-Password-Only
+  CUSTOMER_SESSION_COOKIE: osrs_customer_session
   RSN_DEVELOPMENT_FIXTURE: "true"
   CI: "true"
 

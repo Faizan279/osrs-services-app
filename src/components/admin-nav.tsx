@@ -11,6 +11,7 @@ import {
   ReceiptText,
   PackageSearch,
   Store,
+  UsersRound,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -41,6 +42,12 @@ const navigation = [
     href: "/admin/accounts",
     label: "Accounts",
     icon: Store,
+    exact: false,
+  },
+  {
+    href: "/admin/customers",
+    label: "Customers",
+    icon: UsersRound,
     exact: false,
   },
   {

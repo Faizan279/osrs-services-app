@@ -13,6 +13,21 @@ describe("capability authorization", () => {
     expect(canAccessPath("/admin", { capabilities: [] })).toBe(false);
   });
 
+  it("requires a customer account type for account routes", () => {
+    expect(
+      canAccessPath("/account", {
+        capabilities: [],
+        user: { accountType: "STAFF" },
+      }),
+    ).toBe(false);
+    expect(
+      canAccessPath("/account", {
+        capabilities: [],
+        user: { accountType: "CUSTOMER" },
+      }),
+    ).toBe(true);
+  });
+
   it("allows Super Admin capabilities to access the admin showcase", () => {
     const superAdminCapabilities = new Set([
       "admin.access",

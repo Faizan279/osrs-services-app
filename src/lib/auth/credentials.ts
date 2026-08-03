@@ -16,8 +16,10 @@ export function authenticateCredentials(input: unknown) {
           name: true,
           passwordHash: true,
           status: true,
+          accountType: true,
         },
       }),
     verifyPassword,
+    "STAFF",
   );
 }

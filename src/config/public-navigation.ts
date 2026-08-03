@@ -88,7 +88,7 @@ export const footerNavigation = {
   ],
   account: [
     { label: "My account", href: "/account" },
-    { label: "Sign in", href: "/login" },
+    { label: "Sign in", href: "/account/login" },
     { label: "Track an order", href: "/account" },
   ],
   help: [

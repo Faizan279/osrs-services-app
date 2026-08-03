@@ -47,6 +47,7 @@ export type SeedClient = {
         name: string;
         passwordHash: string;
         emailVerified: Date;
+        accountType: "STAFF";
       };
       update: { passwordHash?: string };
       select: { id: true };
@@ -105,6 +106,7 @@ export const defaultRoles: Array<{
       permissions.designSystemView,
       permissions.ordersView,
       permissions.ordersStatusManage,
+      permissions.customersView,
       permissions.chatRespond,
       permissions.productsView,
       permissions.goldView,
@@ -161,6 +163,13 @@ export const defaultFeatureFlags = [
   ],
   ["cart_enabled", "Secure guest cart foundation", false],
   ["guest_checkout_enabled", "Guest checkout order submission", false],
+  [
+    "customer_accounts_enabled",
+    "Customer account authentication foundation",
+    false,
+  ],
+  ["customer_registration_enabled", "Optional customer registration", false],
+  ["customer_dashboard_enabled", "Private customer dashboard", false],
 ] as const;
 
 export async function seedDatabase(
@@ -221,6 +230,7 @@ export async function seedDatabase(
         name: admin.name,
         passwordHash,
         emailVerified: new Date(),
+        accountType: "STAFF",
       },
       update: admin.resetPassword ? { passwordHash } : {},
       select: { id: true },

@@ -13,7 +13,13 @@ type FakeState = {
   featureFlags: Map<string, { description: string; enabled: boolean }>;
   users: Map<
     string,
-    { id: string; name: string; passwordHash: string; emailVerified: Date }
+    {
+      id: string;
+      name: string;
+      passwordHash: string;
+      emailVerified: Date;
+      accountType: "STAFF";
+    }
   >;
   userRoles: Set<string>;
 };
@@ -105,6 +111,7 @@ function createFakeSeedClient() {
           name: args.create.name,
           passwordHash: args.create.passwordHash,
           emailVerified: args.create.emailVerified,
+          accountType: args.create.accountType,
         };
         state.users.set(args.create.email, record);
         return { id: record.id };
@@ -171,6 +178,21 @@ describe("database seed idempotence", () => {
     const guestCheckoutFlag = state.featureFlags.get("guest_checkout_enabled")!;
     expect(guestCheckoutFlag.enabled).toBe(false);
     guestCheckoutFlag.enabled = true;
+    const customerAccountsFlag = state.featureFlags.get(
+      "customer_accounts_enabled",
+    )!;
+    expect(customerAccountsFlag.enabled).toBe(false);
+    customerAccountsFlag.enabled = true;
+    const customerRegistrationFlag = state.featureFlags.get(
+      "customer_registration_enabled",
+    )!;
+    expect(customerRegistrationFlag.enabled).toBe(false);
+    customerRegistrationFlag.enabled = true;
+    const customerDashboardFlag = state.featureFlags.get(
+      "customer_dashboard_enabled",
+    )!;
+    expect(customerDashboardFlag.enabled).toBe(false);
+    customerDashboardFlag.enabled = true;
 
     const editor = state.roles.get("EDITOR")!;
     const manualPermission = state.permissions.get("orders.view")!;
@@ -201,6 +223,9 @@ describe("database seed idempotence", () => {
     expect(productMarketplaceFlag.enabled).toBe(true);
     expect(cartFlag.enabled).toBe(true);
     expect(guestCheckoutFlag.enabled).toBe(true);
+    expect(customerAccountsFlag.enabled).toBe(true);
+    expect(customerRegistrationFlag.enabled).toBe(true);
+    expect(customerDashboardFlag.enabled).toBe(true);
     expect(state.rolePermissions.has(manualAssignment)).toBe(true);
     expect(state.rolePermissions.has(missingDefaultAssignment)).toBe(true);
     const superAdmin = state.roles.get("SUPER_ADMIN")!;
@@ -242,6 +267,13 @@ describe("database seed idempotence", () => {
     const ordersPaymentReview = state.permissions.get("orders.payment.review")!;
     const ordersCancel = state.permissions.get("orders.cancel")!;
     const checkoutConfigure = state.permissions.get("checkout.configure")!;
+    const customersView = state.permissions.get("customers.view")!;
+    const customersManage = state.permissions.get("customers.manage")!;
+    const customersSecurityManage = state.permissions.get(
+      "customers.security.manage",
+    )!;
+    const customersOrdersLink = state.permissions.get("customers.orders.link")!;
+    const customersConfigure = state.permissions.get("customers.configure")!;
     expect(
       state.rolePermissions.has(`${superAdmin.id}:${pricingPublish.id}`),
     ).toBe(true);
@@ -279,6 +311,12 @@ describe("database seed idempotence", () => {
       state.rolePermissions.has(`${superAdmin.id}:${checkoutConfigure.id}`),
     ).toBe(true);
     expect(
+      state.rolePermissions.has(`${superAdmin.id}:${customersView.id}`),
+    ).toBe(true);
+    expect(
+      state.rolePermissions.has(`${superAdmin.id}:${customersManage.id}`),
+    ).toBe(true);
+    expect(
       state.rolePermissions.has(`${supportAgent.id}:${pricingPublish.id}`),
     ).toBe(false);
     expect(
@@ -308,6 +346,23 @@ describe("database seed idempotence", () => {
     ).toBe(false);
     expect(
       state.rolePermissions.has(`${supportAgent.id}:${checkoutConfigure.id}`),
+    ).toBe(false);
+    expect(
+      state.rolePermissions.has(`${supportAgent.id}:${customersView.id}`),
+    ).toBe(true);
+    expect(
+      state.rolePermissions.has(`${supportAgent.id}:${customersManage.id}`),
+    ).toBe(false);
+    expect(
+      state.rolePermissions.has(
+        `${supportAgent.id}:${customersSecurityManage.id}`,
+      ),
+    ).toBe(false);
+    expect(
+      state.rolePermissions.has(`${supportAgent.id}:${customersOrdersLink.id}`),
+    ).toBe(false);
+    expect(
+      state.rolePermissions.has(`${supportAgent.id}:${customersConfigure.id}`),
     ).toBe(false);
     expect(state.rolePermissions.has(`${supportAgent.id}:${goldView.id}`)).toBe(
       true,
@@ -362,6 +417,7 @@ describe("database seed idempotence", () => {
       ),
     ).toBe(false);
     expect(administrator.passwordHash).toBe(originalPasswordHash);
+    expect(administrator.accountType).toBe("STAFF");
   });
 
   it("resets the administrator password only when explicitly enabled", async () => {

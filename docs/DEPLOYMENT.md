@@ -16,7 +16,7 @@ Local MySQL is also optional for Task 008 handoff validation. `.github/workflows
 
 Local MySQL remains optional for Task 009 handoff validation. `.github/workflows/task009-validation.yml` runs fresh MySQL validation, Task 008-to-Task 009 upgrade validation, tests, screenshots and review-pack generation on GitHub-hosted MySQL 8.4 service containers.
 
-Local MySQL remains optional for Task 010, Task 011, Task 012 and Task 013 handoff validation. `.github/workflows/task010-validation.yml`, `.github/workflows/task011-validation.yml`, `.github/workflows/task012-validation.yml` and `.github/workflows/task013-validation.yml` run their database-backed checks on GitHub-hosted MySQL 8.4 service containers with disposable CI credentials.
+Local MySQL remains optional for Task 010, Task 011, Task 012, Task 013 and Task 014 handoff validation. `.github/workflows/task010-validation.yml`, `.github/workflows/task011-validation.yml`, `.github/workflows/task012-validation.yml`, `.github/workflows/task013-validation.yml` and `.github/workflows/task014-validation.yml` run their database-backed checks on GitHub-hosted MySQL 8.4 service containers with disposable CI credentials.
 
 ## Staging
 
@@ -231,3 +231,29 @@ Before enabling cart or guest checkout outside validation:
 - verify product, account and gold reservation release/consume behavior in the GitHub Actions Task 013 validation artifacts
 
 Rollback is manual. First disable `guest_checkout_enabled` and `cart_enabled`, then export orders, contacts, status/payment events, notification outbox rows, carts, reservations and audit rows that must be retained. Release active checkout holds before removing order allocations, order events, order items, orders, guest contacts, checkout attempts, idempotency rows, cart items, carts, payment methods and settings in dependency order. Do not use `prisma migrate reset` against shared or production data.
+
+## Customer account deployment notes
+
+Task 014 adds migration `20260801150000_task014_customer_accounts_dashboard`. It is additive and creates customer profiles, customer account settings, hashed customer auth tokens, customer order links, claim events, in-app notifications, notification preferences, security events and account events. It also adds `User.accountType`, `Session.audience` and `Session.revokedAt`.
+
+Seed creates:
+
+- `customer_accounts_enabled` disabled
+- `customer_registration_enabled` disabled
+- `customer_dashboard_enabled` disabled
+- customer account settings marked `Needs client review`
+- notification provider configured false
+- customer account permissions
+- zero fresh customer users, profiles, sessions, order links, auth tokens or notifications
+
+Before enabling customer accounts outside validation:
+
+- run `pnpm db:migrate` without reset
+- run `pnpm db:seed` twice and confirm edited customer settings, feature flags, roles, staff users and all customer rows are preserved
+- review `/admin/customers`
+- confirm `CUSTOMER_SESSION_COOKIE` is distinct from the staff cookie
+- confirm no live email provider is configured unless a later approved task adds one
+- enable `customer_accounts_enabled`, then intentionally enable registration and dashboard flags only after client review
+- review password recovery copy because Task 014 cannot deliver live recovery email
+
+Rollback is manual. First disable `customer_dashboard_enabled`, `customer_registration_enabled` and `customer_accounts_enabled`. Export customer users, profiles, order links, notifications, preferences, auth-token metadata, sessions, security events and audit rows that must be retained. Remove dependent customer rows in reverse dependency order only after review. Do not use `prisma migrate reset` against shared or production data.

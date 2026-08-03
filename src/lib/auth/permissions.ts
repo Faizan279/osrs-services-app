@@ -33,6 +33,12 @@ export const permissions = {
   ordersCancel: "orders.cancel",
   ordersUpdate: "orders.update",
   ordersRefund: "orders.refund",
+  customersView: "customers.view",
+  customersManage: "customers.manage",
+  customersSecurityManage: "customers.security.manage",
+  customersOrdersLink: "customers.orders.link",
+  customersNotificationsManage: "customers.notifications.manage",
+  customersConfigure: "customers.configure",
   chatRespond: "chat.respond",
   chatMonitorAll: "chat.monitor_all",
   checkoutConfigure: "checkout.configure",
@@ -97,6 +103,18 @@ export const permissionDescriptions: Record<PermissionKey, string> = {
     "Cancel unpaid orders and release checkout reservations.",
   [permissions.ordersUpdate]: "Update order fulfilment state.",
   [permissions.ordersRefund]: "Initiate or record refunds.",
+  [permissions.customersView]:
+    "View customer account records and safe operational summaries.",
+  [permissions.customersManage]:
+    "Disable, re-enable and manage customer account state.",
+  [permissions.customersSecurityManage]:
+    "Revoke customer sessions and review customer security state.",
+  [permissions.customersOrdersLink]:
+    "Perform privileged customer order-linking actions.",
+  [permissions.customersNotificationsManage]:
+    "Manage customer notification records and preferences.",
+  [permissions.customersConfigure]:
+    "Configure customer account and dashboard availability.",
   [permissions.chatRespond]: "Respond to assigned customer conversations.",
   [permissions.chatMonitorAll]:
     "Monitor and transfer all support conversations.",

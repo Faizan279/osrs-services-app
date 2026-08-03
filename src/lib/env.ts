@@ -16,6 +16,7 @@ export const environmentSchema = z
     DATABASE_ALLOW_PUBLIC_KEY_RETRIEVAL: z.stringbool().default(false),
     AUTH_SECRET: z.string().min(32),
     AUTH_SESSION_COOKIE: z.string().min(1).default("osrs_session"),
+    CUSTOMER_SESSION_COOKIE: z.string().min(1).default("osrs_customer_session"),
     SESSION_TTL_HOURS: z.coerce
       .number()
       .int()
