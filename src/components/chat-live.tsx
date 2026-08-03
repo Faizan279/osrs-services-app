@@ -250,6 +250,12 @@ export function ChatPanel({
   >("checking");
   const [typingLabel, setTypingLabel] = useState<string | null>(null);
   const [stateMessage, setStateMessage] = useState("");
+  const [startForm, setStartForm] = useState({
+    displayName: "",
+    supportCategory: "",
+    initialMessage: "",
+    privacyAcknowledged: false,
+  });
   const socketRef = useRef<Socket | null>(null);
 
   const canUseChat = useMemo(() => {
@@ -474,11 +480,31 @@ export function ChatPanel({
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="grid gap-2 text-sm font-semibold">
                 Display name
-                <Input name="displayName" maxLength={120} />
+                <Input
+                  name="displayName"
+                  maxLength={120}
+                  value={startForm.displayName}
+                  onChange={(event) =>
+                    setStartForm((current) => ({
+                      ...current,
+                      displayName: event.target.value,
+                    }))
+                  }
+                />
               </label>
               <label className="grid gap-2 text-sm font-semibold">
                 Category
-                <Input name="supportCategory" maxLength={80} />
+                <Input
+                  name="supportCategory"
+                  maxLength={80}
+                  value={startForm.supportCategory}
+                  onChange={(event) =>
+                    setStartForm((current) => ({
+                      ...current,
+                      supportCategory: event.target.value,
+                    }))
+                  }
+                />
               </label>
             </div>
           ) : null}
@@ -488,11 +514,29 @@ export function ChatPanel({
               name="initialMessage"
               required
               maxLength={availability?.maximumMessageLength ?? 2000}
+              value={startForm.initialMessage}
+              onChange={(event) =>
+                setStartForm((current) => ({
+                  ...current,
+                  initialMessage: event.target.value,
+                }))
+              }
               className="border-border-strong/70 bg-background/50 text-text-primary focus:border-primary focus:ring-primary/20 min-h-32 rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2"
             />
           </label>
           <label className="flex items-start gap-3 text-sm">
-            <input name="privacyAcknowledged" type="checkbox" required />
+            <input
+              name="privacyAcknowledged"
+              type="checkbox"
+              required
+              checked={startForm.privacyAcknowledged}
+              onChange={(event) =>
+                setStartForm((current) => ({
+                  ...current,
+                  privacyAcknowledged: event.target.checked,
+                }))
+              }
+            />
             <span>
               I understand chat is plain text and must not include credentials.
             </span>
