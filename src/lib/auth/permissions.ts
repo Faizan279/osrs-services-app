@@ -39,7 +39,16 @@ export const permissions = {
   customersOrdersLink: "customers.orders.link",
   customersNotificationsManage: "customers.notifications.manage",
   customersConfigure: "customers.configure",
+  chatView: "chat.view",
   chatRespond: "chat.respond",
+  chatAssign: "chat.assign",
+  chatStatusManage: "chat.status.manage",
+  chatInternalNotesCreate: "chat.internal_notes.create",
+  chatOrderLink: "chat.order_link",
+  chatSettingsManage: "chat.settings.manage",
+  chatQuickRepliesManage: "chat.quick_replies.manage",
+  chatMessagesRedact: "chat.messages.redact",
+  chatArchive: "chat.archive",
   chatMonitorAll: "chat.monitor_all",
   checkoutConfigure: "checkout.configure",
   paymentsConfigure: "payments.configure",
@@ -115,7 +124,25 @@ export const permissionDescriptions: Record<PermissionKey, string> = {
     "Manage customer notification records and preferences.",
   [permissions.customersConfigure]:
     "Configure customer account and dashboard availability.",
+  [permissions.chatView]:
+    "View support queue conversations and customer-safe chat context.",
   [permissions.chatRespond]: "Respond to assigned customer conversations.",
+  [permissions.chatAssign]:
+    "Assign, reassign and unassign eligible support conversations.",
+  [permissions.chatStatusManage]:
+    "Resolve, reopen, close and mark support conversations as spam.",
+  [permissions.chatInternalNotesCreate]:
+    "Create staff-only internal notes on support conversations.",
+  [permissions.chatOrderLink]:
+    "Link customer-safe orders to authorized support conversations.",
+  [permissions.chatSettingsManage]:
+    "Configure chat availability, launcher, fallback and retention settings.",
+  [permissions.chatQuickRepliesManage]:
+    "Create and update staff quick replies for support conversations.",
+  [permissions.chatMessagesRedact]:
+    "Redact accidentally submitted credentials, extreme PII or prohibited content from chat messages.",
+  [permissions.chatArchive]:
+    "Archive support conversations while preserving transcripts.",
   [permissions.chatMonitorAll]:
     "Monitor and transfer all support conversations.",
   [permissions.checkoutConfigure]:

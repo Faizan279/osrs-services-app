@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { PrismaClient } from "../src/generated/prisma/client";
 import { seedAccountMarketplace } from "./account-seed";
+import { seedChat } from "./chat-seed";
 import { seedCatalogue, type CatalogueSeedClient } from "./catalogue-seed";
 import { seedCheckout } from "./checkout-seed";
 import { seedCustomerAccounts } from "./customer-seed";
@@ -77,6 +78,7 @@ async function main() {
   await seedProductMarketplace(prisma);
   await seedCheckout(prisma);
   await seedCustomerAccounts(prisma);
+  await seedChat(prisma);
 }
 
 main()

@@ -16,7 +16,7 @@ Local MySQL is also optional for Task 008 handoff validation. `.github/workflows
 
 Local MySQL remains optional for Task 009 handoff validation. `.github/workflows/task009-validation.yml` runs fresh MySQL validation, Task 008-to-Task 009 upgrade validation, tests, screenshots and review-pack generation on GitHub-hosted MySQL 8.4 service containers.
 
-Local MySQL remains optional for Task 010, Task 011, Task 012, Task 013 and Task 014 handoff validation. `.github/workflows/task010-validation.yml`, `.github/workflows/task011-validation.yml`, `.github/workflows/task012-validation.yml`, `.github/workflows/task013-validation.yml` and `.github/workflows/task014-validation.yml` run their database-backed checks on GitHub-hosted MySQL 8.4 service containers with disposable CI credentials.
+Local MySQL remains optional for Task 010, Task 011, Task 012, Task 013, Task 014 and Task 015 handoff validation. `.github/workflows/task010-validation.yml`, `.github/workflows/task011-validation.yml`, `.github/workflows/task012-validation.yml`, `.github/workflows/task013-validation.yml`, `.github/workflows/task014-validation.yml` and `.github/workflows/task015-validation.yml` run their database-backed checks on GitHub-hosted MySQL 8.4 service containers with disposable CI credentials.
 
 ## Staging
 
@@ -257,3 +257,29 @@ Before enabling customer accounts outside validation:
 - review password recovery copy because Task 014 cannot deliver live recovery email
 
 Rollback is manual. First disable `customer_dashboard_enabled`, `customer_registration_enabled` and `customer_accounts_enabled`. Export customer users, profiles, order links, notifications, preferences, auth-token metadata, sessions, security events and audit rows that must be retained. Remove dependent customer rows in reverse dependency order only after review. Do not use `prisma migrate reset` against shared or production data.
+
+## Live chat deployment notes
+
+Task 015 adds migration `20260803150000_task015_live_chat_support_dashboard`. It is additive and creates chat settings, guest sessions, conversations, messages, read cursors, events, assignment events, internal notes, quick replies, order links and retention events. It also adds `CHAT_MESSAGE` to customer notification enums.
+
+Seed creates:
+
+- `live_chat_enabled` disabled
+- `guest_live_chat_enabled` disabled
+- `customer_live_chat_enabled` disabled
+- `chat_realtime_enabled` disabled
+- chat settings offline, launcher disabled and marked `Needs client review`
+- three neutral quick replies marked `Needs client review`
+- zero guest sessions, conversations, messages, notes or order links
+
+Before enabling live chat outside validation:
+
+- run `pnpm db:migrate` without reset
+- run `pnpm db:seed` twice and confirm edited chat settings, quick replies, feature flags, role permissions and all chat rows are preserved
+- review `/admin/chat` and `/support`
+- configure `CHAT_ALLOWED_ORIGINS` with explicit HTTP(S) origins; never use wildcard credentialed CORS
+- start the separate gateway with `pnpm chat:start` only when `chat_realtime_enabled` and `ChatSettings.realtimeExpected` are intentionally enabled
+- keep `NEXT_PUBLIC_CHAT_SOCKET_URL` as a URL only; do not expose secrets through public environment variables
+- confirm production process management can run both Next.js and the chat gateway, or leave real-time disabled and rely on HTTP fallback
+
+Rollback is manual. First disable `chat_realtime_enabled`, `customer_live_chat_enabled`, `guest_live_chat_enabled` and `live_chat_enabled`. Stop the chat gateway if running. Export conversations, messages, notes, events, read cursors, order links, retention events, guest sessions, settings and quick replies that must be retained. Remove chat rows in reverse dependency order only after review. Do not use `prisma migrate reset` against shared or production data.

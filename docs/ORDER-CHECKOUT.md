@@ -58,6 +58,8 @@ Task 013 admin actions are guarded separately: `orders.status.manage` for fulfil
 
 Task 014 customer order views expose customer-safe status/payment timelines and public notes only. They exclude staff actors, internal notes, audit metadata, reservation reasons, raw tracking tokens and guest contact records.
 
+Task 015 live chat can link a conversation to an order only through scoped proof: authenticated customers must own the order through `CustomerOrderLink`, guests must provide the secure tracking token, and staff must have both chat order-link permission and order view access. Chat order links expose customer-safe order number/status context to support staff and do not mutate guest contacts, order items, payment records or tracking-token hashes.
+
 ## Quotes
 
 Task 011 supports quote requests, admin revisions, included items, price, estimated delivery, expiry, customer acceptance or decline, and version history for custom account builds. Quote-to-order conversion remains deferred and must recalculate from current server-side state before any future order is created.

@@ -14,7 +14,7 @@
 - Gathering
 - Cart and guest checkout
 - Optional customer accounts and dashboard
-- Quotes, reviews, FAQs, and custom live chat
+- Quotes, reviews, FAQs, and custom live chat foundation
 
 ## Service categories
 
@@ -29,7 +29,7 @@ Skilling, Quests, Achievement Diaries, Combat Achievements, Minigames, Bossing/P
 - View automatic, customer-confirmed, and support-verified requirements
 - Track orders and payment state
 - Use an optional customer dashboard for linked orders, in-app notifications, profile edits, password changes and session revocation
-- Use live chat and review completed orders
+- Use guest or account live chat and review completed orders
 
 ## Admin capabilities
 
@@ -44,8 +44,9 @@ Skilling, Quests, Achievement Diaries, Combat Achievements, Minigames, Bossing/P
 - Product marketplace categories, products, variants, price tiers, media, publication revisions, variant stock, append-only inventory ledgers, and internal reservation management
 - Order review, manual payment review, checkout settings, notification outbox and checkout resource allocations
 - Customer account settings, customer overview/detail, account disabling and customer-session revocation
+- Support chat queue, assignment, transcripts, internal notes, redaction, settings and customer-safe order linking
 - Orders, quotes, customers, reviews, and staff
-- Live-chat monitoring
+- Live-chat monitoring and single-node real-time gateway operation
 - Notifications, feature flags, audit logs, exports, and backup preparation
 
 ## Later activation

@@ -23,6 +23,15 @@ export const environmentSchema = z
       .positive()
       .max(24 * 30)
       .default(168),
+    CHAT_SOCKET_PORT: z.coerce.number().int().positive().default(3001),
+    CHAT_SOCKET_PATH: z.string().min(1).startsWith("/").default("/socket.io"),
+    CHAT_ALLOWED_ORIGINS: z.string().min(1).default("http://127.0.0.1:3000"),
+    CHAT_GUEST_COOKIE: z.string().min(1).default("osrs_chat_guest"),
+    NEXT_PUBLIC_CHAT_SOCKET_URL: z.string().url().optional(),
+    NEXT_PUBLIC_CHAT_SOCKET_PATH: z
+      .string()
+      .regex(/^\/(?!.*\.\.).+/)
+      .default("/socket.io"),
     ELIGIBILITY_HMAC_SECRET: z.string().min(32).optional(),
     RSN_PROVIDER_TIMEOUT_MS: z.coerce
       .number()
@@ -58,6 +67,17 @@ export const environmentSchema = z
         code: "custom",
         path: ["RSN_DEVELOPMENT_FIXTURE"],
         message: "RSN_DEVELOPMENT_FIXTURE cannot be enabled in production.",
+      });
+    }
+    if (
+      value.CHAT_ALLOWED_ORIGINS.split(",")
+        .map((origin) => origin.trim())
+        .includes("*")
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["CHAT_ALLOWED_ORIGINS"],
+        message: "Credentialed chat CORS cannot use wildcard origins.",
       });
     }
   });

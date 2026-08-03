@@ -23,6 +23,7 @@ export const customerNotificationTypeLabels = {
   ORDER_CREATED: "Order created",
   ORDER_STATUS_CHANGED: "Order status",
   ORDER_PAYMENT_CHANGED: "Payment state",
+  CHAT_MESSAGE: "Chat message",
   EMAIL_VERIFICATION: "Email verification",
   PASSWORD_RECOVERY: "Password recovery",
 } as const;

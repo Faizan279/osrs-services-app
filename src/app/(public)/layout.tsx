@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { ChatLauncher } from "@/components/chat-live";
 import { PublicFooter } from "@/components/public-footer";
 import { PublicHeader } from "@/components/public-header";
 import { getDiscordHref } from "@/config/public-navigation";
@@ -18,6 +19,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
       <PublicHeader discordHref={discordHref} />
       {children}
       <PublicFooter />
+      <ChatLauncher />
     </div>
   );
 }

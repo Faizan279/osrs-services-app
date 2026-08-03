@@ -62,6 +62,7 @@ export const primaryNavigation = [
   { label: "Custom Build", href: "/custom-account-build" },
   { label: "Membership", href: "/#membership-service" },
   { label: "Help", href: "/#faq" },
+  { label: "Support", href: "/support" },
 ] satisfies readonly PublicLink[];
 
 // Reintroduce this item only when verified reviews and a genuine destination exist.
@@ -95,7 +96,7 @@ export const footerNavigation = {
     { label: "How it works", href: "/#how-it-works" },
     { label: "Security and privacy", href: "/#security" },
     { label: "Frequently asked questions", href: "/#faq" },
-    { label: "Contact support", href: "/#support" },
+    { label: "Contact support", href: "/support" },
     { label: "Terms placeholder", href: "/#legal-note" },
     { label: "Privacy placeholder", href: "/#legal-note" },
   ],
@@ -106,7 +107,7 @@ export const publicCtaLinks = {
   account: "/account",
   getEstimate: "/#calculator-preview",
   search: "/services",
-  support: "/#support",
+  support: "/support",
 } as const;
 
 export function getDiscordHref() {
