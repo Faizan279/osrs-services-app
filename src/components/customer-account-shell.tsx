@@ -3,6 +3,7 @@ import {
   ClipboardList,
   KeyRound,
   LayoutDashboard,
+  MessageCircle,
   ShieldCheck,
   UserRound,
 } from "lucide-react";
@@ -16,6 +17,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: "/account", label: "Dashboard", icon: LayoutDashboard },
   { href: "/account/orders", label: "Orders", icon: ClipboardList },
+  { href: "/account/support", label: "Support", icon: MessageCircle },
   { href: "/account/profile", label: "Profile", icon: UserRound },
   { href: "/account/security", label: "Security", icon: KeyRound },
   { href: "/account/notifications", label: "Notifications", icon: Bell },

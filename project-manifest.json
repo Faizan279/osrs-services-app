@@ -47,7 +47,11 @@
     "guest_checkout_enabled": false,
     "customer_accounts_enabled": false,
     "customer_registration_enabled": false,
-    "customer_dashboard_enabled": false
+    "customer_dashboard_enabled": false,
+    "live_chat_enabled": false,
+    "guest_live_chat_enabled": false,
+    "customer_live_chat_enabled": false,
+    "chat_realtime_enabled": false
   },
   "service_engines": {
     "custom_account_build": {
@@ -89,6 +93,22 @@
       "emailDelivery": "NOT_CONFIGURED",
       "storesRawAuthTokens": false,
       "grantsStaffPermissions": false
+    },
+    "live_chat": {
+      "publicRoutes": ["/support", "/account/support"],
+      "adminRoutes": ["/admin/chat"],
+      "featureFlags": [
+        "live_chat_enabled",
+        "guest_live_chat_enabled",
+        "customer_live_chat_enabled",
+        "chat_realtime_enabled"
+      ],
+      "gateway": "realtime/chat-server.ts",
+      "transport": ["HTTP_FALLBACK", "SOCKET_IO_SINGLE_NODE"],
+      "storesRawGuestToken": false,
+      "externalProviderConfigured": false,
+      "attachmentsEnabled": false,
+      "multiNodeRealtime": false
     }
   }
 }

@@ -1,0 +1,25 @@
+Task 015 review summary
+
+Repository: Faizan279/osrs-services-app
+Branch: codex/task-015-live-chat-support-dashboard
+Starting SHA: 9a66f6089995950067408864c57151e436dd4c93
+
+Scope:
+- Custom live-chat foundation with additive MySQL migration and non-destructive seed defaults.
+- Public guest support page, customer support page, floating launcher and admin support dashboard.
+- HTTP fallback APIs plus single-node Socket.IO gateway.
+- Guest token raw value remains HttpOnly-cookie only; database stores HMAC digest.
+- Feature flags default disabled and settings remain offline/client-review marked.
+- CI validation uses temporary MySQL 8.4 and produces reports, screenshots and final review ZIP.
+
+Not included:
+- No third-party chat provider.
+- No Redis, Kafka, RabbitMQ, Pusher, Ably or PubNub adapter.
+- No file attachments, AI bot, SLA automation, deployment or Task 016 work.
+
+Review focus:
+- Prisma migration and seed preservation.
+- Chat auth/session isolation and raw-token handling.
+- Staff permissions for queue operations versus restricted settings/redaction/archive access.
+- Public/customer response shape excludes internal notes and staff-only metadata.
+- GitHub Actions Task 015 database-backed validation coverage.

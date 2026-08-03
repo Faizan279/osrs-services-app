@@ -181,6 +181,7 @@ async function createDefaultNotificationPreferences(
     "ORDER_CREATED",
     "ORDER_STATUS_CHANGED",
     "ORDER_PAYMENT_CHANGED",
+    "CHAT_MESSAGE",
     "EMAIL_VERIFICATION",
     "PASSWORD_RECOVERY",
   ];

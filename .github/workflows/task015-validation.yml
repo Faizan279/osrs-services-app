@@ -1,0 +1,439 @@
+name: Task 015 validation
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - codex/task-015-live-chat-support-dashboard
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  NODE_VERSION: "24"
+  PNPM_VERSION: "11.7.0"
+  DATABASE_HOST: 127.0.0.1
+  DATABASE_PORT: "3306"
+  DATABASE_USER: osrs
+  DATABASE_PASSWORD: task015-app-password
+  DATABASE_ALLOW_PUBLIC_KEY_RETRIEVAL: "true"
+  AUTH_SECRET: task015-ci-auth-secret-at-least-32-characters
+  ELIGIBILITY_HMAC_SECRET: task015-ci-eligibility-secret-at-least-32-characters
+  ADMIN_SEED_EMAIL: task015-admin@example.test
+  ADMIN_SEED_PASSWORD: Task015-CI-Admin-Password-Only
+  ADMIN_SEED_NAME: Task 015 CI Admin
+  ADMIN_SEED_RESET_PASSWORD: "false"
+  CUSTOMER_SESSION_COOKIE: osrs_customer_session
+  CHAT_GUEST_COOKIE: osrs_chat_guest
+  CHAT_SOCKET_PORT: "3001"
+  CHAT_SOCKET_PATH: /socket.io
+  CHAT_ALLOWED_ORIGINS: http://127.0.0.1:3000
+  NEXT_PUBLIC_CHAT_SOCKET_URL: http://127.0.0.1:3001
+  CUSTOM_BUILD_PRIVATE_ATTACHMENT_ROOT: /tmp/osrs-services-task015-private
+  RSN_DEVELOPMENT_FIXTURE: "true"
+  CI: "true"
+
+jobs:
+  task015-validation:
+    name: task015-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      DATABASE_NAME: osrs_services
+      DATABASE_URL: mysql://osrs:task015-app-password@127.0.0.1:3306/osrs_services
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: task015-root-password
+          MYSQL_DATABASE: osrs_services
+          MYSQL_USER: osrs
+          MYSQL_PASSWORD: task015-app-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uosrs -ptask015-app-password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Enable Corepack and install pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@${PNPM_VERSION} --activate
+          pnpm --version
+
+      - name: Resolve pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-node24-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node24-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Prisma format
+        run: pnpm exec prisma format
+
+      - name: Verify Prisma format did not change tracked files
+        run: git diff --exit-code
+
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Apply fresh migrations
+        run: pnpm db:migrate
+
+      - name: Seed fresh database
+        run: pnpm db:seed
+
+      - name: Write fresh database validation report
+        run: pnpm exec tsx scripts/validate-task015-fresh-db.ts
+
+      - name: Validate chat transactions
+        run: pnpm exec tsx scripts/validate-task015-chat.ts
+
+      - name: Static chat configuration check
+        run: pnpm chat:check
+
+      - name: Chat gateway health check
+        run: |
+          pnpm chat:start > chat-server.log 2>&1 &
+          chat_pid=$!
+          trap 'kill "$chat_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..60}; do
+            if curl -fsS http://127.0.0.1:3001/chat/health >/dev/null; then
+              break
+            fi
+            if ! kill -0 "$chat_pid" 2>/dev/null; then
+              cat chat-server.log
+              exit 1
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:3001/chat/health
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Seed tests
+        run: pnpm test:seed
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Build
+        env:
+          RSN_DEVELOPMENT_FIXTURE: "false"
+        run: pnpm build
+
+      - name: E2E tests
+        env:
+          PLAYWRIGHT_USE_DEV_SERVER: "true"
+          RSN_DEVELOPMENT_FIXTURE: "true"
+        run: pnpm test:e2e
+
+      - name: Capture Task 015 screenshots
+        env:
+          RSN_DEVELOPMENT_FIXTURE: "false"
+        run: |
+          pnpm start > next-task015-screenshots.log 2>&1 &
+          app_pid=$!
+          trap 'kill "$app_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..90}; do
+            if curl -fsS http://127.0.0.1:3000/health >/dev/null; then
+              break
+            fi
+            if ! kill -0 "$app_pid" 2>/dev/null; then
+              cat next-task015-screenshots.log
+              exit 1
+            fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:3000/health >/dev/null
+          pnpm screenshots:task015
+
+      - name: Verify Task 015 screenshots
+        run: pnpm exec tsx scripts/build-task015-review-pack.ts --verify-screenshots
+
+      - name: Privacy, token and credential scans
+        run: pnpm exec tsx scripts/build-task015-review-pack.ts --scan-sources
+
+      - name: Git whitespace check
+        run: git diff --check
+
+      - name: Upload Playwright results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task015-playwright-results
+          path: |
+            playwright-report/**
+            test-results/**
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task015-screenshots
+          path: artifacts/task-015/*.png
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload fresh validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task015-fresh-validation-report
+          path: artifacts/task-015/task015-fresh-database-validation.txt
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload chat validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task015-chat-validation-report
+          path: artifacts/task-015/task015-chat-validation.txt
+          if-no-files-found: ignore
+          retention-days: 14
+
+  task014-to-task015-upgrade:
+    name: task014-to-task015-upgrade
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    env:
+      DATABASE_NAME: task015_existing_validation
+      DATABASE_URL: mysql://osrs:task015-app-password@127.0.0.1:3306/task015_existing_validation
+      TASK014_BASE_COMMIT: 9a66f6089995950067408864c57151e436dd4c93
+      TASK015_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: task015-root-password
+          MYSQL_DATABASE: task015_existing_validation
+          MYSQL_USER: osrs
+          MYSQL_PASSWORD: task015-app-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uosrs -ptask015-app-password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+
+    steps:
+      - name: Checkout Task 015 branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Enable Corepack and install pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@${PNPM_VERSION} --activate
+          pnpm --version
+
+      - name: Resolve pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-node24-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node24-pnpm-
+
+      - name: Check out Task 014 merge commit
+        run: |
+          git checkout "$TASK014_BASE_COMMIT"
+          git show "$TASK015_HEAD_SHA:scripts/validate-task015-existing-db.ts" > scripts/validate-task015-existing-db.ts
+
+      - name: Install Task 014 dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Task 014 Prisma client
+        run: pnpm db:generate
+
+      - name: Apply Task 001-014 migrations
+        run: pnpm db:migrate
+
+      - name: Seed Task 014 database
+        run: pnpm db:seed
+
+      - name: Prepare deterministic Task 014 preservation fixtures
+        run: pnpm exec tsx scripts/validate-task015-existing-db.ts prepare-task014
+
+      - name: Snapshot Task 014 preservation markers
+        run: pnpm exec tsx scripts/validate-task015-existing-db.ts snapshot
+
+      - name: Check out Task 015 branch
+        run: |
+          rm -f scripts/validate-task015-existing-db.ts
+          git checkout "$TASK015_HEAD_SHA"
+
+      - name: Install Task 015 dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Task 015 Prisma client
+        run: pnpm db:generate
+
+      - name: Apply Task 015 migration
+        run: pnpm db:migrate
+
+      - name: Seed Task 015 database
+        run: pnpm db:seed
+
+      - name: Prepare deterministic Task 015 chat fixtures
+        run: pnpm exec tsx scripts/validate-task015-existing-db.ts prepare-chat
+
+      - name: Rerun Task 015 seed
+        run: pnpm db:seed
+
+      - name: Verify Task 014 preservation and Task 015 additions
+        run: pnpm exec tsx scripts/validate-task015-existing-db.ts verify
+
+      - name: Upload upgrade validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task015-upgrade-validation-report
+          path: artifacts/task-015/task014-to-task015-validation.txt
+          if-no-files-found: ignore
+          retention-days: 14
+
+  task015-final-review-pack:
+    name: task015-final-review-pack
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs:
+      - task015-validation
+      - task014-to-task015-upgrade
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Enable Corepack and install pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@${PNPM_VERSION} --activate
+          pnpm --version
+
+      - name: Resolve pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-node24-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node24-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate changed file manifest
+        run: |
+          git fetch origin main
+          git diff --name-only origin/main...HEAD > changed-files.txt
+
+      - name: Download screenshot artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: task015-screenshots
+          path: artifacts/task-015
+
+      - name: Download fresh validation report
+        uses: actions/download-artifact@v4
+        with:
+          name: task015-fresh-validation-report
+          path: artifacts/task-015
+
+      - name: Download chat validation report
+        uses: actions/download-artifact@v4
+        with:
+          name: task015-chat-validation-report
+          path: artifacts/task-015
+
+      - name: Download upgrade validation report
+        uses: actions/download-artifact@v4
+        with:
+          name: task015-upgrade-validation-report
+          path: artifacts/task-015
+
+      - name: Build final review pack
+        run: pnpm exec tsx scripts/build-task015-review-pack.ts
+
+      - name: Upload validation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task015-validation-reports
+          path: |
+            artifacts/task-015/*.txt
+            reports/CODEX-TASK-015-COMPLETION.md
+            task-015-review-summary.txt
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload final review pack
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task015-final-review-pack
+          path: task-015-final-review-pack.zip
+          if-no-files-found: error
+          retention-days: 14

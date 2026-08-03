@@ -134,6 +134,24 @@ Checkout is manual payment review only. Task 013 creates orders, order items, st
 
 Seeds add `cart_enabled=false`, `guest_checkout_enabled=false`, default checkout settings, and one `MANUAL_REVIEW` payment method marked for client review. Admin order actions are split across `orders.view`, `orders.status.manage`, `orders.payment.review`, `orders.cancel`, and `checkout.configure`.
 
+## Task 014 customer accounts and dashboard foundation
+
+Customer accounts now support optional registration, isolated customer login/logout, profile edits, password changes, customer session revocation, in-app notifications, linked order views and admin customer management. Customer sessions use the separate `osrs_customer_session` HttpOnly cookie and `Session.audience=CUSTOMER`.
+
+Task 014 does not configure live email delivery, social login, OAuth, MFA or passkeys. Customer verification and recovery tokens are hashed provider-neutral foundations, and notification delivery remains truthful in-app state only.
+
+Seeds add `customer_accounts_enabled=false`, `customer_registration_enabled=false`, `customer_dashboard_enabled=false`, customer account settings marked for client review, and customer permissions. Registration never grants staff roles.
+
+## Task 015 custom live chat and support dashboard foundation
+
+Custom live chat now has durable MySQL storage, public/customer chat pages, a floating launcher, HTTP fallback APIs, and a staff support dashboard at `/admin/chat`. Staff can view queues, reply, assign, add internal notes, change statuses, link customer-safe order context and redact messages according to split chat permissions.
+
+The real-time process is separate from Next.js: `realtime/chat-server.ts` runs with `pnpm chat:start`. It is intentionally single-node for Task 015, uses explicit credentialed CORS origins, authenticates from cookies only, rejects query/auth token payloads, and exposes `/health` plus `/chat/health`.
+
+Guest chat tokens are raw only in the `osrs_chat_guest` HttpOnly cookie; MySQL stores only `ChatGuestSession.tokenHash`. Chat input rejects credential-like fields and text. No third-party chat provider, Redis adapter, file attachments, AI chatbot, SLA automation or deployment is configured.
+
+Seeds add `live_chat_enabled=false`, `guest_live_chat_enabled=false`, `customer_live_chat_enabled=false`, `chat_realtime_enabled=false`, one offline `ChatSettings` row marked for client review, and neutral quick replies marked for client review. Fresh seeds create zero chat sessions, conversations, messages, notes or order links.
+
 ### Requirements
 
 - Node.js 24 LTS
@@ -154,7 +172,7 @@ Normal seed runs preserve an existing administrator password. Set `ADMIN_SEED_RE
 
 `DATABASE_ALLOW_PUBLIC_KEY_RETRIEVAL=true` supports the non-TLS Docker MySQL account locally. Leave it disabled in production and use the database provider's TLS configuration.
 
-Local MySQL is optional for Task 007 through Task 014 handoff validation. Task-specific GitHub Actions workflows, including `.github/workflows/task014-validation.yml`, run migrations, seeds, unit tests, E2E tests, screenshots and review-pack generation against temporary GitHub-hosted MySQL 8.4 service containers. Those CI credentials are disposable validation-only values and are not production secrets.
+Local MySQL is optional for Task 007 through Task 015 handoff validation. Task-specific GitHub Actions workflows, including `.github/workflows/task015-validation.yml`, run migrations, seeds, unit tests, E2E tests, screenshots and review-pack generation against temporary GitHub-hosted MySQL 8.4 service containers. Those CI credentials are disposable validation-only values and are not production secrets.
 
 ```bash
 pnpm install --frozen-lockfile
@@ -196,13 +214,15 @@ pnpm screenshots:task011
 pnpm screenshots:task012
 pnpm screenshots:task013
 pnpm screenshots:task014
+pnpm screenshots:task015
+pnpm chat:check
 pnpm format:check
 pnpm build
 ```
 
-Task 002 through Task 014 screenshot capture expects the app to be running at `http://127.0.0.1:3000`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
+Task 002 through Task 015 screenshot capture expects the app to be running at `http://127.0.0.1:3000`. Task 015 chat screenshots also require database feature flags and example fixtures prepared by `pnpm screenshots:task015`. `PLAYWRIGHT_BASE_URL` may override that address, and `PLAYWRIGHT_EXECUTABLE_PATH` may point to an existing Chromium installation when the pinned Playwright browser is not installed locally.
 
-For Task 014, the GitHub Actions workflow uploads Playwright results, customer screenshots, validation reports and the final review ZIP as workflow artifacts. Production deployment still requires a real persistent MySQL database and must not use the temporary CI service container.
+For Task 015, the GitHub Actions workflow uploads Playwright results, chat screenshots, validation reports and the final review ZIP as workflow artifacts. Production deployment still requires a real persistent MySQL database and must not use the temporary CI service container.
 
 ### Database commands
 

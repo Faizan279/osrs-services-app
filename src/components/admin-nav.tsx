@@ -8,6 +8,7 @@ import {
   Hammer,
   LayoutDashboard,
   Library,
+  MessageSquare,
   ReceiptText,
   PackageSearch,
   Store,
@@ -48,6 +49,12 @@ const navigation = [
     href: "/admin/customers",
     label: "Customers",
     icon: UsersRound,
+    exact: false,
+  },
+  {
+    href: "/admin/chat",
+    label: "Chat",
+    icon: MessageSquare,
     exact: false,
   },
   {
