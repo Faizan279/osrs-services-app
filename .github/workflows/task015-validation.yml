@@ -27,6 +27,7 @@ env:
   ADMIN_SEED_PASSWORD: Task015-CI-Admin-Password-Only
   ADMIN_SEED_NAME: Task 015 CI Admin
   ADMIN_SEED_RESET_PASSWORD: "false"
+  TASK014_CUSTOMER_TEST_PASSWORD: Task014-CI-Customer-Password-Only
   CUSTOMER_SESSION_COOKIE: osrs_customer_session
   CHAT_GUEST_COOKIE: osrs_chat_guest
   CHAT_SOCKET_PORT: "3001"
@@ -139,6 +140,41 @@ jobs:
           RSN_DEVELOPMENT_FIXTURE: "false"
         run: pnpm build
 
+      - name: E2E tests
+        env:
+          PLAYWRIGHT_USE_DEV_SERVER: "true"
+          RSN_DEVELOPMENT_FIXTURE: "true"
+        run: pnpm test:e2e
+
+      - name: Capture Task 015 screenshots
+        env:
+          RSN_DEVELOPMENT_FIXTURE: "false"
+        run: |
+          pnpm start > next-task015-screenshots.log 2>&1 &
+          app_pid=$!
+          trap 'kill "$app_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..90}; do
+            if curl -fsS http://127.0.0.1:3000/health >/dev/null; then
+              break
+            fi
+            if ! kill -0 "$app_pid" 2>/dev/null; then
+              cat next-task015-screenshots.log
+              exit 1
+            fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:3000/health >/dev/null
+          pnpm screenshots:task015
+
+      - name: Verify Task 015 screenshots
+        run: pnpm exec tsx scripts/build-task015-review-pack.ts --verify-screenshots
+
+      - name: Privacy, token and credential scans
+        run: pnpm exec tsx scripts/build-task015-review-pack.ts --scan-sources
+
+      - name: Git whitespace check
+        run: git diff --check
+
       - name: Validate chat transactions and Socket.IO gateway
         env:
           TASK015_VALIDATE_SOCKET: "true"
@@ -176,41 +212,6 @@ jobs:
           done
           curl -fsS http://127.0.0.1:3001/chat/health >/dev/null
           pnpm exec tsx scripts/validate-task015-chat.ts
-
-      - name: E2E tests
-        env:
-          PLAYWRIGHT_USE_DEV_SERVER: "true"
-          RSN_DEVELOPMENT_FIXTURE: "true"
-        run: pnpm test:e2e
-
-      - name: Capture Task 015 screenshots
-        env:
-          RSN_DEVELOPMENT_FIXTURE: "false"
-        run: |
-          pnpm start > next-task015-screenshots.log 2>&1 &
-          app_pid=$!
-          trap 'kill "$app_pid" 2>/dev/null || true' EXIT
-          for attempt in {1..90}; do
-            if curl -fsS http://127.0.0.1:3000/health >/dev/null; then
-              break
-            fi
-            if ! kill -0 "$app_pid" 2>/dev/null; then
-              cat next-task015-screenshots.log
-              exit 1
-            fi
-            sleep 2
-          done
-          curl -fsS http://127.0.0.1:3000/health >/dev/null
-          pnpm screenshots:task015
-
-      - name: Verify Task 015 screenshots
-        run: pnpm exec tsx scripts/build-task015-review-pack.ts --verify-screenshots
-
-      - name: Privacy, token and credential scans
-        run: pnpm exec tsx scripts/build-task015-review-pack.ts --scan-sources
-
-      - name: Git whitespace check
-        run: git diff --check
 
       - name: Upload Playwright results
         if: always()

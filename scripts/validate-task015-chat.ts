@@ -1228,6 +1228,7 @@ async function main() {
         concurrencyVersion: settingsSnapshot.concurrencyVersion,
       },
     });
+    await cleanupFixtures().catch(() => undefined);
     await prisma.$disconnect();
   }
 }
