@@ -311,8 +311,12 @@ function assertNoPrivateText(entryName: string, data: Buffer) {
   ) {
     throw new Error(`External chat provider variable detected: ${entryName}`);
   }
+  const reviewPackBuilderSources = new Set([
+    "scripts/build-task014-review-pack.ts",
+    "scripts/build-task015-review-pack.ts",
+  ]);
   if (
-    entryName !== "scripts/build-task015-review-pack.ts" &&
+    !reviewPackBuilderSources.has(entryName) &&
     /DATABASE_URL=.*@(?!127\.0\.0\.1|localhost)/i.test(text)
   ) {
     throw new Error(
