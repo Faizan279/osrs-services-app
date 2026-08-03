@@ -1274,52 +1274,84 @@ export async function linkOrderToConversation({
     resolvedOrderId = order.id;
     source = "STAFF_ASSISTED";
   }
-  const link = await prisma.$transaction(async (transaction) => {
-    const created = await transaction.chatConversationOrderLink.upsert({
-      where: {
-        conversationId_orderId: {
+  if (!resolvedOrderId) throw new ChatError("Order was not found.", 404);
+  const createOrderLink = async () =>
+    prisma.$transaction(async (transaction) => {
+      const created = await transaction.chatConversationOrderLink.upsert({
+        where: {
+          conversationId_orderId: {
+            conversationId: conversation.id,
+            orderId: resolvedOrderId,
+          },
+        },
+        create: {
           conversationId: conversation.id,
           orderId: resolvedOrderId,
+          source,
+          linkedByParticipantType: participantType(actor),
+          linkedByUserId: actorUserId(actor),
+          idempotencyKeyHash,
         },
-      },
-      create: {
-        conversationId: conversation.id,
-        orderId: resolvedOrderId,
-        source,
-        linkedByParticipantType: participantType(actor),
-        linkedByUserId: actorUserId(actor),
-        idempotencyKeyHash,
-      },
-      update: {},
+        update: {},
+      });
+      const eventSequence = await nextEventSequence(
+        transaction,
+        conversation.id,
+      );
+      await transaction.chatConversationEvent
+        .create({
+          data: {
+            conversationId: conversation.id,
+            eventType: "ORDER_LINKED",
+            actorType: participantType(actor),
+            actorUserId: actorUserId(actor),
+            reasonCode: source,
+            sequence: eventSequence,
+            safeMetadata: auditMetadata({ source }),
+          },
+        })
+        .catch(() => undefined);
+      if (actor.type === "STAFF") {
+        await transaction.auditLog.create({
+          data: {
+            actorId: actor.userId,
+            action: "chat.order.linked",
+            targetType: "ChatConversation",
+            targetId: conversation.id,
+            metadata: auditMetadata({ source }),
+          },
+        });
+      }
+      return created;
     });
-    const eventSequence = await nextEventSequence(transaction, conversation.id);
-    await transaction.chatConversationEvent
-      .create({
-        data: {
-          conversationId: conversation.id,
-          eventType: "ORDER_LINKED",
-          actorType: participantType(actor),
-          actorUserId: actorUserId(actor),
-          reasonCode: source,
-          sequence: eventSequence,
-          safeMetadata: auditMetadata({ source }),
-        },
-      })
-      .catch(() => undefined);
+
+  try {
+    return await createOrderLink();
+  } catch (error) {
+    if (!isPrismaUniqueConstraintError(error)) throw error;
+    const existing = await prisma.chatConversationOrderLink.findFirst({
+      where: {
+        conversationId: conversation.id,
+        OR: [
+          { orderId: resolvedOrderId },
+          ...(idempotencyKeyHash ? [{ idempotencyKeyHash }] : []),
+        ],
+      },
+    });
+    if (!existing) throw error;
     if (actor.type === "STAFF") {
-      await transaction.auditLog.create({
+      await prisma.auditLog.create({
         data: {
           actorId: actor.userId,
-          action: "chat.order.linked",
+          action: "chat.order.linked_duplicate",
           targetType: "ChatConversation",
           targetId: conversation.id,
           metadata: auditMetadata({ source }),
         },
       });
     }
-    return created;
-  });
-  return link;
+    return existing;
+  }
 }
 
 export async function updateChatSettings({
