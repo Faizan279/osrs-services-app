@@ -331,7 +331,7 @@ async function captureCustomer(browser: Browser) {
   await addCustomerCookie(context);
   const page = await context.newPage();
   await page.goto(`${baseUrl}/account/support`);
-  await page.getByRole("heading", { name: "Support" }).waitFor();
+  await page.getByRole("heading", { name: "Support", exact: true }).waitFor();
   await screenshot(page, "customer-support-inbox-1440.png");
   await startCustomerConversation(page);
   await screenshot(page, "customer-chat-conversation-1440.png");
