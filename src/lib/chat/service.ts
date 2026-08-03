@@ -348,6 +348,24 @@ function accessWhere(actor: ChatActor, conversationId: string) {
   };
 }
 
+function staffConversationScope(
+  actor: Extract<ChatActor, { type: "STAFF" }>,
+): Prisma.ChatConversationWhereInput {
+  if (can(actor, "chat.monitor_all")) return {};
+  return {
+    OR: [{ assignedStaffId: actor.userId }, { assignedStaffId: null }],
+  };
+}
+
+function combineConversationWhere(
+  ...clauses: Prisma.ChatConversationWhereInput[]
+): Prisma.ChatConversationWhereInput {
+  const filtered = clauses.filter((clause) => Object.keys(clause).length > 0);
+  if (!filtered.length) return {};
+  if (filtered.length === 1) return filtered[0]!;
+  return { AND: filtered };
+}
+
 async function loadConversationForActor({
   prisma,
   actor,
@@ -424,13 +442,12 @@ export async function listConversations({
   actor: ChatActor;
   filter?: "active" | "mine" | "unassigned" | "resolved" | "archived" | "spam";
 }) {
-  const baseWhere =
+  const baseWhere: Prisma.ChatConversationWhereInput =
     actor.type === "GUEST"
       ? { guestSessionId: actor.guestSessionId }
       : actor.type === "CUSTOMER"
         ? { customerUserId: actor.userId }
-        : {};
-  if (actor.type === "STAFF") requireStaff(actor, "chat.view");
+        : staffConversationScope(requireStaff(actor, "chat.view"));
   const statusWhere =
     filter === "resolved"
       ? { status: "RESOLVED" as const }
@@ -446,7 +463,7 @@ export async function listConversations({
         ? { assignedStaffId: null }
         : {};
   return prisma.chatConversation.findMany({
-    where: { ...baseWhere, ...statusWhere, ...assignmentWhere },
+    where: combineConversationWhere(baseWhere, statusWhere, assignmentWhere),
     orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
     take: 100,
     include: {
@@ -915,14 +932,20 @@ export async function assignConversation({
     const nextStatus: ChatConversationStatus = nextAssignee
       ? "ASSIGNED"
       : "QUEUED";
-    await transaction.chatConversation.update({
-      where: { id: conversation.id },
+    const updated = await transaction.chatConversation.updateMany({
+      where: {
+        id: conversation.id,
+        concurrencyVersion: expectedVersion,
+      },
       data: {
         assignedStaffId: nextAssignee,
         status: nextStatus,
         concurrencyVersion: { increment: 1 },
       },
     });
+    if (updated.count !== 1) {
+      throw new ChatError("Conversation changed before assignment.", 409);
+    }
     const eventSequence = await nextEventSequence(transaction, conversation.id);
     const assignmentSequence = await nextAssignmentSequence(
       transaction,
@@ -1016,8 +1039,11 @@ export async function changeConversationStatus({
       throw new ChatError("Archived conversations cannot be changed.", 409);
     }
     const now = new Date();
-    await transaction.chatConversation.update({
-      where: { id: conversation.id },
+    const updated = await transaction.chatConversation.updateMany({
+      where: {
+        id: conversation.id,
+        concurrencyVersion: expectedVersion,
+      },
       data: {
         status: nextStatus,
         resolvedAt: nextStatus === "RESOLVED" ? now : conversation.resolvedAt,
@@ -1027,6 +1053,9 @@ export async function changeConversationStatus({
         concurrencyVersion: { increment: 1 },
       },
     });
+    if (updated.count !== 1) {
+      throw new ChatError("Conversation changed before status update.", 409);
+    }
     const eventSequence = await nextEventSequence(transaction, conversation.id);
     const eventType =
       nextStatus === "RESOLVED"
@@ -1355,6 +1384,7 @@ export async function updateChatSettings({
 
 export async function getAdminChatDashboard(prisma: Db, actor: ChatActor) {
   const staff = requireStaff(actor, "chat.view");
+  const staffScope = staffConversationScope(staff);
   const [settings, quickReplies, activeCount, unassignedCount, mineCount] =
     await Promise.all([
       getChatSettings(prisma),
@@ -1363,16 +1393,21 @@ export async function getAdminChatDashboard(prisma: Db, actor: ChatActor) {
         orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
       }),
       prisma.chatConversation.count({
-        where: { status: { in: activeStatuses } },
+        where: combineConversationWhere(staffScope, {
+          status: { in: activeStatuses },
+        }),
       }),
       prisma.chatConversation.count({
-        where: { status: { in: activeStatuses }, assignedStaffId: null },
+        where: combineConversationWhere(staffScope, {
+          status: { in: activeStatuses },
+          assignedStaffId: null,
+        }),
       }),
       prisma.chatConversation.count({
-        where: {
+        where: combineConversationWhere(staffScope, {
           status: { in: activeStatuses },
           assignedStaffId: staff.userId,
-        },
+        }),
       }),
     ]);
   return { settings, quickReplies, activeCount, unassignedCount, mineCount };

@@ -116,28 +116,8 @@ jobs:
       - name: Write fresh database validation report
         run: pnpm exec tsx scripts/validate-task015-fresh-db.ts
 
-      - name: Validate chat transactions
-        run: pnpm exec tsx scripts/validate-task015-chat.ts
-
       - name: Static chat configuration check
         run: pnpm chat:check
-
-      - name: Chat gateway health check
-        run: |
-          pnpm chat:start > chat-server.log 2>&1 &
-          chat_pid=$!
-          trap 'kill "$chat_pid" 2>/dev/null || true' EXIT
-          for attempt in {1..60}; do
-            if curl -fsS http://127.0.0.1:3001/chat/health >/dev/null; then
-              break
-            fi
-            if ! kill -0 "$chat_pid" 2>/dev/null; then
-              cat chat-server.log
-              exit 1
-            fi
-            sleep 1
-          done
-          curl -fsS http://127.0.0.1:3001/chat/health
 
       - name: Lint
         run: pnpm lint
@@ -158,6 +138,44 @@ jobs:
         env:
           RSN_DEVELOPMENT_FIXTURE: "false"
         run: pnpm build
+
+      - name: Validate chat transactions and Socket.IO gateway
+        env:
+          TASK015_VALIDATE_SOCKET: "true"
+          RSN_DEVELOPMENT_FIXTURE: "false"
+        run: |
+          pnpm start > next-task015-chat-validation.log 2>&1 &
+          app_pid=$!
+          pnpm chat:start > chat-server.log 2>&1 &
+          chat_pid=$!
+          cleanup() {
+            kill "$app_pid" 2>/dev/null || true
+            kill "$chat_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          for attempt in {1..90}; do
+            if curl -fsS http://127.0.0.1:3000/health >/dev/null; then
+              break
+            fi
+            if ! kill -0 "$app_pid" 2>/dev/null; then
+              cat next-task015-chat-validation.log
+              exit 1
+            fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:3000/health >/dev/null
+          for attempt in {1..60}; do
+            if curl -fsS http://127.0.0.1:3001/chat/health >/dev/null; then
+              break
+            fi
+            if ! kill -0 "$chat_pid" 2>/dev/null; then
+              cat chat-server.log
+              exit 1
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:3001/chat/health >/dev/null
+          pnpm exec tsx scripts/validate-task015-chat.ts
 
       - name: E2E tests
         env:

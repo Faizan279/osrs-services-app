@@ -85,4 +85,4 @@ The application itself may run through the local Node package manager for faster
 - Credentials are verified with Argon2id. A random opaque session secret is issued in a secure, HTTP-only, same-site cookie, while only its HMAC digest is stored in MySQL.
 - The `User` and `Session` models use Auth.js-compatible core fields. The credentials handler is custom because the credentials provider does not support Auth.js database-session strategy.
 - The proxy provides an inexpensive cookie-presence redirect for `/account` and `/admin`; protected server layouts then validate the database session and enforce capabilities.
-- Socket.IO and the remaining deployment decision gate are deferred until a later realtime task.
+- Task 015 adds a separate single-node Socket.IO chat gateway; Hostinger WebSocket/process support remains a deployment decision gate.

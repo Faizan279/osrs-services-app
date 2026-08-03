@@ -53,6 +53,10 @@ const httpServer = http.createServer((request, response) => {
 const io = new Server(httpServer, {
   path: config.path,
   transports: ["polling", "websocket"],
+  allowRequest(request, callback) {
+    const origin = request.headers.origin;
+    callback(null, !origin || config.allowedOrigins.includes(origin));
+  },
   cors: {
     credentials: true,
     origin(origin, callback) {

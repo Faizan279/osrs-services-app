@@ -72,7 +72,7 @@ The workflow uses temporary MySQL 8.4 service containers, CI-only credentials an
 
 Reports: `artifacts/task-015/task015-fresh-database-validation.txt`, `artifacts/task-015/task015-chat-validation.txt`, `artifacts/task-015/task014-to-task015-validation.txt`.
 
-Screenshots: `artifacts/task-015/public-chat-disabled-1440.png`, `artifacts/task-015/public-chat-enabled-1440.png`, `artifacts/task-015/public-chat-active-1440.png`, `artifacts/task-015/support-launcher-1440.png`, `artifacts/task-015/public-chat-mobile-390.png`, `artifacts/task-015/customer-chat-page-1440.png`, `artifacts/task-015/customer-chat-active-1440.png`, `artifacts/task-015/admin-chat-overview-1440.png`, `artifacts/task-015/admin-chat-detail-1440.png`, `artifacts/task-015/admin-chat-mobile-390.png`.
+Screenshots: `artifacts/task-015/public-chat-launcher-1440.png`, `artifacts/task-015/public-chat-offline-1440.png`, `artifacts/task-015/public-chat-conversation-1440.png`, `artifacts/task-015/customer-support-inbox-1440.png`, `artifacts/task-015/customer-chat-conversation-1440.png`, `artifacts/task-015/public-chat-mobile-390.png`, `artifacts/task-015/admin-chat-queue-1440.png`, `artifacts/task-015/admin-chat-assigned-1440.png`, `artifacts/task-015/admin-chat-internal-note-1440.png`, `artifacts/task-015/admin-chat-settings-1440.png`.
 
 Review pack builder: `scripts/build-task015-review-pack.ts`, output `task-015-final-review-pack.zip`. The ZIP is generated in CI and is not committed.
 

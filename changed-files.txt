@@ -1,6 +1,7 @@
 .env.example
 .github/workflows/task015-validation.yml
 changed-files.txt
+docs/ARCHITECTURE.md
 docs/DEPLOYMENT.md
 docs/FINAL-SCOPE.md
 docs/LIVE-CHAT.md

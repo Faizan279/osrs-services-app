@@ -215,6 +215,16 @@ async function main() {
       "SUPPORT_AGENT",
       supportRestrictedPermissionKeys,
     );
+    const customerChatAdminPermissionCount = await rows<{ value: number }>(
+      connection,
+      `SELECT COUNT(*) AS value
+       FROM User userRecord
+       INNER JOIN UserRole userRole ON userRole.userId = userRecord.id
+       INNER JOIN RolePermission rolePermission ON rolePermission.roleId = userRole.roleId
+       INNER JOIN Permission permissionRecord ON permissionRecord.id = rolePermission.permissionId
+       WHERE userRecord.accountType = 'CUSTOMER'
+         AND permissionRecord.\`key\` LIKE 'chat.%'`,
+    ).then((result) => asNumber(result[0]?.value));
     const flagValues = new Map(
       await Promise.all(
         chatFeatureFlags.map(
@@ -272,6 +282,13 @@ async function main() {
       `AND TABLE_NAME LIKE 'Chat%'
        AND LOWER(CONCAT(TABLE_NAME, '.', COLUMN_NAME)) REGEXP '(attachment|upload|blob|media|filepath|filename)'`,
     );
+    const chatAttachmentTableCount = await rows<{ value: number }>(
+      connection,
+      `SELECT COUNT(*) AS value
+       FROM INFORMATION_SCHEMA.TABLES
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND LOWER(TABLE_NAME) REGEXP '^chat.*(attachment|upload|blob|media|file)'`,
+    ).then((result) => asNumber(result[0]?.value));
     const externalChatProviderSchemaCount = await rows<{ value: number }>(
       connection,
       `SELECT COUNT(*) AS value
@@ -323,7 +340,8 @@ async function main() {
       superAdminChatPermissionCount !== chatPermissionKeys.length ||
       supportOperationalPermissionCount !==
         supportOperationalPermissionKeys.length ||
-      supportRestrictedPermissionCount !== 0
+      supportRestrictedPermissionCount !== 0 ||
+      customerChatAdminPermissionCount !== 0
     ) {
       throw new Error("Chat role/permission defaults are unsafe.");
     }
@@ -334,6 +352,7 @@ async function main() {
       rawChatTokenColumnCount !== 0 ||
       credentialColumnCount !== 0 ||
       chatAttachmentSchemaCount !== 0 ||
+      chatAttachmentTableCount !== 0 ||
       externalChatProviderSchemaCount !== 0
     ) {
       throw new Error("Chat privacy/provider schema validation failed.");
@@ -367,7 +386,12 @@ async function main() {
       `SUPER_ADMIN chat permission assignments: ${superAdminChatPermissionCount}`,
       `SUPPORT_AGENT operational chat assignments: ${supportOperationalPermissionCount}`,
       `SUPPORT_AGENT restricted chat assignments: ${supportRestrictedPermissionCount}`,
+      `CUSTOMER chat-admin permission count: ${customerChatAdminPermissionCount}`,
       `CHAT_MESSAGE notification enum columns: ${chatMessageEnumCount}`,
+      `Plaintext token column count: ${rawChatTokenColumnCount}`,
+      `Credential-like column count: ${credentialColumnCount}`,
+      `Attachment-table count: ${chatAttachmentTableCount}`,
+      `External chat-provider configuration count: ${externalChatProviderSchemaCount}`,
       `Raw chat-token schema-column count: ${rawChatTokenColumnCount}`,
       `Credential-like chat schema-column count: ${credentialColumnCount}`,
       `Chat attachment schema-column count: ${chatAttachmentSchemaCount}`,

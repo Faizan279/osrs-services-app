@@ -291,7 +291,7 @@ async function capturePublic(browser: Browser) {
   }
   await page.goto(`${baseUrl}/support`);
   await page.getByText("Chat is unavailable").waitFor();
-  await screenshot(page, "public-chat-disabled-1440.png");
+  await screenshot(page, "public-chat-offline-1440.png");
 
   connection = await connectDatabase();
   try {
@@ -301,14 +301,13 @@ async function capturePublic(browser: Browser) {
   }
   await page.goto(`${baseUrl}/support`);
   await page.getByRole("button", { name: "Start chat" }).waitFor();
-  await screenshot(page, "public-chat-enabled-1440.png");
   await startGuestConversation(page);
-  await screenshot(page, "public-chat-active-1440.png");
+  await screenshot(page, "public-chat-conversation-1440.png");
 
   await page.goto(`${baseUrl}/`);
   await page.getByRole("button", { name: "Open support chat" }).click();
   await page.getByRole("heading", { name: "Support chat" }).last().waitFor();
-  await screenshot(page, "support-launcher-1440.png");
+  await screenshot(page, "public-chat-launcher-1440.png");
   await context.close();
 }
 
@@ -333,9 +332,9 @@ async function captureCustomer(browser: Browser) {
   const page = await context.newPage();
   await page.goto(`${baseUrl}/account/support`);
   await page.getByRole("heading", { name: "Support" }).waitFor();
-  await screenshot(page, "customer-chat-page-1440.png");
+  await screenshot(page, "customer-support-inbox-1440.png");
   await startCustomerConversation(page);
-  await screenshot(page, "customer-chat-active-1440.png");
+  await screenshot(page, "customer-chat-conversation-1440.png");
   await context.close();
 }
 
@@ -347,23 +346,19 @@ async function captureAdmin(browser: Browser) {
   const page = await context.newPage();
   await signInAdmin(page);
   await page.getByRole("heading", { name: "Support chat" }).waitFor();
-  await screenshot(page, "admin-chat-overview-1440.png");
+  await screenshot(page, "admin-chat-queue-1440.png");
   await screenshot(page, "admin-chat-settings-1440.png");
   await page.getByRole("link", { name: "Open" }).first().click();
   await page.getByRole("button", { name: "Redact" }).first().waitFor();
-  await screenshot(page, "admin-chat-detail-1440.png");
-  await context.close();
-}
-
-async function captureAdminMobile(browser: Browser) {
-  const context = await browser.newContext({
-    viewport: { width: 390, height: 844 },
-    deviceScaleFactor: 1,
-  });
-  const page = await context.newPage();
-  await signInAdmin(page);
-  await page.getByRole("heading", { name: "Support chat" }).waitFor();
-  await screenshot(page, "admin-chat-mobile-390.png");
+  await page.getByRole("button", { name: "Assign to me" }).click();
+  await page.getByText("Assigned to you").waitFor();
+  await screenshot(page, "admin-chat-assigned-1440.png");
+  await page
+    .getByLabel("Internal note")
+    .fill("Task 015 screenshot internal note.");
+  await page.getByRole("button", { name: "Add note" }).click();
+  await page.getByText("Task 015 screenshot internal note.").waitFor();
+  await screenshot(page, "admin-chat-internal-note-1440.png");
   await context.close();
 }
 
@@ -384,7 +379,6 @@ async function main() {
     await capturePublicMobile(browser);
     await captureCustomer(browser);
     await captureAdmin(browser);
-    await captureAdminMobile(browser);
   } finally {
     await browser?.close();
     await connection.end();
