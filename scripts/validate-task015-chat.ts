@@ -471,7 +471,7 @@ function connectSocket({
 }) {
   const socket = createSocket(chatSocketUrl(), {
     path: chatSocketPath(),
-    transports: ["websocket"],
+    transports: ["polling", "websocket"],
     withCredentials: true,
     extraHeaders: {
       Cookie: cookieHeader,
