@@ -1,4 +1,5 @@
 import { Crown, PackagePlus, SlidersHorizontal, Sparkles } from "lucide-react";
+import { premiumStatPricingSchema } from "@/lib/premium/stat-pricing";
 
 import { fieldClass, labelClass } from "@/components/catalogue-admin";
 import { Badge } from "@/components/ui/badge";
@@ -22,10 +23,17 @@ export function PremiumRuleForm({
 }: {
   serviceId: string;
   version: number;
-  rule: StagedPremiumRule | null;
+  rule:
+    | (Omit<StagedPremiumRule, "statPricingRules"> & {
+        statPricingRules?: unknown;
+      })
+    | null;
   action: (formData: FormData) => Promise<void>;
 }) {
-  const current = rule ?? defaultRule();
+  const current = {
+    ...(rule ?? defaultRule()),
+    statPricingRules: premiumStatPricingSchema.parse(rule?.statPricingRules),
+  };
   return (
     <form action={action} className="grid gap-6">
       <input type="hidden" name="serviceId" value={serviceId} />
@@ -115,6 +123,28 @@ export function PremiumRuleForm({
         </label>
       </fieldset>
       <div className="grid gap-4 xl:grid-cols-3">
+        <label className={`${labelClass} xl:col-span-3`}>
+          Stat price adjustments (optional)
+          <textarea
+            className={fieldClass}
+            name="statPricingRules"
+            rows={5}
+            defaultValue={(current.statPricingRules ?? [])
+              .map(
+                (band) =>
+                  `${band.metricKey} | ${band.minimumLevel} | ${band.maximumLevel} | ${band.adjustmentCents} | ${band.label}`,
+              )
+              .join("\n")}
+          />
+          <span className="text-text-muted text-xs">
+            One row: stat key | minimum level | maximum level | extra cents |
+            customer label. Keys: skill.ranged.level, skill.magic.level,
+            skill.defence.level, skill.prayer.level. Ranges cannot overlap for
+            the same stat. All matching rows add together before account and
+            delivery adjustments. Leave blank for no stat adjustment. Configured
+            stats become mandatory for quoting.
+          </span>
+        </label>
         <DeliveryFields
           prefix="standard"
           title="Standard delivery"
@@ -749,6 +779,7 @@ function DeliveryFields({
 
 function defaultRule(): StagedPremiumRule {
   return {
+    statPricingRules: [],
     id: "new",
     configuratorType: "FIRE_CAPE",
     enabled: true,

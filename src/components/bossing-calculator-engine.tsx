@@ -7,13 +7,19 @@ import {
   Clock3,
   Crosshair,
   Radio,
+  Search,
   ShieldCheck,
   Swords,
 } from "lucide-react";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  AddEstimateToCart,
+  MobileEstimateCart,
+} from "@/components/add-estimate-to-cart";
+import { serviceReferenceIcon } from "@/components/service-reference-icon";
 import { catalogueGameModes, gameModeLabels } from "@/lib/catalogue/constants";
 import {
   bossingDeliveryLabels,
@@ -210,7 +216,35 @@ export function BossingCalculatorEngine({
     delivery[0]?.speed ?? "STANDARD",
   );
   const [result, setResult] = useState<EstimateResponse | null>(null);
+  const [cartSource, setCartSource] = useState<Record<string, unknown> | null>(
+    null,
+  );
+  const [bossSearch, setBossSearch] = useState("");
+  const formRef = useRef<HTMLFormElement>(null);
+  const requestIdRef = useRef(0);
+  const [estimateRevision, setEstimateRevision] = useState(0);
   const [pending, startTransition] = useTransition();
+  const filteredBosses = useMemo(() => {
+    const query = bossSearch.trim().toLowerCase();
+    return query
+      ? bosses.filter((boss) =>
+          [boss.name, boss.groupLabel, boss.description]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase()
+            .includes(query),
+        )
+      : bosses;
+  }, [bossSearch, bosses]);
+
+  useEffect(() => {
+    if (!rule || !selectedMethod) return;
+    const timeout = window.setTimeout(
+      () => formRef.current?.requestSubmit(),
+      250,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [estimateRevision, rule, selectedMethod]);
 
   function changeBoss(nextBossKey: string) {
     const nextBoss = bosses.find((boss) => boss.bossKey === nextBossKey);
@@ -222,41 +256,48 @@ export function BossingCalculatorEngine({
   }
 
   function submit(formData: FormData) {
+    const requestId = ++requestIdRef.current;
     setResult(null);
+    setCartSource(null);
+    const rsn = String(formData.get("rsn") ?? "").trim();
+    const cartSelection = {
+      serviceId: service.id,
+      bossKey,
+      methodSlug,
+      killMode,
+      killQuantity:
+        killMode === "DIRECT"
+          ? Number(formData.get("killQuantity"))
+          : undefined,
+      currentKillCount:
+        killMode === "TARGET_KC"
+          ? Number(formData.get("currentKillCount"))
+          : undefined,
+      targetKillCount:
+        killMode === "TARGET_KC"
+          ? Number(formData.get("targetKillCount"))
+          : undefined,
+      gameMode: formData.get("gameMode"),
+      customerGearConfirmed,
+      includeSupplies,
+      includeDiscordStream,
+      deliverySpeed,
+    };
+    const estimateSource = { ...cartSelection, rsn: rsn || undefined };
     startTransition(async () => {
       try {
-        const rsn = String(formData.get("rsn") ?? "").trim();
         const response = await fetch("/api/bossing/estimate", {
           method: "POST",
           cache: "no-store",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            serviceId: service.id,
-            bossKey,
-            methodSlug,
-            killMode,
-            killQuantity:
-              killMode === "DIRECT"
-                ? Number(formData.get("killQuantity"))
-                : undefined,
-            currentKillCount:
-              killMode === "TARGET_KC"
-                ? Number(formData.get("currentKillCount"))
-                : undefined,
-            targetKillCount:
-              killMode === "TARGET_KC"
-                ? Number(formData.get("targetKillCount"))
-                : undefined,
-            gameMode: formData.get("gameMode"),
-            customerGearConfirmed,
-            includeSupplies,
-            includeDiscordStream,
-            deliverySpeed,
-            rsn: rsn || undefined,
-          }),
+          body: JSON.stringify(estimateSource),
         });
-        setResult((await response.json()) as EstimateResponse);
+        const payload = (await response.json()) as EstimateResponse;
+        if (requestId !== requestIdRef.current) return;
+        setResult(payload);
+        setCartSource(payload.ok && payload.estimate ? cartSelection : null);
       } catch {
+        if (requestId !== requestIdRef.current) return;
         setResult({
           ok: false,
           message: "The estimate could not be calculated. Please try again.",
@@ -266,7 +307,7 @@ export function BossingCalculatorEngine({
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8 lg:py-16">
+    <div className="service-engine-shell mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:py-10">
       <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_23rem]">
         <div className="border-border bg-surface-1 rounded-2xl border p-6">
           <h2 className="display-type text-3xl">About this service</h2>
@@ -324,7 +365,19 @@ export function BossingCalculatorEngine({
 
       <section className="mt-10 grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <form
-          action={submit}
+          ref={formRef}
+          onSubmit={(event) => {
+            event.preventDefault();
+            submit(new FormData(event.currentTarget));
+          }}
+          onChangeCapture={(event) => {
+            if ((event.target as HTMLElement).dataset.noEstimate != null)
+              return;
+            requestIdRef.current += 1;
+            setCartSource(null);
+            setResult(null);
+            setEstimateRevision((value) => value + 1);
+          }}
           className="border-primary/25 rounded-3xl border bg-[linear-gradient(135deg,rgba(20,38,22,.92),rgba(5,12,8,.98))] p-5 sm:p-7"
         >
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -342,21 +395,56 @@ export function BossingCalculatorEngine({
             </div>
           ) : (
             <>
-              <div className="mt-7 grid gap-5 md:grid-cols-2">
-                <label className="text-sm font-bold">
-                  Boss
-                  <select
-                    className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
-                    value={bossKey}
-                    onChange={(event) => changeBoss(event.target.value)}
-                  >
-                    {bosses.map((boss) => (
-                      <option value={boss.bossKey} key={boss.bossKey}>
-                        {boss.name}
-                      </option>
+              <div className="mt-7 grid gap-5">
+                <div>
+                  <label className="text-sm font-bold" htmlFor="boss-search">
+                    Search and select a boss
+                  </label>
+                  <span className="relative mt-2 block">
+                    <Search
+                      className="text-text-muted absolute top-1/2 left-3 size-4 -translate-y-1/2"
+                      aria-hidden="true"
+                    />
+                    <input
+                      id="boss-search"
+                      data-no-estimate
+                      className="border-border bg-background min-h-11 w-full rounded-xl border pr-3 pl-10"
+                      value={bossSearch}
+                      onChange={(event) => setBossSearch(event.target.value)}
+                      placeholder="Try zul, vork or nex…"
+                    />
+                  </span>
+                  <div className="boss-grid-picker mt-3">
+                    {filteredBosses.map((boss) => (
+                      <button
+                        className={`boss-picker-card ${boss.bossKey === bossKey ? "is-active" : ""}`}
+                        key={boss.bossKey}
+                        type="button"
+                        aria-pressed={boss.bossKey === bossKey}
+                        onClick={() => changeBoss(boss.bossKey)}
+                      >
+                        <span
+                          className="boss-picker-art"
+                          aria-hidden="true"
+                          style={serviceReferenceIcon(
+                            boss.name,
+                            "boss",
+                            boss.iconKey,
+                          )}
+                        >
+                          {!serviceReferenceIcon(
+                            boss.name,
+                            "boss",
+                            boss.iconKey,
+                          ) ? (
+                            <Swords className="size-8" />
+                          ) : null}
+                        </span>
+                        <span className="truncate">{boss.name}</span>
+                      </button>
                     ))}
-                  </select>
-                </label>
+                  </div>
+                </div>
                 <label className="text-sm font-bold">
                   Method or package
                   <select
@@ -572,7 +660,7 @@ export function BossingCalculatorEngine({
               <div className="mt-7 flex flex-wrap items-center gap-3">
                 <Button type="submit" disabled={pending || !selectedMethod}>
                   <Calculator className="mr-2 size-4" aria-hidden="true" />
-                  {pending ? "Calculating..." : "Estimate total"}
+                  {pending ? "Calculating..." : "Refresh estimate"}
                 </Button>
                 <p
                   id="bossing-calculator-status"
@@ -581,7 +669,7 @@ export function BossingCalculatorEngine({
                   className="text-text-muted text-sm"
                 >
                   {pending
-                    ? "Server calculation in progress."
+                    ? "Live server calculation in progress."
                     : result?.message}
                 </p>
               </div>
@@ -589,7 +677,11 @@ export function BossingCalculatorEngine({
           )}
         </form>
 
-        <EstimatePanel result={result} requestHref={requestHref} />
+        <EstimatePanel
+          result={result}
+          requestHref={requestHref}
+          cartSource={cartSource}
+        />
       </section>
     </div>
   );
@@ -649,9 +741,11 @@ function RequirementPanels({ method }: { method: BossingMethod | null }) {
 function EstimatePanel({
   result,
   requestHref,
+  cartSource,
 }: {
   result: EstimateResponse | null;
   requestHref: string;
+  cartSource: Record<string, unknown> | null;
 }) {
   if (!result) {
     return (
@@ -688,6 +782,11 @@ function EstimatePanel({
       className="border-border bg-surface-1 h-fit rounded-2xl border p-6"
       aria-live="polite"
     >
+      <MobileEstimateCart
+        kind="BOSSING_ESTIMATE"
+        source={cartSource}
+        total={estimate.estimatedTotal}
+      />
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-gold kicker-type">Estimated total</p>
@@ -743,9 +842,12 @@ function EstimatePanel({
       <p className="text-text-muted mt-5 text-xs leading-5">
         {estimate.finalPriceNote}
       </p>
-      <Button asChild className="mt-6 w-full">
-        <a href={requestHref}>Request quote</a>
-      </Button>
+      <div className="mt-6 grid gap-2">
+        <AddEstimateToCart kind="BOSSING_ESTIMATE" source={cartSource} />
+        <Button asChild className="w-full" variant="secondary">
+          <a href={requestHref}>Need a custom order?</a>
+        </Button>
+      </div>
     </aside>
   );
 }

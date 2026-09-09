@@ -321,7 +321,7 @@ export type CatalogueSeedClient = {
         basePriceCents: number;
         minimumPriceCents: number;
         setupFeeCents: number;
-        estimatedHours: number;
+        estimatedHours: number | null;
         difficultyTierLabel: string;
         requirementsSummary: string;
         gearNotes: string;
@@ -475,13 +475,13 @@ type SkillingRuleSeedCreate = {
   priorityDeliveryEnabled: boolean;
   priorityDeliveryLabel: string;
   priorityDeliveryDescription: string;
-  priorityDeliveryEstimate: string;
+  priorityDeliveryEstimate: string | null;
   priorityDeliveryMultiplierBps: number;
   priorityDeliveryFixedFeeCents: number;
   expressDeliveryEnabled: boolean;
   expressDeliveryLabel: string;
   expressDeliveryDescription: string;
-  expressDeliveryEstimate: string;
+  expressDeliveryEstimate: string | null;
   expressDeliveryMultiplierBps: number;
   expressDeliveryFixedFeeCents: number;
   needsClientReview: true;
@@ -618,6 +618,31 @@ const catalogueServiceSeeds = [
         title: "Account and gear context",
         description:
           "Confirm account mode, public combat stats and available gear before staff review.",
+        type: "ACTIVITY" as const,
+        required: true,
+        verification: "SUPPORT_VERIFIED" as const,
+      },
+    ],
+  },
+  {
+    key: "infernal-cape-premium",
+    categoryKey: "premium-services",
+    name: "Infernal Cape Service",
+    slug: "infernal-cape-service",
+    summary:
+      "Configure an Infernal Cape request around public combat stats, weapon setup, account mode and available support options.",
+    content:
+      "Infernal Cape requests use the dedicated premium configurator. Published reference pricing is a review seed only; staff can manage weapon packages, requirements, account-mode adjustments, enabled service methods and optional support before launch.",
+    engineType: "PREMIUM_SERVICE_CONFIGURATOR" as const,
+    featured: true,
+    order: 37,
+    modes: ["NORMAL", "IRONMAN"] as const,
+    requirements: [
+      {
+        key: "infernal-account-context",
+        title: "Infernal account and gear context",
+        description:
+          "Confirm public combat levels, account build, weapon setup, prayers, supplies and non-public unlocks before service begins.",
         type: "ACTIVITY" as const,
         required: true,
         verification: "SUPPORT_VERIFIED" as const,
@@ -1590,6 +1615,13 @@ async function seedReferenceCatalogueOfferings(
       displayOffset += 1;
       const quantity = numberFieldForSeed(record, "baseQuantity");
       const seededKey = referenceOfferingSeededKey(source.serviceKey, record);
+      const metadataFacets: Array<{
+        offeringId: string;
+        facetKey: string;
+        facetValue: string;
+        label: string;
+        displayOrder: number;
+      }> = [];
       const offering = await prisma.catalogueOffering.upsert({
         where: { seededKey },
         create: {
@@ -1625,6 +1657,55 @@ async function seedReferenceCatalogueOfferings(
         update: {},
         select: { id: true },
       });
+      if (typeof record.questPoints === "number") {
+        metadataFacets.push({
+          offeringId: offering.id,
+          facetKey: "quest-points",
+          facetValue: String(Math.max(0, Math.round(record.questPoints))),
+          label: String(Math.max(0, Math.round(record.questPoints))),
+          displayOrder: 40,
+        });
+      }
+      if (
+        source.categoryKey === "quests" &&
+        typeof record.subcategory === "string" &&
+        record.subcategory.trim()
+      ) {
+        metadataFacets.push({
+          offeringId: offering.id,
+          facetKey: "difficulty",
+          facetValue: slugify(record.subcategory),
+          label: trimField(referenceLabel(record.subcategory), 160),
+          displayOrder: 45,
+        });
+      }
+      if (typeof record.area === "string" && record.area.trim()) {
+        metadataFacets.push({
+          offeringId: offering.id,
+          facetKey: "region",
+          facetValue: slugify(record.area),
+          label: trimField(record.area, 160),
+          displayOrder: 40,
+        });
+      }
+      if (typeof record.tier === "string" && record.tier.trim()) {
+        metadataFacets.push({
+          offeringId: offering.id,
+          facetKey: "tier",
+          facetValue: slugify(record.tier),
+          label: trimField(referenceLabel(record.tier), 160),
+          displayOrder: 50,
+        });
+      }
+      if (source.categoryKey === "diaries") {
+        metadataFacets.push({
+          offeringId: offering.id,
+          facetKey: "dependency-behavior",
+          facetValue: "require-complete",
+          label: "Earlier tiers must already be completed",
+          displayOrder: 60,
+        });
+      }
 
       await prisma.catalogueOfferingFacet.createMany({
         data: [
@@ -1653,6 +1734,7 @@ async function seedReferenceCatalogueOfferings(
             label: referenceLabel(record.recordType),
             displayOrder: 30,
           },
+          ...metadataFacets,
         ],
         skipDuplicates: true,
       });
@@ -2444,6 +2526,216 @@ export async function seedCatalogue(prisma: CatalogueSeedClient) {
           maximumQuantity: option.max,
           defaultQuantity: option.defaultQuantity,
           customerInputRequired: option.pricingMode === "PER_UNIT",
+          needsClientReview: true,
+        },
+        update: {},
+        select: { id: true },
+      });
+    }
+
+    const infernalServiceId = serviceIds.get("infernal-cape-premium");
+    if (!infernalServiceId) return;
+    const infernalReference = requireReferenceRecord(
+      referenceSnapshot,
+      "pvm",
+      "pvm-kill",
+      "inferno",
+    );
+    const infernalConfig = await prisma.premiumServiceConfig.upsert({
+      where: { serviceId: infernalServiceId },
+      create: {
+        serviceId: infernalServiceId,
+        configuratorType: "INFERNAL_CAPE",
+        enabled: true,
+        normalModeMultiplierBps: 0,
+        ironmanMultiplierBps: 1000,
+        hardcoreIronmanMultiplierBps: 2000,
+        ultimateIronmanMultiplierBps: 3000,
+        discordStreamEnabled: true,
+        discordStreamPercentBps: 200,
+        rsnEligibilityEnabled: false,
+        supportsManualStatFallback: true,
+        standardDeliveryEnabled: true,
+        standardDeliveryLabel: "Normal login service",
+        standardDeliveryDescription:
+          "The enabled standard service method. Never provide a bank PIN or authenticator code.",
+        standardDeliveryEstimate: "Timing confirmed from the selected setup",
+        standardDeliveryMultiplierBps: 0,
+        standardDeliveryFixedFeeCents: 0,
+        priorityDeliveryEnabled: false,
+        priorityDeliveryLabel: "Remote / Parsec service",
+        priorityDeliveryDescription:
+          "Disabled until the business explicitly enables and configures this method.",
+        priorityDeliveryEstimate: null,
+        priorityDeliveryMultiplierBps: 0,
+        priorityDeliveryFixedFeeCents: 0,
+        expressDeliveryEnabled: false,
+        expressDeliveryLabel: "Express start",
+        expressDeliveryDescription:
+          "Disabled until capacity and pricing are approved.",
+        expressDeliveryEstimate: null,
+        expressDeliveryMultiplierBps: 0,
+        expressDeliveryFixedFeeCents: 0,
+        needsClientReview: true,
+      },
+      update: {},
+      select: { id: true },
+    });
+
+    const infernalWeapons = [
+      {
+        key: "twisted-bow",
+        name: "Twisted Bow setup",
+        summary:
+          "Infernal Cape configuration using a customer-confirmed Twisted Bow setup.",
+        order: 10,
+      },
+      {
+        key: "bowfa",
+        name: "Bow of Faerdhinen setup",
+        summary:
+          "Infernal Cape configuration using a customer-confirmed Bowfa setup.",
+        order: 20,
+      },
+      {
+        key: "armadyl-crossbow",
+        name: "Armadyl Crossbow setup",
+        summary:
+          "Infernal Cape configuration using a customer-confirmed ACB setup.",
+        order: 30,
+      },
+    ] as const;
+
+    for (const weapon of infernalWeapons) {
+      const packageRecord = await prisma.premiumPackage.upsert({
+        where: { seededKey: `infernal-cape-premium:${weapon.key}` },
+        create: {
+          seededKey: `infernal-cape-premium:${weapon.key}`,
+          serviceId: infernalServiceId,
+          configId: infernalConfig.id,
+          slug: weapon.key,
+          name: weapon.name,
+          shortDescription: weapon.summary,
+          enabled: true,
+          displayOrder: weapon.order,
+          basePriceCents: infernalReference.priceCents,
+          minimumPriceCents: infernalReference.priceCents,
+          setupFeeCents: 0,
+          estimatedHours: null,
+          difficultyTierLabel: "End-game",
+          requirementsSummary:
+            "Combat stats, prayers, supplies, access and the complete gear setup are reviewed before scheduling.",
+          gearNotes:
+            "The selected weapon package is customer-confirmed. Staff verifies the complete setup without inferring bank or inventory contents.",
+          unlockNotes:
+            "Inferno access and other non-public account details are support verified.",
+          customerGearRequired: true,
+          customerGearLabel: "Customer confirms the selected Infernal setup",
+          gearUnconfirmedAdjustmentCents: 0,
+          needsClientReview: true,
+        },
+        update: {},
+        select: { id: true },
+      });
+      const group = await prisma.premiumRequirementGroup.upsert({
+        where: { seededKey: `infernal-cape-premium:${weapon.key}:stats` },
+        create: {
+          seededKey: `infernal-cape-premium:${weapon.key}:stats`,
+          serviceId: infernalServiceId,
+          configId: infernalConfig.id,
+          packageId: packageRecord.id,
+          title: "Combat levels and setup",
+          description:
+            "Enter current public combat levels and confirm non-public gear separately.",
+          displayOrder: 10,
+          needsClientReview: true,
+        },
+        update: {},
+        select: { id: true },
+      });
+      await prisma.premiumRequirement.createMany({
+        data: [
+          ["skill.ranged.level", "Ranged level", 70],
+          ["skill.magic.level", "Magic level", 70],
+          ["skill.defence.level", "Defence level", 1],
+          ["skill.prayer.level", "Prayer level", 43],
+        ].map(([metricKey, label, requiredValue], index) => ({
+          seededKey: `infernal-cape-premium:${weapon.key}:${metricKey}`,
+          groupId: group.id,
+          label: String(label),
+          description: `Enter the account's current ${String(label).toLowerCase()} for configuration review.`,
+          requirementType: "SKILL" as const,
+          isRequired: true,
+          displayOrder: (index + 1) * 10,
+          verificationMode: "AUTOMATIC" as const,
+          metricKey: String(metricKey),
+          comparisonOperator: "GREATER_THAN_OR_EQUAL" as const,
+          requiredValue: Number(requiredValue),
+          customerGuidance:
+            "Use RSN lookup only when enabled; otherwise enter the public level manually.",
+          needsClientReview: true,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    const infernalOptions = [
+      [
+        "rigour-unavailable",
+        "Rigour unavailable",
+        "Record that Rigour is not available.",
+      ],
+      [
+        "blowpipe-unavailable",
+        "Blowpipe unavailable",
+        "Record that a Blowpipe is not available.",
+      ],
+      [
+        "slayer-task",
+        "Inferno Slayer task",
+        "Record that an Inferno Slayer task is active.",
+      ],
+      ["pure-build", "Pure", "Configure this order for a Pure account build."],
+      [
+        "one-defence-build",
+        "1 Defence",
+        "Configure this order for a 1 Defence account build.",
+      ],
+      [
+        "zerker-build",
+        "Zerker",
+        "Configure this order for a Zerker account build.",
+      ],
+      [
+        "restricted-build",
+        "Restricted Build",
+        "Configure another restricted account build for support review.",
+      ],
+    ] as const;
+    for (const [slug, name, description] of infernalOptions) {
+      await prisma.premiumOption.upsert({
+        where: { seededKey: `infernal-cape-premium:option:${slug}` },
+        create: {
+          seededKey: `infernal-cape-premium:option:${slug}`,
+          serviceId: infernalServiceId,
+          configId: infernalConfig.id,
+          slug,
+          name,
+          description,
+          enabled: true,
+          displayOrder:
+            infernalOptions.findIndex((item) => item[0] === slug) * 10 + 10,
+          optionType: slug.includes("build")
+            ? "UNLOCK_SUPPORT"
+            : "GEAR_SUPPORT",
+          pricingMode: "FIXED_FEE",
+          fixedPriceCents: 0,
+          percentBps: 0,
+          perUnitPriceCents: 0,
+          minimumQuantity: 1,
+          maximumQuantity: 1,
+          defaultQuantity: 1,
+          customerInputRequired: false,
           needsClientReview: true,
         },
         update: {},

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
+
 import type {
   CartCompatibilityGroup,
   CartItemKind,
@@ -16,6 +18,10 @@ import {
   calculateBossingKillProgress,
 } from "@/lib/bossing/estimate";
 import { catalogueGameModes } from "@/lib/catalogue/constants";
+import {
+  DirectOrderValidationError,
+  calculateDirectOrderEstimate,
+} from "@/lib/direct-order/core";
 import { publicCatalogueWhere } from "@/lib/catalogue/queries";
 import {
   CART_ITEM_SNAPSHOT_SCHEMA_VERSION,
@@ -556,6 +562,19 @@ const premiumSourceSchema = z.object({
   customerGearConfirmed: z.boolean().default(false),
   includeDiscordStream: z.boolean().default(false),
   deliverySpeed: z.enum(premiumDeliverySpeeds),
+  configuration: z
+    .object({
+      statCheckMode: z.enum(["NONE", "RSN", "MANUAL"]),
+      manualStats: z
+        .array(
+          z.object({
+            metricKey: z.string().trim().min(1).max(120),
+            value: z.number().int().min(0).max(2_277),
+          }),
+        )
+        .max(30),
+    })
+    .optional(),
 });
 
 async function resolvePremium(input: CartSourceInput) {
@@ -599,6 +618,10 @@ async function resolvePremium(input: CartSourceInput) {
     (option) => !option.packageId || option.packageId === premiumPackage.id,
   );
   const estimate = calculatePremiumEstimate({
+    manualStats:
+      source.configuration?.statCheckMode === "MANUAL"
+        ? source.configuration.manualStats
+        : [],
     package: premiumPackage,
     rule: service.premiumConfig,
     availableOptions: optionsForPackage,
@@ -636,6 +659,15 @@ async function resolvePremium(input: CartSourceInput) {
     ...priced.globalAdjustmentLines,
     ...priced.minimumMaximumAdjustmentLines,
   ];
+  const configuredStats = source.configuration?.manualStats
+    .map(({ metricKey, value }) => {
+      const label = metricKey
+        .replace(/^skill\./, "")
+        .replace(/\.level$/, "")
+        .replaceAll(".", " ");
+      return `${label.replace(/^./, (letter) => letter.toUpperCase())} ${value}`;
+    })
+    .join(", ");
   return adapterResult({
     kind: "PREMIUM_ESTIMATE",
     compatibilityGroup: "STANDARD_SERVICE",
@@ -644,7 +676,9 @@ async function resolvePremium(input: CartSourceInput) {
     currencyCode: "USD",
     title: estimate.packageName,
     description: service.shortSummary,
-    summary: `${estimate.packageName}, ${estimate.delivery.label}`,
+    summary: [estimate.packageName, estimate.delivery.label, configuredStats]
+      .filter(Boolean)
+      .join(" | "),
     lines: priced.lineItems,
     subtotalCents: estimate.estimatedTotalCents,
     globalLines,
@@ -653,6 +687,136 @@ async function resolvePremium(input: CartSourceInput) {
     sourceRevisionNumber: service.version,
     globalRevisionId: priced.pricingRevision?.id ?? null,
     globalRevisionNumber: priced.pricingRevision?.revisionNumber ?? null,
+    customerSelections: safeJson(source),
+  });
+}
+
+const catalogueOfferingSourceSchema = z.object({
+  serviceId: z.string().trim().min(1).max(30),
+  gameMode: z.enum(catalogueGameModes),
+  selections: z
+    .array(
+      z.object({
+        slug: z
+          .string()
+          .trim()
+          .min(1)
+          .max(180)
+          .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+        quantity: z.number().int().positive().max(1_000_000_000).optional(),
+      }),
+    )
+    .min(1)
+    .max(200),
+});
+
+async function resolveCatalogueOffering(input: CartSourceInput) {
+  if (!(await flagEnabled("catalogue_card_engine_enabled")))
+    throw new CartAdapterError("Catalogue ordering is currently unavailable.");
+  const source = parseSource(catalogueOfferingSourceSchema, input.source);
+  const service = await prisma.catalogueService.findFirst({
+    where: {
+      ...publicCatalogueWhere(),
+      id: source.serviceId,
+      engineType: "CATALOGUE_CARD",
+      availabilityState: "AVAILABLE",
+    },
+    include: {
+      category: true,
+      gameModes: true,
+      offerings: {
+        where: {
+          isActive: true,
+        },
+        include: { gameModes: true, facets: true, requirements: true },
+      },
+    },
+  });
+  if (
+    !service ||
+    source.selections.some(
+      (selection) =>
+        !service.offerings.some((offering) => offering.slug === selection.slug),
+    )
+  ) {
+    throw new CartAdapterError("Choose available catalogue services.");
+  }
+  if (!service.gameModes.some(({ gameMode }) => gameMode === source.gameMode)) {
+    throw new CartAdapterError("Choose a supported account mode.");
+  }
+  for (const offering of service.offerings) {
+    if (!source.selections.some(({ slug }) => slug === offering.slug)) continue;
+    if (
+      offering.gameModes.length &&
+      !offering.gameModes.some(({ gameMode }) => gameMode === source.gameMode)
+    ) {
+      throw new CartAdapterError(
+        `${offering.name} is unavailable for this account mode.`,
+      );
+    }
+  }
+  const estimate = calculateDirectOrderEstimate(
+    service.offerings,
+    source.selections,
+  );
+  const priced = publicPricingPayload(
+    await applyPublishedPricingIfEnabled({
+      source: {
+        serviceId: service.id,
+        serviceSlug: service.slug,
+        categoryId: service.categoryId,
+        categorySlug: service.category.slug,
+        engineType: service.engineType,
+        currency: "USD",
+        baseSubtotalCents: estimate.subtotalCents,
+        basePricingLines: estimate.lines.map((line) => ({
+          label: line.label,
+          amountCents: line.amountCents,
+        })),
+        selectedReferences: {
+          selectedCount: source.selections.length,
+          gameMode: source.gameMode,
+        },
+        engineConfigurationRevision: {
+          id: service.id,
+          version: service.version,
+        },
+      },
+    }),
+  );
+  const selectionHash = createHash("sha256")
+    .update(
+      JSON.stringify(
+        [...source.selections].sort((left, right) =>
+          left.slug.localeCompare(right.slug),
+        ),
+      ),
+    )
+    .digest("hex");
+  const selectedNames = estimate.lines.map((line) => line.name);
+  const summary =
+    selectedNames.length <= 3
+      ? selectedNames.join(", ")
+      : `${selectedNames.slice(0, 3).join(", ")} +${selectedNames.length - 3} more`;
+  const globalLines = [
+    ...priced.globalAdjustmentLines,
+    ...priced.minimumMaximumAdjustmentLines,
+  ];
+  return adapterResult({
+    kind: "CATALOGUE_OFFERING_ESTIMATE",
+    compatibilityGroup: "STANDARD_SERVICE",
+    sourceReference: `${service.id}:${selectionHash}`,
+    publicSourceSlug: service.slug,
+    currencyCode: "USD",
+    title: service.name,
+    description: service.shortSummary,
+    summary,
+    lines: priced.lineItems,
+    subtotalCents: estimate.subtotalCents,
+    globalLines,
+    finalTotalCents: priced.estimatedTotalCents,
+    sourceRevisionId: service.id,
+    sourceRevisionNumber: service.version,
     customerSelections: safeJson(source),
   });
 }
@@ -799,6 +963,13 @@ async function resolveGold(input: CartSourceInput) {
       "Manual-review gold estimates cannot be added to cart.",
     );
   }
+  if (
+    !["AVAILABLE", "LIMITED_AVAILABILITY"].includes(estimate.availabilityState)
+  ) {
+    throw new CartAdapterError(
+      "This gold amount is not currently available for ordering.",
+    );
+  }
   const marketId = source.marketId ?? estimate.snapshot.market.id;
   return adapterResult({
     kind: "GOLD_BUY_ESTIMATE",
@@ -915,6 +1086,10 @@ const adapters: Record<CartItemKind, Adapter> = {
   SKILLING_ESTIMATE: { kind: "SKILLING_ESTIMATE", resolve: resolveSkilling },
   BOSSING_ESTIMATE: { kind: "BOSSING_ESTIMATE", resolve: resolveBossing },
   PREMIUM_ESTIMATE: { kind: "PREMIUM_ESTIMATE", resolve: resolvePremium },
+  CATALOGUE_OFFERING_ESTIMATE: {
+    kind: "CATALOGUE_OFFERING_ESTIMATE",
+    resolve: resolveCatalogueOffering,
+  },
   PRODUCT_ESTIMATE: { kind: "PRODUCT_ESTIMATE", resolve: resolveProduct },
   ACCOUNT_LISTING_ESTIMATE: {
     kind: "ACCOUNT_LISTING_ESTIMATE",
@@ -939,6 +1114,7 @@ export async function resolveCartSource(input: CartSourceInput) {
       error instanceof SkillingValidationError ||
       error instanceof BossingValidationError ||
       error instanceof PremiumValidationError ||
+      error instanceof DirectOrderValidationError ||
       error instanceof ProductMarketplaceValidationError ||
       error instanceof GoldValidationError
     ) {

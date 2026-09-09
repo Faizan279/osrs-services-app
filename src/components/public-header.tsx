@@ -127,7 +127,7 @@ export function PublicHeader({ discordHref }: { discordHref: string }) {
 
           <nav
             aria-label="Main navigation"
-            className="hidden h-full items-center gap-0.5 lg:flex"
+            className="hidden h-full items-center gap-0.5 xl:flex"
           >
             <Link
               href="/"
@@ -223,7 +223,7 @@ export function PublicHeader({ discordHref }: { discordHref: string }) {
             ))}
           </nav>
 
-          <div className="hidden shrink-0 items-center gap-2 lg:flex">
+          <div className="hidden shrink-0 items-center gap-2 xl:flex">
             <Link
               href="/account/login"
               className="text-text-secondary hover:text-text-primary focus-visible:ring-primary flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition focus-visible:ring-2 focus-visible:outline-none"
@@ -250,7 +250,7 @@ export function PublicHeader({ discordHref }: { discordHref: string }) {
             aria-label="Open mobile navigation"
             aria-expanded={mobileOpen}
             aria-controls="mobile-navigation-panel"
-            className="border-border bg-surface-2 text-text-primary hover:border-border-strong focus-visible:ring-primary flex size-11 items-center justify-center rounded-xl border transition focus-visible:ring-2 focus-visible:outline-none lg:hidden"
+            className="border-border bg-surface-2 text-text-primary hover:border-border-strong focus-visible:ring-primary flex size-11 items-center justify-center rounded-xl border transition focus-visible:ring-2 focus-visible:outline-none xl:hidden"
             onClick={() => setMobileOpen(true)}
           >
             <Menu aria-hidden="true" className="size-5" />
@@ -260,7 +260,7 @@ export function PublicHeader({ discordHref }: { discordHref: string }) {
 
       <div
         className={cn(
-          "fixed inset-0 z-50 lg:hidden",
+          "fixed inset-0 z-50 xl:hidden",
           mobileOpen ? "visible" : "pointer-events-none invisible",
         )}
         aria-hidden={!mobileOpen}
@@ -318,6 +318,14 @@ export function PublicHeader({ discordHref }: { discordHref: string }) {
             </div>
 
             <div className="border-border mt-6 grid border-t pt-5">
+              <Link
+                href="/"
+                tabIndex={mobileOpen ? 0 : -1}
+                className="text-text-secondary hover:text-primary focus-visible:ring-primary flex min-h-12 items-center rounded-lg px-2 text-base font-semibold focus-visible:ring-2 focus-visible:outline-none"
+                onClick={closeMobileMenu}
+              >
+                Home
+              </Link>
               {primaryNavigation.map((item) => (
                 <Link
                   key={item.label}

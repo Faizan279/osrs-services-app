@@ -435,8 +435,8 @@ describe("catalogue seed", () => {
     );
     await seedCatalogue(client);
     expect(state.categories.size).toBe(catalogueCategorySeeds.length);
-    expect(state.services.size).toBe(9);
-    expect(state.requirements.size).toBe(9);
+    expect(state.services.size).toBe(10);
+    expect(state.requirements.size).toBe(10);
     expect(state.offerings.size).toBe(8 + referenceOfferingCount);
     expect(state.offeringRequirements.size).toBe(8 + referenceOfferingCount);
     expect(state.skillingRules.size).toBe(1);
@@ -463,18 +463,24 @@ describe("catalogue seed", () => {
     );
     expect(state.bossingStatRequirements.size).toBe(8);
     expect(state.bossingGearRequirements.size).toBe(6);
-    expect(state.premiumRules.size).toBe(1);
+    expect(state.premiumRules.size).toBe(2);
     expect(state.premiumRules.get("service:fire-cape-premium")).toEqual({
       standardDeliveryEnabled: true,
       priorityDeliveryEnabled: false,
       expressDeliveryEnabled: false,
       rsnEligibilityEnabled: true,
     });
-    expect(state.premiumPackages.size).toBe(2);
-    expect(state.premiumRequirementGroups.size).toBe(4);
-    expect(state.premiumRequirements.size).toBe(11);
+    expect(state.premiumRules.get("service:infernal-cape-premium")).toEqual({
+      standardDeliveryEnabled: true,
+      priorityDeliveryEnabled: false,
+      expressDeliveryEnabled: false,
+      rsnEligibilityEnabled: false,
+    });
+    expect(state.premiumPackages.size).toBe(5);
+    expect(state.premiumRequirementGroups.size).toBe(7);
+    expect(state.premiumRequirements.size).toBe(23);
     expect(state.premiumFaqs.size).toBe(3);
-    expect(state.premiumOptions.size).toBe(3);
+    expect(state.premiumOptions.size).toBe(10);
     expect(
       [...state.services.values()].every(
         (service) =>

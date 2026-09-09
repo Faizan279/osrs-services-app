@@ -8,10 +8,14 @@ import {
   HandCoins,
   ShieldCheck,
 } from "lucide-react";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  AddEstimateToCart,
+  MobileEstimateCart,
+} from "@/components/add-estimate-to-cart";
 import {
   goldAvailabilityLabels,
   goldTradeDirectionDescriptions,
@@ -108,6 +112,12 @@ export function GoldTradingEngine({
   const [customQuantity, setCustomQuantity] = useState("");
   const [secureServiceSelected, setSecureServiceSelected] = useState(false);
   const [result, setResult] = useState<EstimateResponse | null>(null);
+  const [cartSource, setCartSource] = useState<Record<string, unknown> | null>(
+    null,
+  );
+  const formRef = useRef<HTMLFormElement>(null);
+  const requestIdRef = useRef(0);
+  const [estimateRevision, setEstimateRevision] = useState(0);
   const [pending, startTransition] = useTransition();
 
   const directionPresets = useMemo(
@@ -124,6 +134,15 @@ export function GoldTradingEngine({
       (direction === "CUSTOMER_SELLS_GOLD" &&
         market.secureServiceCustomerSells));
 
+  useEffect(() => {
+    if (!activeRate || (!presetId && !customQuantity.trim())) return;
+    const timeout = window.setTimeout(
+      () => formRef.current?.requestSubmit(),
+      250,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [activeRate, customQuantity, estimateRevision, presetId]);
+
   function switchDirection(next: GoldTradeDirection) {
     setDirection(next);
     setPresetId("");
@@ -133,7 +152,20 @@ export function GoldTradingEngine({
   }
 
   function submit(formData: FormData) {
+    const requestId = ++requestIdRef.current;
     setResult(null);
+    setCartSource(null);
+    const source = {
+      serviceId: service.id,
+      marketId: market.id,
+      direction,
+      presetId: presetId || undefined,
+      quantity: presetId ? "1" : customQuantity,
+      secureServiceSelected,
+      rsn: market.rsnRequired
+        ? String(formData.get("rsn") ?? "").trim()
+        : undefined,
+    };
     startTransition(async () => {
       try {
         const response = await fetch("/api/gold/estimate", {
@@ -141,19 +173,28 @@ export function GoldTradingEngine({
           cache: "no-store",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
-            serviceId: service.id,
-            marketId: market.id,
-            direction,
-            presetId: presetId || undefined,
-            quantity: presetId ? "1" : customQuantity,
-            secureServiceSelected,
+            ...source,
             rsn: market.rsnRequired
               ? String(formData.get("rsn") ?? "").trim()
               : undefined,
           }),
         });
-        setResult((await response.json()) as EstimateResponse);
+        const payload = (await response.json()) as EstimateResponse;
+        if (requestId !== requestIdRef.current) return;
+        setResult(payload);
+        setCartSource(
+          payload.ok &&
+            payload.estimate &&
+            direction === "CUSTOMER_BUYS_GOLD" &&
+            !payload.estimate.manualReviewRequired &&
+            ["AVAILABLE", "LIMITED_AVAILABILITY"].includes(
+              payload.estimate.availabilityState,
+            )
+            ? source
+            : null,
+        );
       } catch {
+        if (requestId !== requestIdRef.current) return;
         setResult({
           ok: false,
           message: "The gold estimate could not be calculated.",
@@ -163,7 +204,7 @@ export function GoldTradingEngine({
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8 lg:py-16">
+    <div className="service-engine-shell mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:py-10">
       <section className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <div>
           <div className="flex flex-wrap gap-2">
@@ -219,7 +260,17 @@ export function GoldTradingEngine({
 
       <section className="mt-10 grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <form
-          action={submit}
+          ref={formRef}
+          onSubmit={(event) => {
+            event.preventDefault();
+            submit(new FormData(event.currentTarget));
+          }}
+          onChangeCapture={() => {
+            requestIdRef.current += 1;
+            setCartSource(null);
+            setResult(null);
+            setEstimateRevision((value) => value + 1);
+          }}
           className="border-primary/25 rounded-3xl border bg-[linear-gradient(135deg,rgba(15,34,22,.94),rgba(4,9,7,.98))] p-5 sm:p-7"
         >
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -394,7 +445,7 @@ export function GoldTradingEngine({
               <div className="mt-7 flex flex-wrap items-center gap-3">
                 <Button type="submit" disabled={pending}>
                   <Coins className="mr-2 size-4" aria-hidden="true" />
-                  {pending ? "Calculating..." : "Estimate trade"}
+                  {pending ? "Calculating..." : "Refresh estimate"}
                 </Button>
                 <p
                   id="gold-estimate-status"
@@ -403,7 +454,7 @@ export function GoldTradingEngine({
                   className="text-text-muted text-sm"
                 >
                   {pending
-                    ? "Server calculation in progress."
+                    ? "Live server calculation in progress."
                     : result?.message}
                 </p>
               </div>
@@ -411,7 +462,11 @@ export function GoldTradingEngine({
           )}
         </form>
 
-        <GoldEstimatePanel result={result} requestHref={requestHref} />
+        <GoldEstimatePanel
+          result={result}
+          requestHref={requestHref}
+          cartSource={cartSource}
+        />
       </section>
     </div>
   );
@@ -420,9 +475,11 @@ export function GoldTradingEngine({
 function GoldEstimatePanel({
   result,
   requestHref,
+  cartSource,
 }: {
   result: EstimateResponse | null;
   requestHref: string;
+  cartSource: Record<string, unknown> | null;
 }) {
   if (!result) {
     return (
@@ -460,6 +517,11 @@ function GoldEstimatePanel({
       className="border-border bg-surface-1 h-fit rounded-2xl border p-6"
       aria-live="polite"
     >
+      <MobileEstimateCart
+        kind="GOLD_BUY_ESTIMATE"
+        source={cartSource}
+        total={estimate.estimatedTotal}
+      />
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-gold kicker-type">
@@ -511,9 +573,20 @@ function GoldEstimatePanel({
         {estimate.availabilityMessage} {estimate.finalPriceNote} Valid until{" "}
         {new Date(estimate.validUntil).toLocaleTimeString()}.
       </p>
-      <Button asChild className="mt-6 w-full">
-        <a href={requestHref}>Request review</a>
-      </Button>
+      <div className="mt-6 grid gap-2">
+        {estimate.direction === "CUSTOMER_BUYS_GOLD" &&
+        !estimate.manualReviewRequired ? (
+          <AddEstimateToCart
+            kind="GOLD_BUY_ESTIMATE"
+            source={cartSource}
+            disabled={!cartSource}
+            label="Buy gold · Add to cart"
+          />
+        ) : null}
+        <Button asChild className="w-full" variant="secondary">
+          <a href={requestHref}>Request review</a>
+        </Button>
+      </div>
     </aside>
   );
 }

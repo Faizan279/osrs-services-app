@@ -20,13 +20,14 @@ const columns = [
   {
     title: "Our services",
     links: [
-      ["Inferno", "/services/bossing-pvm"],
+      ["Inferno", "/infernal"],
       ["Quiver service", "/services"],
-      ["Bossing", "/services/bossing-pvm"],
-      ["Raids", "/services/bossing-pvm"],
-      ["Skilling", "/services/power-levelling"],
-      ["Questing", "/services/quests"],
-      ["Diaries", "/services/achievement-diaries"],
+      ["Bossing", "/bossing"],
+      ["Raids", "/bossing"],
+      ["Skilling", "/skills"],
+      ["Questing", "/quests"],
+      ["Diaries", "/diaries"],
+      ["Misc Gathering", "/misc-gathering"],
     ],
   },
   {

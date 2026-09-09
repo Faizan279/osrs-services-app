@@ -1,4 +1,5 @@
 import { catalogueGameModes, gameModeLabels } from "@/lib/catalogue/constants";
+import { premiumStatPriceLines } from "@/lib/premium/stat-pricing";
 import {
   premiumDeliveryLabels,
   type PremiumDeliverySpeed,
@@ -42,6 +43,7 @@ export type PremiumEstimateOption = {
 };
 
 export type PremiumEstimateRule = {
+  statPricingRules?: unknown;
   normalModeMultiplierBps: number;
   ironmanMultiplierBps: number;
   hardcoreIronmanMultiplierBps: number;
@@ -74,6 +76,7 @@ export type PremiumOptionSelection = {
 };
 
 export type PremiumEstimateInput = {
+  manualStats?: Array<{ metricKey: string; value: number }>;
   package: PremiumEstimatePackage;
   rule: PremiumEstimateRule;
   availableOptions: PremiumEstimateOption[];
@@ -191,6 +194,18 @@ export function calculatePremiumEstimate(input: PremiumEstimateInput) {
   );
   let subtotal = baseCents;
   lineItems.push({ label: "Base premium package", amountCents: subtotal });
+  try {
+    const statLines = premiumStatPriceLines(
+      rule.statPricingRules,
+      input.manualStats,
+    );
+    lineItems.push(...statLines);
+    subtotal += statLines.reduce((sum, line) => sum + line.amountCents, 0);
+  } catch (error) {
+    throw new PremiumValidationError(
+      error instanceof Error ? error.message : "Check the account levels.",
+    );
+  }
 
   if (selectedPackage.setupFeeCents > 0) {
     subtotal += selectedPackage.setupFeeCents;
@@ -278,6 +293,7 @@ export function calculatePremiumEstimate(input: PremiumEstimateInput) {
     });
   }
 
+  assertMoney(subtotal, "Total price");
   return {
     packageName: selectedPackage.name,
     accountMode: gameModeLabels[input.gameMode],

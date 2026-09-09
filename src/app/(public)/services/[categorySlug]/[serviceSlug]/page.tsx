@@ -11,6 +11,7 @@ import { SkillingCalculatorEngine } from "@/components/skilling-calculator-engin
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getDiscordHref } from "@/config/public-navigation";
+import { directServiceDestination } from "@/config/direct-service-routes";
 import {
   catalogueGameModes,
   formatEnumLabel,
@@ -35,6 +36,8 @@ export async function generateMetadata({
   params: Promise<{ categorySlug: string; serviceSlug: string }>;
 }): Promise<Metadata> {
   const { categorySlug, serviceSlug } = await params;
+  const directDestination = directServiceDestination(serviceSlug);
+  if (directDestination) redirect(directDestination);
   const service = await getPublicService(categorySlug, serviceSlug);
   if (!service) return { title: "Service not found" };
   const primaryMedia = publicPrimaryMedia(service);
@@ -65,6 +68,10 @@ export default async function ServiceDetailPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { categorySlug, serviceSlug } = await params;
+  const directDestination = directServiceDestination(serviceSlug);
+  if (directDestination) {
+    redirect(directDestination);
+  }
   const query = await searchParams;
   const service = await getPublicService(categorySlug, serviceSlug);
   if (!service) notFound();

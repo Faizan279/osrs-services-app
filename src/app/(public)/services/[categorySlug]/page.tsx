@@ -5,17 +5,10 @@ import {
   CatalogueBreadcrumbs,
   ServiceCard,
 } from "@/components/catalogue-public";
+import { directCategoryDestination } from "@/config/direct-service-routes";
 import { getPublicCategory } from "@/lib/catalogue/queries";
 
 export const dynamic = "force-dynamic";
-
-const categoryAliases: Record<string, string> = {
-  pvm: "bossing-pvm",
-  bossing: "bossing-pvm",
-  raids: "bossing-pvm",
-  skills: "power-levelling",
-  diaries: "achievement-diaries",
-};
 
 export async function generateMetadata({
   params,
@@ -23,8 +16,9 @@ export async function generateMetadata({
   params: Promise<{ categorySlug: string }>;
 }): Promise<Metadata> {
   const { categorySlug } = await params;
-  if (categoryAliases[categorySlug]) {
-    redirect(`/services/${categoryAliases[categorySlug]}`);
+  const directDestination = directCategoryDestination(categorySlug);
+  if (directDestination) {
+    redirect(directDestination);
   }
   const category = await getPublicCategory(categorySlug);
   if (!category) return { title: "Service category not found" };
@@ -46,8 +40,9 @@ export default async function CategoryPage({
   params: Promise<{ categorySlug: string }>;
 }) {
   const { categorySlug } = await params;
-  if (categoryAliases[categorySlug]) {
-    redirect(`/services/${categoryAliases[categorySlug]}`);
+  const directDestination = directCategoryDestination(categorySlug);
+  if (directDestination) {
+    redirect(directDestination);
   }
   const category = await getPublicCategory(categorySlug);
   if (!category) notFound();

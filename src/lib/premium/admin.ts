@@ -2,6 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import { premiumStatPricingSchema } from "@/lib/premium/stat-pricing";
 
 import { Prisma } from "@/generated/prisma/client";
 import {
@@ -51,38 +52,47 @@ const optionalInt = (minimum: number, maximum: number) =>
 const centsSchema = z.coerce.number().int().min(0).max(100_000_000);
 const bpsSchema = z.coerce.number().int().min(0).max(100_000);
 
-export const premiumRuleInputSchema = z.object({
-  serviceId: z.string().min(1).max(30),
-  configuratorType: z.enum(premiumConfiguratorTypes),
-  enabled: z.boolean(),
-  normalModeMultiplierBps: bpsSchema,
-  ironmanMultiplierBps: bpsSchema,
-  hardcoreIronmanMultiplierBps: bpsSchema,
-  ultimateIronmanMultiplierBps: bpsSchema,
-  discordStreamEnabled: z.boolean(),
-  discordStreamPercentBps: bpsSchema,
-  rsnEligibilityEnabled: z.boolean(),
-  supportsManualStatFallback: z.boolean(),
-  standardDeliveryEnabled: z.boolean(),
-  standardDeliveryLabel: z.string().trim().min(2).max(80),
-  standardDeliveryDescription: optionalTrimmedString(240),
-  standardDeliveryEstimate: optionalTrimmedString(120),
-  standardDeliveryMultiplierBps: bpsSchema,
-  standardDeliveryFixedFeeCents: centsSchema,
-  priorityDeliveryEnabled: z.boolean(),
-  priorityDeliveryLabel: z.string().trim().min(2).max(80),
-  priorityDeliveryDescription: optionalTrimmedString(240),
-  priorityDeliveryEstimate: optionalTrimmedString(120),
-  priorityDeliveryMultiplierBps: bpsSchema,
-  priorityDeliveryFixedFeeCents: centsSchema,
-  expressDeliveryEnabled: z.boolean(),
-  expressDeliveryLabel: z.string().trim().min(2).max(80),
-  expressDeliveryDescription: optionalTrimmedString(240),
-  expressDeliveryEstimate: optionalTrimmedString(120),
-  expressDeliveryMultiplierBps: bpsSchema,
-  expressDeliveryFixedFeeCents: centsSchema,
-  needsClientReview: z.boolean(),
-});
+export const premiumRuleInputSchema = z
+  .object({
+    statPricingRules: premiumStatPricingSchema,
+    serviceId: z.string().min(1).max(30),
+    configuratorType: z.enum(premiumConfiguratorTypes),
+    enabled: z.boolean(),
+    normalModeMultiplierBps: bpsSchema,
+    ironmanMultiplierBps: bpsSchema,
+    hardcoreIronmanMultiplierBps: bpsSchema,
+    ultimateIronmanMultiplierBps: bpsSchema,
+    discordStreamEnabled: z.boolean(),
+    discordStreamPercentBps: bpsSchema,
+    rsnEligibilityEnabled: z.boolean(),
+    supportsManualStatFallback: z.boolean(),
+    standardDeliveryEnabled: z.boolean(),
+    standardDeliveryLabel: z.string().trim().min(2).max(80),
+    standardDeliveryDescription: optionalTrimmedString(240),
+    standardDeliveryEstimate: optionalTrimmedString(120),
+    standardDeliveryMultiplierBps: bpsSchema,
+    standardDeliveryFixedFeeCents: centsSchema,
+    priorityDeliveryEnabled: z.boolean(),
+    priorityDeliveryLabel: z.string().trim().min(2).max(80),
+    priorityDeliveryDescription: optionalTrimmedString(240),
+    priorityDeliveryEstimate: optionalTrimmedString(120),
+    priorityDeliveryMultiplierBps: bpsSchema,
+    priorityDeliveryFixedFeeCents: centsSchema,
+    expressDeliveryEnabled: z.boolean(),
+    expressDeliveryLabel: z.string().trim().min(2).max(80),
+    expressDeliveryDescription: optionalTrimmedString(240),
+    expressDeliveryEstimate: optionalTrimmedString(120),
+    expressDeliveryMultiplierBps: bpsSchema,
+    expressDeliveryFixedFeeCents: centsSchema,
+    needsClientReview: z.boolean(),
+  })
+  .refine(
+    (rule) => !rule.statPricingRules.length || rule.supportsManualStatFallback,
+    {
+      path: ["supportsManualStatFallback"],
+      message: "Enable manual stat entry when using stat price adjustments.",
+    },
+  );
 
 export const premiumRequirementInputSchema = z
   .object({
@@ -322,7 +332,7 @@ async function claimDraftService(
 
 function ruleFromInput(
   input: PremiumRuleInput,
-  existing?: StagedPremiumRule | null,
+  existing?: Pick<StagedPremiumRule, "id"> | null,
 ): StagedPremiumRule {
   const { serviceId: _serviceId, ...rule } = input;
   void _serviceId;

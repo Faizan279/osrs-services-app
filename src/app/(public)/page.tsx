@@ -11,6 +11,7 @@ import {
   Swords,
   UserRoundCheck,
   UsersRound,
+  Leaf,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -68,6 +69,7 @@ const categoryIcons: readonly LucideIcon[] = [
   Coins,
   ArrowRight,
   Swords,
+  Leaf,
 ];
 
 const launchMetrics = [
@@ -88,7 +90,7 @@ function artworkClass(
   kind: "category" | "service" | "featured",
   index: number,
 ) {
-  return `reference-slice reference-slice-${kind}-${index % (kind === "category" ? 4 : kind === "service" ? 7 : 4)}`;
+  return `reference-slice reference-slice-${kind}-${index % (kind === "category" ? 5 : kind === "service" ? 7 : 4)}`;
 }
 
 function CardArtwork({
@@ -100,6 +102,23 @@ function CardArtwork({
   kind: "category" | "service" | "featured";
   index: number;
 }) {
+  if (
+    kind === "category" &&
+    card.href === "/misc-gathering" &&
+    (!card.imagePath || card.imagePath === "/artwork/osrs-reference-board.jpeg")
+  ) {
+    return (
+      <div className="relative size-full overflow-hidden">
+        <Image
+          src="/artwork/misc-gathering-resources.png"
+          alt="Gathered herbs, logs, ore and fish beside a woodland river"
+          fill
+          sizes="(max-width: 768px) 100vw, 25vw"
+          className="object-cover transition duration-300 group-hover:scale-105"
+        />
+      </div>
+    );
+  }
   if (
     !card.imagePath ||
     card.imagePath === "/artwork/osrs-reference-board.jpeg"
@@ -230,7 +249,7 @@ export default async function Homepage() {
             <h2>{categorySection?.title ?? "What Can We Do For You?"}</h2>
             <span />
           </div>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {categories.map((card, index) => {
               const Icon =
                 categoryIcons[index % categoryIcons.length] ?? UserRoundCheck;

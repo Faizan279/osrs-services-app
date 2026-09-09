@@ -261,6 +261,12 @@ export const offeringInputSchema = z
       (value) => (value === "" || value == null ? undefined : value),
       z.coerce.number().int().min(0).max(1_000_000).optional(),
     ),
+    basePriceCents: z.preprocess(
+      (value) => (value === "" || value == null ? undefined : value),
+      z.coerce.number().int().min(0).max(100_000_000).optional(),
+    ),
+    pricingUnit: optionalTrimmedString(80),
+    estimatedDeliveryText: optionalTrimmedString(240),
     gameModes: z.array(z.enum(catalogueGameModes)),
     facets: z.array(offeringFacetInputSchema),
   })

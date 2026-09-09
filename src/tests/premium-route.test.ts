@@ -211,6 +211,7 @@ beforeEach(() => {
     id: "service1",
     slug: "fire-cape",
     categoryId: "category1",
+    category: { slug: "premium" },
     engineType: "PREMIUM_SERVICE_CONFIGURATOR",
     version: 9,
     gameModes: [{ gameMode: "NORMAL" }],
@@ -360,6 +361,7 @@ describe("premium estimate route", () => {
       premiumPackage.requirementGroups[0]!.requirements[1]!;
     mocks.catalogueServiceFindFirst.mockResolvedValue({
       id: "service1",
+      category: { slug: "premium" },
       gameModes: [{ gameMode: "NORMAL" }],
       premiumConfig: rule,
       premiumPackages: [

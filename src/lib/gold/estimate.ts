@@ -27,6 +27,11 @@ export type GoldRateConfig = {
   minimumQuantityGp: string | bigint;
   maximumQuantityGp: string | bigint;
   automaticReviewMaximumGp: string | bigint;
+  volumeDiscounts?: Array<{
+    minimumQuantityGp: string | bigint;
+    discountBps: number;
+    label: string;
+  }>;
   effectiveStart: string | Date;
   effectiveEnd: string | Date | null;
   enabled: boolean;
@@ -96,6 +101,11 @@ export type GoldEstimateSnapshotV1 = {
   quantityLabel: string;
   rateMinorUnitsPerMillion: number;
   baseTotalMinorUnits: number;
+  volumeDiscountAdjustment: {
+    label: string;
+    discountBps: number;
+    amountMinorUnits: number;
+  } | null;
   secureServiceAdjustment: {
     selected: boolean;
     label: string;
@@ -138,6 +148,11 @@ export type GoldEstimateResult = {
   rateMinorUnitsPerMillion: number;
   lineItems: PricingLine[];
   baseTotalMinorUnits: number;
+  volumeDiscountAdjustment: {
+    label: string;
+    discountBps: number;
+    amountMinorUnits: number;
+  } | null;
   secureServiceAdjustment: {
     selected: boolean;
     label: string;
@@ -169,6 +184,16 @@ const serializedRateSchema: z.ZodType<GoldRateConfig> = z
     minimumQuantityGp: z.union([decimalBigIntString, z.bigint()]),
     maximumQuantityGp: z.union([decimalBigIntString, z.bigint()]),
     automaticReviewMaximumGp: z.union([decimalBigIntString, z.bigint()]),
+    volumeDiscounts: z
+      .array(
+        z.object({
+          minimumQuantityGp: z.union([decimalBigIntString, z.bigint()]),
+          discountBps: z.number().int().min(1).max(10_000),
+          label: z.string().trim().min(1).max(120),
+        }),
+      )
+      .max(20)
+      .default([]),
     effectiveStart: z.union([z.iso.datetime(), z.date()]),
     effectiveEnd: z.union([z.iso.datetime(), z.date()]).nullable(),
     enabled: z.boolean(),
@@ -185,6 +210,16 @@ const serializedRateSchema: z.ZodType<GoldRateConfig> = z
         code: "custom",
         path: ["rateMinorUnitsPerMillion"],
         message: "Rates must be positive minor-unit values.",
+      });
+    }
+    const thresholds = rate.volumeDiscounts.map((tier) =>
+      toBigInt(tier.minimumQuantityGp, "Volume discount threshold"),
+    );
+    if (new Set(thresholds.map(String)).size !== thresholds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["volumeDiscounts"],
+        message: "Volume discount thresholds must be unique.",
       });
     }
     if (minimum <= 0n) {
@@ -260,6 +295,14 @@ const snapshotSchema: z.ZodType<GoldEstimateSnapshotV1> = z.object({
   quantityLabel: z.string().min(1).max(80),
   rateMinorUnitsPerMillion: z.number().int().min(0).max(100_000_000),
   baseTotalMinorUnits: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+  volumeDiscountAdjustment: z
+    .object({
+      label: z.string().min(1).max(120),
+      discountBps: z.number().int().min(1).max(10_000),
+      amountMinorUnits: z.number().int().min(-Number.MAX_SAFE_INTEGER).max(0),
+    })
+    .nullable()
+    .default(null),
   secureServiceAdjustment: z
     .object({
       selected: z.boolean(),
@@ -579,13 +622,40 @@ export function calculateGoldEstimate(input: GoldEstimateInput) {
     rateMinorUnitsPerMillion: rate.rateMinorUnitsPerMillion,
     quantityGp: quantity,
   });
+  const volumeDiscount =
+    input.direction === "CUSTOMER_BUYS_GOLD"
+      ? [...(rate.volumeDiscounts ?? [])]
+          .filter(
+            (tier) =>
+              quantity >=
+              toBigInt(tier.minimumQuantityGp, "Volume discount threshold"),
+          )
+          .sort((left, right) =>
+            toBigInt(right.minimumQuantityGp, "Volume discount threshold") >
+            toBigInt(left.minimumQuantityGp, "Volume discount threshold")
+              ? 1
+              : -1,
+          )[0]
+      : undefined;
+  const volumeDiscountAdjustment = volumeDiscount
+    ? {
+        label: volumeDiscount.label,
+        discountBps: volumeDiscount.discountBps,
+        amountMinorUnits: -Math.round(
+          (baseTotal * volumeDiscount.discountBps) / 10_000,
+        ),
+      }
+    : null;
   const secureAdjustment = calculateSecureServiceAdjustment({
     market,
     direction: input.direction,
     baseTotal,
     selected: input.secureServiceSelected,
   });
-  const estimatedTotal = baseTotal + (secureAdjustment?.amountMinorUnits ?? 0);
+  const estimatedTotal =
+    baseTotal +
+    (volumeDiscountAdjustment?.amountMinorUnits ?? 0) +
+    (secureAdjustment?.amountMinorUnits ?? 0);
   if (estimatedTotal < 0) {
     throw new GoldValidationError(
       "Secure-service adjustment cannot exceed the customer payout.",
@@ -606,6 +676,12 @@ export function calculateGoldEstimate(input: GoldEstimateInput) {
   const lineItems: PricingLine[] = [
     { label: baseLineLabel(input.direction), amountCents: baseTotal },
   ];
+  if (volumeDiscountAdjustment) {
+    lineItems.push({
+      label: volumeDiscountAdjustment.label,
+      amountCents: volumeDiscountAdjustment.amountMinorUnits,
+    });
+  }
   if (secureAdjustment) {
     lineItems.push({
       label: secureAdjustment.label,
@@ -632,6 +708,7 @@ export function calculateGoldEstimate(input: GoldEstimateInput) {
     quantityLabel: formatGoldQuantity(quantity),
     rateMinorUnitsPerMillion: rate.rateMinorUnitsPerMillion,
     baseTotalMinorUnits: baseTotal,
+    volumeDiscountAdjustment,
     secureServiceAdjustment: secureAdjustment,
     globalPricingAdjustmentLines: [],
     finalEstimatedTotalMinorUnits: estimatedTotal,
@@ -655,6 +732,7 @@ export function calculateGoldEstimate(input: GoldEstimateInput) {
     rateMinorUnitsPerMillion: rate.rateMinorUnitsPerMillion,
     lineItems,
     baseTotalMinorUnits: baseTotal,
+    volumeDiscountAdjustment,
     secureServiceAdjustment: secureAdjustment,
     estimatedTotalMinorUnits: estimatedTotal,
     estimatedTotal: formatCents(estimatedTotal, market.currencyCode),
@@ -750,6 +828,13 @@ export function goldRateRevisionSnapshot({
         rate.automaticReviewMaximumGp,
         "Automatic-review maximum",
       ).toString(),
+      volumeDiscounts: (rate.volumeDiscounts ?? []).map((tier) => ({
+        ...tier,
+        minimumQuantityGp: toBigInt(
+          tier.minimumQuantityGp,
+          "Volume discount threshold",
+        ).toString(),
+      })),
       effectiveStart: dateFrom(rate.effectiveStart).toISOString(),
       effectiveEnd: rate.effectiveEnd
         ? dateFrom(rate.effectiveEnd).toISOString()

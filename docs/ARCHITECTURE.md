@@ -86,3 +86,12 @@ The application itself may run through the local Node package manager for faster
 - The `User` and `Session` models use Auth.js-compatible core fields. The credentials handler is custom because the credentials provider does not support Auth.js database-session strategy.
 - The proxy provides an inexpensive cookie-presence redirect for `/account` and `/admin`; protected server layouts then validate the database session and enforce capabilities.
 - Task 015 adds a separate single-node Socket.IO chat gateway; Hostinger WebSocket/process support remains a deployment decision gate.
+
+## Direct ordering layer
+
+- Route intent is centralized in `src/config/direct-service-routes.ts`. Public navigation links directly to focused storefronts, while legacy catalogue URLs retain their records and redirect at the route boundary.
+- `src/lib/direct-order/core.ts` contains pure search/filter, quantity, diary dependency, validation, and integer-cent calculation behavior for catalogue-offering selectors. `src/lib/direct-order/server.ts` exposes only active, public, priced offering fields.
+- Specialized engines still own skilling XP, bossing KC/modifier, premium option, gold rate/discount, and product variant calculations. Client components debounce estimate requests but never define commercial pricing mathematics.
+- Every Add-to-Cart flow reaches `src/lib/checkout/adapters.ts`. Adapters reload current published records, reprice on the server, apply global rules, and write immutable source and price snapshots. Customer-facing summaries are derived from those snapshots.
+- Admin management is intentionally shared: catalogue offering edits use existing stage/preview/republish transactions; premium, bossing, and skilling use their existing specialized editors; gold tiers publish with rate revisions; Items continue through Product Admin.
+- Responsive layout uses one visual system in `src/app/globals.css`: full-width service heroes, bounded selectors, desktop sticky summaries, and a mobile fixed price/action bar. Browser coverage checks 390, 430, 768, 1024, and 1440 pixel viewports.

@@ -115,6 +115,15 @@ export const goldRateInputSchema = z
     minimumQuantity: positiveQuantityInput,
     maximumQuantity: positiveQuantityInput,
     automaticReviewMaximum: positiveQuantityInput,
+    volumeDiscounts: z
+      .array(
+        z.object({
+          minimumQuantity: positiveQuantityInput,
+          discountBps: z.coerce.number().int().min(1).max(10_000),
+          label: z.string().trim().min(1).max(120),
+        }),
+      )
+      .max(20),
     effectiveStart: dateInput,
     effectiveEnd: dateInput,
     enabled: z.boolean(),
@@ -143,6 +152,16 @@ export const goldRateInputSchema = z
         code: "custom",
         path: ["automaticReviewMaximum"],
         message: "Automatic-review maximum must fit inside rate limits.",
+      });
+    }
+    const thresholds = input.volumeDiscounts.map((tier) =>
+      tier.minimumQuantity.toString(),
+    );
+    if (new Set(thresholds).size !== thresholds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["volumeDiscounts"],
+        message: "Volume discount thresholds must be unique.",
       });
     }
     if (
@@ -232,6 +251,7 @@ function rateConfig(rate: {
   minimumQuantityGp: bigint;
   maximumQuantityGp: bigint;
   automaticReviewMaximumGp: bigint;
+  volumeDiscounts: Prisma.JsonValue | null;
   effectiveStart: Date;
   effectiveEnd: Date | null;
   enabled: boolean;
@@ -242,6 +262,19 @@ function rateConfig(rate: {
     minimumQuantityGp: rate.minimumQuantityGp.toString(),
     maximumQuantityGp: rate.maximumQuantityGp.toString(),
     automaticReviewMaximumGp: rate.automaticReviewMaximumGp.toString(),
+    volumeDiscounts: Array.isArray(rate.volumeDiscounts)
+      ? rate.volumeDiscounts.map((tier) => {
+          if (!tier || typeof tier !== "object" || Array.isArray(tier)) {
+            throw new GoldTransitionError("Stored volume discount is invalid.");
+          }
+          const candidate = tier as Record<string, unknown>;
+          return {
+            minimumQuantityGp: String(candidate.minimumQuantityGp ?? ""),
+            discountBps: Number(candidate.discountBps),
+            label: String(candidate.label ?? ""),
+          };
+        })
+      : [],
     effectiveStart: rate.effectiveStart.toISOString(),
     effectiveEnd: rate.effectiveEnd?.toISOString() ?? null,
     enabled: rate.enabled,
@@ -477,6 +510,13 @@ export async function saveGoldRate({
       minimumQuantityGp: input.minimumQuantity,
       maximumQuantityGp: input.maximumQuantity,
       automaticReviewMaximumGp: input.automaticReviewMaximum,
+      volumeDiscounts: jsonSnapshot(
+        input.volumeDiscounts.map((tier) => ({
+          minimumQuantityGp: tier.minimumQuantity.toString(),
+          discountBps: tier.discountBps,
+          label: tier.label,
+        })),
+      ),
       effectiveStart: input.effectiveStart!,
       effectiveEnd: input.effectiveEnd,
       enabled: input.enabled,

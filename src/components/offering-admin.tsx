@@ -27,6 +27,9 @@ type EditableOffering = {
   quantityUnit: string | null;
   minimumQuantity: number | null;
   maximumQuantity: number | null;
+  basePriceCents: number | null;
+  pricingUnit: string | null;
+  estimatedDeliveryText: string | null;
   gameModes: Array<{ gameMode: string }>;
   facets: Array<{ facetKey: string; facetValue: string; label: string }>;
 };
@@ -111,6 +114,37 @@ export function OfferingForm({
             min="0"
             name="displayOrder"
             defaultValue={offering?.displayOrder ?? 10}
+          />
+        </label>
+        <label className={labelClass}>
+          Base price (USD cents)
+          <input
+            className={fieldClass}
+            type="number"
+            min="0"
+            name="basePriceCents"
+            defaultValue={offering?.basePriceCents ?? ""}
+          />
+          <span className="text-text-muted text-xs">
+            Leave blank to keep this offering quote-only.
+          </span>
+        </label>
+        <label className={labelClass}>
+          Pricing unit
+          <input
+            className={fieldClass}
+            name="pricingUnit"
+            placeholder="per quest, per 1,000 items, fixed package"
+            defaultValue={offering?.pricingUnit ?? ""}
+          />
+        </label>
+        <label className={labelClass}>
+          Estimated delivery
+          <input
+            className={fieldClass}
+            name="estimatedDeliveryText"
+            placeholder="Configured by the operations team"
+            defaultValue={offering?.estimatedDeliveryText ?? ""}
           />
         </label>
       </div>

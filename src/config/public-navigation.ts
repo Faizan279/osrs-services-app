@@ -9,18 +9,18 @@ export type ServiceNavigationItem = PublicLink & {
 
 export const serviceNavigation = [
   {
-    label: "Power levelling",
-    href: "/services/power-levelling",
+    label: "Skills",
+    href: "/skills",
     description: "Structured training paths for individual skills.",
   },
   {
-    label: "Questing",
-    href: "/services/quests",
+    label: "Quests",
+    href: "/quests",
     description: "Quest support planned around your account.",
   },
   {
     label: "Achievement diaries",
-    href: "/services/achievement-diaries",
+    href: "/diaries",
     description: "Region-by-region diary progression support.",
   },
   {
@@ -30,13 +30,23 @@ export const serviceNavigation = [
   },
   {
     label: "Bossing and PvM",
-    href: "/services/bossing-pvm",
+    href: "/bossing",
     description: "Configurable PvM and encounter assistance.",
   },
   {
-    label: "Gold and items",
+    label: "Gold",
+    href: "/gold",
+    description: "Published rates, amount presets and direct gold ordering.",
+  },
+  {
+    label: "Items",
     href: "/products",
     description: "Published item, bond and outfit marketplace listings.",
+  },
+  {
+    label: "Misc gathering",
+    href: "/misc-gathering",
+    description: "Quantity-aware resource and gathering services.",
   },
   {
     label: "Membership and bonds",
@@ -56,12 +66,14 @@ export const serviceNavigation = [
 ] satisfies readonly ServiceNavigationItem[];
 
 export const primaryNavigation = [
+  { label: "Skills", href: "/skills" },
+  { label: "Bossing", href: "/bossing" },
+  { label: "Infernal", href: "/infernal" },
+  { label: "Quests", href: "/quests" },
+  { label: "Diaries", href: "/diaries" },
+  { label: "Gold", href: "/gold" },
+  { label: "Items", href: "/products" },
   { label: "Accounts", href: "/accounts" },
-  { label: "Quests", href: "/services/quests" },
-  { label: "Skills", href: "/services/power-levelling" },
-  { label: "Diaries", href: "/services/achievement-diaries" },
-  { label: "Combat", href: "/services/bossing-pvm" },
-  { label: "Offers", href: "/services?featured=1" },
 ] satisfies readonly PublicLink[];
 
 // Reintroduce this item only when verified reviews and a genuine destination exist.
@@ -72,14 +84,17 @@ export const deferredPrimaryNavigation = [
 export const footerNavigation = {
   services: [
     { label: "All services", href: "/services" },
-    { label: "Power levelling", href: "/services/power-levelling" },
-    { label: "Questing", href: "/services/quests" },
-    { label: "Bossing and PvM", href: "/services/bossing-pvm" },
-    { label: "Gold", href: "/#gold-service" },
+    { label: "Skills", href: "/skills" },
+    { label: "Questing", href: "/quests" },
+    { label: "Achievement diaries", href: "/diaries" },
+    { label: "Bossing and PvM", href: "/bossing" },
+    { label: "Infernal Cape", href: "/infernal" },
+    { label: "Misc gathering", href: "/misc-gathering" },
+    { label: "Gold", href: "/gold" },
     { label: "Products", href: "/products" },
   ],
   marketplace: [
-    { label: "Gold and items", href: "/#gold-service" },
+    { label: "Gold", href: "/gold" },
     { label: "Products", href: "/products" },
     { label: "Accounts", href: "/accounts" },
     { label: "Custom account build", href: "/custom-account-build" },

@@ -71,6 +71,16 @@ function marketInput(formData: FormData) {
 }
 
 function rateInput(formData: FormData) {
+  const volumeDiscounts = String(formData.get("volumeDiscounts") ?? "")
+    .split(/\r?\n/)
+    .map((row) => row.trim())
+    .filter(Boolean)
+    .map((row) => {
+      const [minimumQuantity, discountBps, label] = row
+        .split("|")
+        .map((value) => value?.trim());
+      return { minimumQuantity, discountBps, label };
+    });
   return goldRateInputSchema.parse({
     marketId: formData.get("marketId"),
     direction: formData.get("direction"),
@@ -78,6 +88,7 @@ function rateInput(formData: FormData) {
     minimumQuantity: formData.get("minimumQuantity"),
     maximumQuantity: formData.get("maximumQuantity"),
     automaticReviewMaximum: formData.get("automaticReviewMaximum"),
+    volumeDiscounts,
     effectiveStart: formData.get("effectiveStart"),
     effectiveEnd: formData.get("effectiveEnd"),
     enabled: checked(formData, "enabled"),

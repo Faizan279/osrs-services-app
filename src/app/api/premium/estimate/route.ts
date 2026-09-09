@@ -28,6 +28,7 @@ import {
 } from "@/lib/premium/estimate";
 import { publicPricingPayload } from "@/lib/pricing/public-response";
 import { applyPublishedPricingIfEnabled } from "@/lib/pricing/server";
+import { premiumStatPricingSchema } from "@/lib/premium/stat-pricing";
 
 export const dynamic = "force-dynamic";
 
@@ -117,6 +118,7 @@ async function loadPremiumEstimateService(input: {
       engineType: "PREMIUM_SERVICE_CONFIGURATOR",
     },
     include: {
+      category: true,
       gameModes: true,
       premiumConfig: true,
       premiumPackages: {
@@ -304,6 +306,7 @@ function evaluateManualStats(
     Awaited<ReturnType<typeof loadPremiumEstimateService>>
   >["premiumPackages"][number],
   supportsManualStatFallback: boolean,
+  statPricingRules?: unknown,
 ) {
   if (input.statCheckMode !== "MANUAL" || input.manualStats.length === 0) {
     return null;
@@ -316,6 +319,8 @@ function evaluateManualStats(
     };
   }
   const allowedMetricKeys = automaticMetricKeys(premiumPackage);
+  for (const band of premiumStatPricingSchema.parse(statPricingRules))
+    allowedMetricKeys.add(band.metricKey);
   const unexpectedMetric = input.manualStats.find(
     ({ metricKey }) => !allowedMetricKeys.has(metricKey),
   );
@@ -387,6 +392,7 @@ export async function POST(request: NextRequest) {
       (option) => !option.packageId || option.packageId === premiumPackage.id,
     );
     const estimate = calculatePremiumEstimate({
+      manualStats: input.statCheckMode === "MANUAL" ? input.manualStats : [],
       package: premiumPackage,
       rule: service.premiumConfig,
       availableOptions: optionsForPackage,
@@ -401,7 +407,7 @@ export async function POST(request: NextRequest) {
         serviceId: service.id,
         serviceSlug: service.slug,
         categoryId: service.categoryId,
-        categorySlug: null,
+        categorySlug: service.category.slug,
         engineType: service.engineType,
         currency: "USD",
         baseSubtotalCents: estimate.estimatedTotalCents,
@@ -443,6 +449,7 @@ export async function POST(request: NextRequest) {
             input,
             premiumPackage,
             service.premiumConfig.supportsManualStatFallback,
+            service.premiumConfig.statPricingRules,
           );
 
     return json(

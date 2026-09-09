@@ -2,16 +2,46 @@
 
 import {
   AlertCircle,
+  ArrowUpRight,
+  Axe,
   Calculator,
   CheckCircle2,
+  CircleDot,
   Clock3,
+  CookingPot,
+  Crosshair,
+  Dumbbell,
+  Eye,
+  Fish,
+  Flame,
+  FlaskConical,
+  Footprints,
+  Gem,
+  Hammer,
+  Heart,
+  House,
+  Orbit,
+  PawPrint,
+  Pickaxe,
   Radio,
+  Shield,
   ShieldCheck,
+  Skull,
+  Sparkles,
+  Sprout,
+  Sword,
+  WandSparkles,
+  type LucideIcon,
 } from "lucide-react";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  AddEstimateToCart,
+  MobileEstimateCart,
+} from "@/components/add-estimate-to-cart";
+import { serviceReferenceIcon } from "@/components/service-reference-icon";
 import { catalogueGameModes, gameModeLabels } from "@/lib/catalogue/constants";
 import {
   skillingDeliveryLabels,
@@ -89,6 +119,32 @@ function formatCents(value: number) {
   }).format(value / 100);
 }
 
+const skillIcons: Record<string, LucideIcon> = {
+  sword: Sword,
+  strength: Dumbbell,
+  shield: Shield,
+  bow: Crosshair,
+  prayer: Sparkles,
+  magic: WandSparkles,
+  rune: Orbit,
+  house: House,
+  heart: Heart,
+  footprints: Footprints,
+  flask: FlaskConical,
+  mask: Eye,
+  gem: Gem,
+  arrow: ArrowUpRight,
+  skull: Skull,
+  trap: PawPrint,
+  pickaxe: Pickaxe,
+  anvil: Hammer,
+  fish: Fish,
+  flame: CookingPot,
+  campfire: Flame,
+  axe: Axe,
+  sprout: Sprout,
+};
+
 function deliveryOptions(rule: PublicRule | null) {
   if (!rule) return [];
   return [
@@ -157,7 +213,22 @@ export function SkillingCalculatorEngine({
     delivery[0]?.speed ?? "STANDARD",
   );
   const [result, setResult] = useState<EstimateResponse | null>(null);
+  const [cartSource, setCartSource] = useState<Record<string, unknown> | null>(
+    null,
+  );
+  const formRef = useRef<HTMLFormElement>(null);
+  const requestIdRef = useRef(0);
+  const [estimateRevision, setEstimateRevision] = useState(0);
   const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!rule || !selectedMethod) return;
+    const timeout = window.setTimeout(
+      () => formRef.current?.requestSubmit(),
+      250,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [estimateRevision, rule, selectedMethod]);
 
   function changeSkill(nextSkillKey: SkillingSkillKey) {
     const nextSkill = skills.find((skill) => skill.skillKey === nextSkillKey);
@@ -168,40 +239,43 @@ export function SkillingCalculatorEngine({
   }
 
   function submit(formData: FormData) {
+    const requestId = ++requestIdRef.current;
     setResult(null);
+    setCartSource(null);
+    const source = {
+      serviceId: service.id,
+      skillKey,
+      methodSlug,
+      inputMode,
+      currentLevel:
+        inputMode === "LEVEL"
+          ? Number(formData.get("currentLevel"))
+          : undefined,
+      targetLevel:
+        inputMode === "LEVEL" ? Number(formData.get("targetLevel")) : undefined,
+      currentXp:
+        inputMode === "XP" ? Number(formData.get("currentXp")) : undefined,
+      targetXp:
+        inputMode === "XP" ? Number(formData.get("targetXp")) : undefined,
+      gameMode: formData.get("gameMode"),
+      includeSupplies,
+      includeDiscordStream,
+      deliverySpeed,
+    };
     startTransition(async () => {
       try {
         const response = await fetch("/api/skilling/estimate", {
           method: "POST",
           cache: "no-store",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            serviceId: service.id,
-            skillKey,
-            methodSlug,
-            inputMode,
-            currentLevel:
-              inputMode === "LEVEL"
-                ? Number(formData.get("currentLevel"))
-                : undefined,
-            targetLevel:
-              inputMode === "LEVEL"
-                ? Number(formData.get("targetLevel"))
-                : undefined,
-            currentXp:
-              inputMode === "XP"
-                ? Number(formData.get("currentXp"))
-                : undefined,
-            targetXp:
-              inputMode === "XP" ? Number(formData.get("targetXp")) : undefined,
-            gameMode: formData.get("gameMode"),
-            includeSupplies,
-            includeDiscordStream,
-            deliverySpeed,
-          }),
+          body: JSON.stringify(source),
         });
-        setResult((await response.json()) as EstimateResponse);
+        const payload = (await response.json()) as EstimateResponse;
+        if (requestId !== requestIdRef.current) return;
+        setResult(payload);
+        setCartSource(payload.ok && payload.estimate ? source : null);
       } catch {
+        if (requestId !== requestIdRef.current) return;
         setResult({
           ok: false,
           message: "The estimate could not be calculated. Please try again.",
@@ -211,7 +285,7 @@ export function SkillingCalculatorEngine({
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8 lg:py-16">
+    <div className="service-engine-shell mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:py-10">
       <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_23rem]">
         <div className="border-border bg-surface-1 rounded-2xl border p-6">
           <h2 className="display-type text-3xl">About this service</h2>
@@ -269,7 +343,17 @@ export function SkillingCalculatorEngine({
 
       <section className="mt-10 grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <form
-          action={submit}
+          ref={formRef}
+          onSubmit={(event) => {
+            event.preventDefault();
+            submit(new FormData(event.currentTarget));
+          }}
+          onChangeCapture={() => {
+            requestIdRef.current += 1;
+            setCartSource(null);
+            setResult(null);
+            setEstimateRevision((value) => value + 1);
+          }}
           className="border-primary/25 rounded-3xl border bg-[linear-gradient(135deg,rgba(20,38,22,.92),rgba(5,12,8,.98))] p-5 sm:p-7"
         >
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -287,23 +371,45 @@ export function SkillingCalculatorEngine({
             </div>
           ) : (
             <>
-              <div className="mt-7 grid gap-5 md:grid-cols-2">
-                <label className="text-sm font-bold">
-                  Skill
-                  <select
-                    className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
-                    value={skillKey}
-                    onChange={(event) =>
-                      changeSkill(event.target.value as SkillingSkillKey)
-                    }
-                  >
-                    {skills.map((skill) => (
-                      <option value={skill.skillKey} key={skill.skillKey}>
-                        {skill.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+              <fieldset className="mt-7 border-0 p-0">
+                <legend className="text-sm font-bold">Choose a skill</legend>
+                <div className="skill-grid-picker mt-3">
+                  {skills.map((skill) => {
+                    const SkillIcon =
+                      skillIcons[skill.iconKey ?? ""] ?? CircleDot;
+                    return (
+                      <button
+                        className={`skill-picker-card ${skill.skillKey === skillKey ? "is-active" : ""}`}
+                        type="button"
+                        aria-pressed={skill.skillKey === skillKey}
+                        key={skill.skillKey}
+                        onClick={() => changeSkill(skill.skillKey)}
+                      >
+                        {serviceReferenceIcon(
+                          skill.name,
+                          "skill",
+                          skill.iconKey,
+                        ) ? (
+                          <span
+                            className="skill-reference-art"
+                            aria-hidden="true"
+                            style={serviceReferenceIcon(
+                              skill.name,
+                              "skill",
+                              skill.iconKey,
+                            )}
+                          />
+                        ) : (
+                          <SkillIcon aria-hidden="true" className="size-5" />
+                        )}
+                        <span>{skill.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+
+              <div className="mt-5 grid gap-5 md:grid-cols-2">
                 <label className="text-sm font-bold">
                   Training method
                   <select
@@ -495,7 +601,7 @@ export function SkillingCalculatorEngine({
               <div className="mt-7 flex flex-wrap items-center gap-3">
                 <Button type="submit" disabled={pending || !selectedMethod}>
                   <Calculator className="mr-2 size-4" aria-hidden="true" />
-                  {pending ? "Calculating..." : "Estimate total"}
+                  {pending ? "Calculating..." : "Refresh estimate"}
                 </Button>
                 <p
                   id="skilling-calculator-status"
@@ -504,7 +610,7 @@ export function SkillingCalculatorEngine({
                   className="text-text-muted text-sm"
                 >
                   {pending
-                    ? "Server calculation in progress."
+                    ? "Live server calculation in progress."
                     : result?.message}
                 </p>
               </div>
@@ -512,7 +618,11 @@ export function SkillingCalculatorEngine({
           )}
         </form>
 
-        <EstimatePanel result={result} requestHref={requestHref} />
+        <EstimatePanel
+          result={result}
+          requestHref={requestHref}
+          cartSource={cartSource}
+        />
       </section>
     </div>
   );
@@ -521,9 +631,11 @@ export function SkillingCalculatorEngine({
 function EstimatePanel({
   result,
   requestHref,
+  cartSource,
 }: {
   result: EstimateResponse | null;
   requestHref: string;
+  cartSource: Record<string, unknown> | null;
 }) {
   if (!result) {
     return (
@@ -560,6 +672,11 @@ function EstimatePanel({
       className="border-border bg-surface-1 h-fit rounded-2xl border p-6"
       aria-live="polite"
     >
+      <MobileEstimateCart
+        kind="SKILLING_ESTIMATE"
+        source={cartSource}
+        total={estimate.estimatedTotal}
+      />
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-gold kicker-type">Estimated total</p>
@@ -610,9 +727,12 @@ function EstimatePanel({
       <p className="text-text-muted mt-5 text-xs leading-5">
         {estimate.finalPriceNote}
       </p>
-      <Button asChild className="mt-6 w-full">
-        <a href={requestHref}>Request quote</a>
-      </Button>
+      <div className="mt-6 grid gap-2">
+        <AddEstimateToCart kind="SKILLING_ESTIMATE" source={cartSource} />
+        <Button asChild className="w-full" variant="secondary">
+          <a href={requestHref}>Need a custom order?</a>
+        </Button>
+      </div>
     </aside>
   );
 }

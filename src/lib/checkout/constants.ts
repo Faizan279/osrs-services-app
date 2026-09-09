@@ -18,6 +18,7 @@ export const cartItemKindLabels = {
   SKILLING_ESTIMATE: "Skilling service",
   BOSSING_ESTIMATE: "Bossing service",
   PREMIUM_ESTIMATE: "Premium service",
+  CATALOGUE_OFFERING_ESTIMATE: "Selected services",
   PRODUCT_ESTIMATE: "Product",
   ACCOUNT_LISTING_ESTIMATE: "Account listing",
   GOLD_BUY_ESTIMATE: "Gold purchase",

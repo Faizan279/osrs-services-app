@@ -129,6 +129,70 @@ describe("gold quantity parsing", () => {
 });
 
 describe("gold estimate engine", () => {
+  it.each([
+    [10_000_000n, 250],
+    [250_000_000n, 6_250],
+    [1_000_000_000n, 25_000],
+  ])("prices configured customer purchases for %s GP", (quantityGp, total) => {
+    const expandedRevision = revision({
+      rates: revision().rates.map((rate) => ({
+        ...rate,
+        maximumQuantityGp: "2000000000",
+        automaticReviewMaximumGp: "2000000000",
+      })),
+    });
+    const result = calculateGoldEstimate({
+      market: market({ stockQuantityGp: "2000000000" }),
+      revision: expandedRevision,
+      direction: "CUSTOMER_BUYS_GOLD",
+      quantityGp,
+      secureServiceSelected: false,
+      now,
+    });
+    expect(result.estimatedTotalMinorUnits).toBe(total);
+  });
+
+  it("applies only the highest eligible admin-configured volume discount", () => {
+    const configured = revision({
+      rates: revision().rates.map((rate) =>
+        rate.direction === "CUSTOMER_BUYS_GOLD"
+          ? {
+              ...rate,
+              maximumQuantityGp: "1000000000",
+              automaticReviewMaximumGp: "1000000000",
+              volumeDiscounts: [
+                {
+                  minimumQuantityGp: "100000000",
+                  discountBps: 250,
+                  label: "100M+ volume discount",
+                },
+                {
+                  minimumQuantityGp: "500000000",
+                  discountBps: 1_000,
+                  label: "500M+ volume discount",
+                },
+              ],
+            }
+          : rate,
+      ),
+    });
+    const result = calculateGoldEstimate({
+      market: market({ stockQuantityGp: "1000000000" }),
+      revision: configured,
+      direction: "CUSTOMER_BUYS_GOLD",
+      quantityGp: 500_000_000n,
+      secureServiceSelected: false,
+      now,
+    });
+
+    expect(result.estimatedTotalMinorUnits).toBe(11_250);
+    expect(result.volumeDiscountAdjustment).toEqual({
+      label: "500M+ volume discount",
+      discountBps: 1_000,
+      amountMinorUnits: -1_250,
+    });
+  });
+
   it("calculates customer-buy estimates from the published revision only", () => {
     const result = calculateGoldEstimate({
       market: market(),

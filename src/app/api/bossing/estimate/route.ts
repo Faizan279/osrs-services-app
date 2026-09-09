@@ -144,6 +144,7 @@ async function loadBossingEstimateService(input: {
       engineType: "BOSSING_ENGINE",
     },
     include: {
+      category: true,
       gameModes: true,
       bossingRule: true,
       bossingBosses: {
@@ -300,7 +301,7 @@ export async function POST(request: NextRequest) {
         serviceId: service.id,
         serviceSlug: service.slug,
         categoryId: service.categoryId,
-        categorySlug: null,
+        categorySlug: service.category.slug,
         engineType: service.engineType,
         currency: "USD",
         baseSubtotalCents: estimate.estimatedTotalCents,

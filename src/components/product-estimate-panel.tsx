@@ -1,7 +1,14 @@
 "use client";
 
 import { Calculator, ShoppingCart } from "lucide-react";
-import { useMemo, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 import type { PublicProductVariantSnapshot } from "@/lib/products/estimate";
@@ -58,62 +65,83 @@ export function ProductEstimatePanel({
   const [cartMessage, setCartMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isCartPending, startCartTransition] = useTransition();
+  const requestIdRef = useRef(0);
 
-  function submitEstimate() {
+  const submitEstimate = useCallback(() => {
+    const requestId = ++requestIdRef.current;
     setError(null);
     setCartMessage(null);
     startTransition(async () => {
-      const response = await fetch("/api/products/estimate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productSlug,
-          variantStableKey,
-          quantity,
-        }),
-      });
-      const payload = (await response.json()) as
-        | { ok: true; estimate: EstimatePayload }
-        | { ok: false; message: string };
-      if (!response.ok || !payload.ok) {
+      try {
+        const response = await fetch("/api/products/estimate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            productSlug,
+            variantStableKey,
+            quantity,
+          }),
+        });
+        const payload = (await response.json()) as
+          | { ok: true; estimate: EstimatePayload }
+          | { ok: false; message: string };
+        if (requestId !== requestIdRef.current) return;
+        if (!response.ok || !payload.ok) {
+          setEstimate(null);
+          setError(
+            payload.ok
+              ? "The estimate could not be calculated."
+              : payload.message,
+          );
+          return;
+        }
+        setEstimate(payload.estimate);
+      } catch {
+        if (requestId !== requestIdRef.current) return;
         setEstimate(null);
-        setError(
-          payload.ok
-            ? "The estimate could not be calculated."
-            : payload.message,
-        );
-        return;
+        setError("The estimate could not be loaded. Please try again.");
       }
-      setEstimate(payload.estimate);
     });
-  }
+  }, [productSlug, quantity, variantStableKey]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(submitEstimate, 250);
+    return () => {
+      window.clearTimeout(timer);
+      requestIdRef.current += 1;
+    };
+  }, [submitEstimate]);
 
   function addToCart() {
     setCartMessage(null);
     startCartTransition(async () => {
-      const response = await fetch("/api/cart/items", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          kind: "PRODUCT_ESTIMATE",
-          source: {
-            productSlug,
-            variantStableKey,
+      try {
+        const response = await fetch("/api/cart/items", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            kind: "PRODUCT_ESTIMATE",
+            source: {
+              productSlug,
+              variantStableKey,
+              quantity,
+            },
             quantity,
-          },
-          quantity,
-          idempotencyKey: `product-${productSlug}-${variantStableKey}-${quantity}-${crypto.randomUUID()}`,
-        }),
-      });
-      const payload = (await response.json()) as
-        { ok: true } | { ok: false; message: string };
-      if (!response.ok || !payload.ok) {
-        setCartMessage(
-          payload.ok ? "Item could not be added." : payload.message,
-        );
-        return;
+            idempotencyKey: `product-${productSlug}-${variantStableKey}-${quantity}-${crypto.randomUUID()}`,
+          }),
+        });
+        const payload = (await response.json()) as
+          { ok: true } | { ok: false; message: string };
+        if (!response.ok || !payload.ok) {
+          setCartMessage(
+            payload.ok ? "Item could not be added." : payload.message,
+          );
+          return;
+        }
+        setCartMessage("Added to cart.");
+      } catch {
+        setCartMessage("Item could not be added. Please try again.");
       }
-      setCartMessage("Added to cart.");
     });
   }
 
@@ -148,6 +176,7 @@ export function ProductEstimatePanel({
                 (variant) => variant.stableKey === next,
               );
               setVariantStableKey(next);
+              requestIdRef.current += 1;
               setQuantity(nextVariant?.minimumQuantity ?? "1");
               setEstimate(null);
               setError(null);
@@ -172,7 +201,12 @@ export function ProductEstimatePanel({
             step={selectedVariant.quantityIncrement}
             type="number"
             value={quantity}
-            onChange={(event) => setQuantity(event.target.value)}
+            onChange={(event) => {
+              requestIdRef.current += 1;
+              setEstimate(null);
+              setCartMessage(null);
+              setQuantity(event.target.value);
+            }}
           />
         </label>
         <p id="quantity-help" className="text-text-muted text-xs">
@@ -186,7 +220,7 @@ export function ProductEstimatePanel({
           </p>
         )}
         <Button type="button" onClick={submitEstimate} disabled={isPending}>
-          {isPending ? "Estimating" : "Calculate estimate"}
+          {isPending ? "Updating estimate" : "Refresh estimate"}
         </Button>
       </div>
       <div className="mt-5" aria-live="polite">
@@ -242,8 +276,7 @@ export function ProductEstimatePanel({
           </div>
         ) : (
           <p className="text-text-muted text-sm">
-            Choose a variant and quantity to calculate a server-authoritative
-            preview estimate.
+            Your server-authoritative preview estimate updates automatically.
           </p>
         )}
       </div>

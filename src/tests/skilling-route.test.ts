@@ -121,6 +121,7 @@ beforeEach(() => {
     id: "service1",
     slug: "melee-training",
     categoryId: "category1",
+    category: { slug: "skilling" },
     engineType: "SKILLING_CALCULATOR",
     version: 7,
     gameModes: [{ gameMode: "NORMAL" }],

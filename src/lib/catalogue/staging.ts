@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { premiumStatPricingSchema } from "@/lib/premium/stat-pricing";
 
 import type {
   CatalogueAvailabilityState,
@@ -137,6 +138,15 @@ export const stagedOfferingSchema = z.object({
   quantityUnit: z.string().max(80).nullable(),
   minimumQuantity: z.number().int().min(0).max(1_000_000).nullable(),
   maximumQuantity: z.number().int().min(0).max(1_000_000).nullable(),
+  basePriceCents: z
+    .number()
+    .int()
+    .min(0)
+    .max(100_000_000)
+    .nullable()
+    .default(null),
+  pricingUnit: z.string().max(80).nullable().default(null),
+  estimatedDeliveryText: z.string().max(240).nullable().default(null),
   gameModes: z.array(z.enum(catalogueGameModes)),
   facets: z.array(stagedOfferingFacetSchema),
   requirements: z.array(stagedOfferingRequirementSchema),
@@ -754,12 +764,21 @@ export const stagedPremiumOptionSchema = z
     }
   });
 
-export const stagedPremiumRuleSchema = stagedSkillingRuleSchema.extend({
-  configuratorType: z.enum(premiumConfiguratorTypes).default("CUSTOM"),
-  enabled: z.boolean().default(true),
-  rsnEligibilityEnabled: z.boolean(),
-  supportsManualStatFallback: z.boolean().default(true),
-});
+export const stagedPremiumRuleSchema = stagedSkillingRuleSchema
+  .extend({
+    statPricingRules: premiumStatPricingSchema,
+    configuratorType: z.enum(premiumConfiguratorTypes).default("CUSTOM"),
+    enabled: z.boolean().default(true),
+    rsnEligibilityEnabled: z.boolean(),
+    supportsManualStatFallback: z.boolean().default(true),
+  })
+  .refine(
+    (rule) => !rule.statPricingRules.length || rule.supportsManualStatFallback,
+    {
+      path: ["supportsManualStatFallback"],
+      message: "Enable manual stat entry when using stat price adjustments.",
+    },
+  );
 
 export const stagedPremiumConfigSchema = z
   .object({
@@ -1169,6 +1188,9 @@ type AggregateSource = CatalogueService & {
     quantityUnit: string | null;
     minimumQuantity: number | null;
     maximumQuantity: number | null;
+    basePriceCents?: number | null;
+    pricingUnit?: string | null;
+    estimatedDeliveryText?: string | null;
     gameModes: Array<{ gameMode: CatalogueGameMode }>;
     facets: Array<{
       id: string;
@@ -1292,7 +1314,11 @@ type AggregateSource = CatalogueService & {
       }>;
     }>;
   }>;
-  premiumConfig?: StagedPremiumRule | null;
+  premiumConfig?:
+    | (Omit<StagedPremiumRule, "statPricingRules"> & {
+        statPricingRules?: unknown;
+      })
+    | null;
   premiumPackages?: Array<{
     id: string;
     seededKey: string | null;
@@ -1481,6 +1507,9 @@ export function snapshotFromService(
       quantityUnit: offering.quantityUnit,
       minimumQuantity: offering.minimumQuantity,
       maximumQuantity: offering.maximumQuantity,
+      basePriceCents: offering.basePriceCents,
+      pricingUnit: offering.pricingUnit,
+      estimatedDeliveryText: offering.estimatedDeliveryText,
       gameModes: offering.gameModes.map(({ gameMode }) => gameMode),
       facets: offering.facets,
       requirements: offering.requirements.map((requirement) => ({

@@ -450,6 +450,9 @@ export async function publishService(
             maximumQuantity: offering.quantityEnabled
               ? offering.maximumQuantity
               : null,
+            basePriceCents: offering.basePriceCents,
+            pricingUnit: offering.pricingUnit,
+            estimatedDeliveryText: offering.estimatedDeliveryText,
             gameModes: {
               create: offering.gameModes.map((gameMode) => ({ gameMode })),
             },
@@ -607,6 +610,7 @@ export async function publishService(
       });
       if (snapshot.premium) {
         const rule = snapshot.premium.rule ?? {
+          statPricingRules: [],
           id: stagedId(),
           configuratorType: "CUSTOM" as const,
           enabled: true,
@@ -1214,6 +1218,9 @@ export async function duplicateService(id: string, actorId: string) {
             quantityUnit: offering.quantityUnit,
             minimumQuantity: offering.minimumQuantity,
             maximumQuantity: offering.maximumQuantity,
+            basePriceCents: offering.basePriceCents,
+            pricingUnit: offering.pricingUnit,
+            estimatedDeliveryText: offering.estimatedDeliveryText,
             gameModes: {
               create: offering.gameModes.map(({ gameMode }) => ({ gameMode })),
             },
@@ -1410,6 +1417,7 @@ export async function duplicateService(id: string, actorId: string) {
       const copiedConfig = await transaction.premiumServiceConfig.create({
         data: {
           ...config,
+          statPricingRules: config.statPricingRules ?? Prisma.JsonNull,
           serviceId: duplicate.id,
           needsClientReview: true,
         },
@@ -1986,6 +1994,9 @@ function offeringFromInput(
     maximumQuantity: input.quantityEnabled
       ? (input.maximumQuantity ?? null)
       : null,
+    basePriceCents: input.basePriceCents ?? null,
+    pricingUnit: input.pricingUnit ?? null,
+    estimatedDeliveryText: input.estimatedDeliveryText ?? null,
     gameModes: input.gameModes,
     facets: input.facets.map((facet) => ({
       id:
@@ -2146,6 +2157,9 @@ export async function saveOffering(
       quantityUnit: input.quantityEnabled ? input.quantityUnit : null,
       minimumQuantity: input.quantityEnabled ? input.minimumQuantity : null,
       maximumQuantity: input.quantityEnabled ? input.maximumQuantity : null,
+      basePriceCents: input.basePriceCents ?? null,
+      pricingUnit: input.pricingUnit ?? null,
+      estimatedDeliveryText: input.estimatedDeliveryText ?? null,
     };
     const previousOffering = snapshotFromService(service).offerings.find(
       (item) => item.id === offeringId,

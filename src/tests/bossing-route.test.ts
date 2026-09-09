@@ -128,6 +128,7 @@ beforeEach(() => {
     id: "service1",
     slug: "giant-mole",
     categoryId: "category1",
+    category: { slug: "bossing" },
     engineType: "BOSSING_ENGINE",
     version: 8,
     gameModes: [{ gameMode: "NORMAL" }],

@@ -26,10 +26,12 @@ const presetSeeds = [
   ["gold-buy-50m", "CUSTOMER_BUYS_GOLD", "50M", 50_000_000n, 20],
   ["gold-buy-100m", "CUSTOMER_BUYS_GOLD", "100M", 100_000_000n, 30],
   ["gold-buy-500m", "CUSTOMER_BUYS_GOLD", "500M", 500_000_000n, 40],
+  ["gold-buy-1b", "CUSTOMER_BUYS_GOLD", "1B", 1_000_000_000n, 50],
   ["gold-sell-10m", "CUSTOMER_SELLS_GOLD", "10M", 10_000_000n, 10],
   ["gold-sell-50m", "CUSTOMER_SELLS_GOLD", "50M", 50_000_000n, 20],
   ["gold-sell-100m", "CUSTOMER_SELLS_GOLD", "100M", 100_000_000n, 30],
   ["gold-sell-500m", "CUSTOMER_SELLS_GOLD", "500M", 500_000_000n, 40],
+  ["gold-sell-1b", "CUSTOMER_SELLS_GOLD", "1B", 1_000_000_000n, 50],
 ] as const;
 
 function millionGp(value: unknown, fallback: bigint) {
@@ -56,6 +58,7 @@ function goldRateFromReference(
     maximumQuantityGp,
     automaticReviewMaximumGp:
       maximumQuantityGp < 100_000_000n ? maximumQuantityGp : 100_000_000n,
+    volumeDiscounts: [],
     effectiveStart,
     effectiveEnd: null,
     enabled: true,

@@ -26,6 +26,7 @@ type Rate = {
   minimumQuantityGp: bigint;
   maximumQuantityGp: bigint;
   automaticReviewMaximumGp: bigint;
+  volumeDiscounts: unknown;
   effectiveStart: Date;
   effectiveEnd: Date | null;
   enabled: boolean;
@@ -96,6 +97,22 @@ type Revision = {
   publishedAt: Date;
   publishedBy?: { name: string | null; email: string } | null;
 };
+
+function formatVolumeDiscounts(value: unknown) {
+  if (!Array.isArray(value)) return "";
+  return value
+    .flatMap((tier) => {
+      if (!tier || typeof tier !== "object" || Array.isArray(tier)) return [];
+      const candidate = tier as Record<string, unknown>;
+      const threshold = String(candidate.minimumQuantityGp ?? "").trim();
+      const discount = Number(candidate.discountBps);
+      const label = String(candidate.label ?? "").trim();
+      return /^\d+$/.test(threshold) && Number.isInteger(discount) && label
+        ? [`${formatGoldQuantity(BigInt(threshold))}|${discount}|${label}`]
+        : [];
+    })
+    .join("\n");
+}
 
 export function GoldMarketTabs({ marketId }: { marketId: string }) {
   const tabs = [
@@ -359,6 +376,19 @@ export function GoldRateForm({
             type="datetime-local"
             defaultValue={dateInputValue(rate?.effectiveEnd ?? null)}
           />
+        </label>
+        <label className={`${labelClass} md:col-span-2`}>
+          Volume discounts
+          <textarea
+            className={`${fieldClass} min-h-28 font-mono`}
+            name="volumeDiscounts"
+            placeholder="100M|250|100M+ volume discount"
+            defaultValue={formatVolumeDiscounts(rate?.volumeDiscounts)}
+          />
+          <span className="text-text-muted text-xs">
+            One minimum quantity|discount basis points|public label per line.
+            Leave blank for no bulk discounts. 250 basis points = 2.5%.
+          </span>
         </label>
       </div>
       <div className="mt-5 flex flex-wrap gap-5">

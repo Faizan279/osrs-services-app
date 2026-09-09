@@ -89,6 +89,42 @@ const options: PremiumEstimateOption[] = [
 ];
 
 describe("premium service estimate engine", () => {
+  it("applies published stat bands in the same engine used by quotes and cart", () => {
+    const input = {
+      package: premiumPackage,
+      rule: {
+        ...rule,
+        statPricingRules: [
+          {
+            metricKey: "skill.ranged.level",
+            minimumLevel: 70,
+            maximumLevel: 89,
+            adjustmentCents: 2500,
+            label: "Ranged adjustment",
+          },
+        ],
+      },
+      availableOptions: options,
+      selectedOptions: [],
+      gameMode: "NORMAL" as const,
+      customerGearConfirmed: true,
+      includeDiscordStream: false,
+      deliverySpeed: "STANDARD" as const,
+    };
+    expect(
+      calculatePremiumEstimate({
+        ...input,
+        manualStats: [{ metricKey: "skill.ranged.level", value: 80 }],
+      }).estimatedTotalCents,
+    ).toBe(15_000);
+    expect(
+      calculatePremiumEstimate({
+        ...input,
+        manualStats: [{ metricKey: "skill.ranged.level", value: 99 }],
+      }).estimatedTotalCents,
+    ).toBe(12_500);
+    expect(() => calculatePremiumEstimate(input)).toThrow(/valid ranged level/);
+  });
   it("uses package minimums and setup fees for the base estimate", () => {
     const estimate = calculatePremiumEstimate({
       package: premiumPackage,

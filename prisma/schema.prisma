@@ -508,6 +508,7 @@ enum CartItemKind {
   SKILLING_ESTIMATE
   BOSSING_ESTIMATE
   PREMIUM_ESTIMATE
+  CATALOGUE_OFFERING_ESTIMATE
   PRODUCT_ESTIMATE
   ACCOUNT_LISTING_ESTIMATE
   GOLD_BUY_ESTIMATE
@@ -1151,32 +1152,33 @@ model CatalogueRequirement {
 }
 
 model CatalogueOffering {
-  id                 String                         @id @default(cuid()) @db.VarChar(30)
-  serviceId          String                         @db.VarChar(30)
-  seededKey          String?                        @unique @db.VarChar(140)
-  slug               String                         @db.VarChar(180)
-  name               String                         @db.VarChar(191)
-  shortSummary       String                         @db.VarChar(500)
-  description        String?                        @db.Text
-  displayOrder       Int                            @default(0)
-  isActive           Boolean                        @default(true)
-  isFeatured         Boolean                        @default(false)
-  needsClientReview  Boolean                        @default(true)
-  groupLabel         String?                        @db.VarChar(120)
-  tierLabel          String?                        @db.VarChar(120)
-  quantityEnabled    Boolean                        @default(false)
-  quantityUnit       String?                        @db.VarChar(80)
-  minimumQuantity    Int?
-  maximumQuantity    Int?
-  basePriceCents     Int?
-  pricingUnit        String?                        @db.VarChar(80)
-  referenceSourceKey String?                        @db.VarChar(160)
-  createdAt          DateTime                       @default(now())
-  updatedAt          DateTime                       @updatedAt
-  service            CatalogueService               @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  facets             CatalogueOfferingFacet[]
-  gameModes          CatalogueOfferingGameMode[]
-  requirements       CatalogueOfferingRequirement[]
+  id                    String                         @id @default(cuid()) @db.VarChar(30)
+  serviceId             String                         @db.VarChar(30)
+  seededKey             String?                        @unique @db.VarChar(140)
+  slug                  String                         @db.VarChar(180)
+  name                  String                         @db.VarChar(191)
+  shortSummary          String                         @db.VarChar(500)
+  description           String?                        @db.Text
+  displayOrder          Int                            @default(0)
+  isActive              Boolean                        @default(true)
+  isFeatured            Boolean                        @default(false)
+  needsClientReview     Boolean                        @default(true)
+  groupLabel            String?                        @db.VarChar(120)
+  tierLabel             String?                        @db.VarChar(120)
+  quantityEnabled       Boolean                        @default(false)
+  quantityUnit          String?                        @db.VarChar(80)
+  minimumQuantity       Int?
+  maximumQuantity       Int?
+  basePriceCents        Int?
+  pricingUnit           String?                        @db.VarChar(80)
+  estimatedDeliveryText String?                        @db.VarChar(240)
+  referenceSourceKey    String?                        @db.VarChar(160)
+  createdAt             DateTime                       @default(now())
+  updatedAt             DateTime                       @updatedAt
+  service               CatalogueService               @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  facets                CatalogueOfferingFacet[]
+  gameModes             CatalogueOfferingGameMode[]
+  requirements          CatalogueOfferingRequirement[]
 
   @@unique([serviceId, slug])
   @@index([serviceId, isActive, displayOrder])
@@ -1512,6 +1514,7 @@ model BossingGearRequirement {
 }
 
 model PremiumServiceConfig {
+  statPricingRules              Json?
   id                            String                    @id @default(cuid()) @db.VarChar(30)
   serviceId                     String                    @unique @db.VarChar(30)
   configuratorType              PremiumConfiguratorType   @default(CUSTOM)
@@ -1751,6 +1754,7 @@ model GoldRate {
   minimumQuantityGp        BigInt
   maximumQuantityGp        BigInt
   automaticReviewMaximumGp BigInt
+  volumeDiscounts          Json?
   effectiveStart           DateTime
   effectiveEnd             DateTime?
   enabled                  Boolean            @default(true)

@@ -162,6 +162,9 @@ function offeringInput(formData: FormData, serviceId: string) {
     quantityUnit: formData.get("quantityUnit"),
     minimumQuantity: formData.get("minimumQuantity"),
     maximumQuantity: formData.get("maximumQuantity"),
+    basePriceCents: formData.get("basePriceCents"),
+    pricingUnit: formData.get("pricingUnit"),
+    estimatedDeliveryText: formData.get("estimatedDeliveryText"),
     gameModes: values(formData, "gameModes"),
     facets,
   });
@@ -388,6 +391,21 @@ function bossingMethodInput(formData: FormData, serviceId: string) {
 
 function premiumRuleInput(formData: FormData, serviceId: string) {
   return premiumRuleInputSchema.parse({
+    statPricingRules: String(formData.get("statPricingRules") ?? "")
+      .split(/\r?\n/)
+      .filter((line) => line.trim())
+      .map((line) => {
+        const [metricKey, minimum, maximum, cents, ...label] = line
+          .split("|")
+          .map((part) => part.trim());
+        return {
+          metricKey,
+          minimumLevel: Number(minimum),
+          maximumLevel: Number(maximum),
+          adjustmentCents: Number(cents),
+          label: label.join("|"),
+        };
+      }),
     serviceId,
     normalModeMultiplierBps: formData.get("normalModeMultiplierBps"),
     ironmanMultiplierBps: formData.get("ironmanMultiplierBps"),

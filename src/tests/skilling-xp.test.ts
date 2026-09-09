@@ -34,6 +34,16 @@ describe("OSRS skilling XP table", () => {
     expect(() =>
       calculateLevelProgress({ currentLevel: 60, targetLevel: 50 }),
     ).toThrow(/higher/);
+    for (const [currentLevel, targetLevel] of [
+      [1, 70],
+      [61, 99],
+      [82, 95],
+      [35, 80],
+    ] as const) {
+      expect(
+        calculateLevelProgress({ currentLevel, targetLevel }).xpRequired,
+      ).toBeGreaterThan(0);
+    }
   });
 
   it("validates XP-mode progress and rejects unsafe values", () => {

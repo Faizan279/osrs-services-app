@@ -683,7 +683,20 @@ export async function getPublicBossingCalculatorService({
       },
     }),
   ]);
-  return { service, bosses, rule };
+  // Imported references can coexist with an existing curated boss. Keep the
+  // curated record in the picker without deleting either Admin configuration.
+  const uniqueBosses = new Map<string, (typeof bosses)[number]>();
+  for (const boss of bosses) {
+    const key = boss.name.trim().toLowerCase();
+    const current = uniqueBosses.get(key);
+    if (
+      !current ||
+      (current.bossKey.startsWith("reference-") &&
+        !boss.bossKey.startsWith("reference-"))
+    )
+      uniqueBosses.set(key, boss);
+  }
+  return { service, bosses: [...uniqueBosses.values()], rule };
 }
 
 export async function getPublicPremiumConfiguratorService({
@@ -772,6 +785,7 @@ export async function getPublicPremiumConfiguratorService({
         discordStreamEnabled: true,
         rsnEligibilityEnabled: true,
         supportsManualStatFallback: true,
+        statPricingRules: true,
         standardDeliveryEnabled: true,
         standardDeliveryLabel: true,
         standardDeliveryDescription: true,

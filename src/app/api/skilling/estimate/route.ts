@@ -113,6 +113,7 @@ export async function POST(request: Request) {
         engineType: "SKILLING_CALCULATOR",
       },
       include: {
+        category: true,
         gameModes: true,
         skillingRule: true,
         skillingSkills: {
@@ -174,7 +175,7 @@ export async function POST(request: Request) {
         serviceId: service.id,
         serviceSlug: service.slug,
         categoryId: service.categoryId,
-        categorySlug: null,
+        categorySlug: service.category.slug,
         engineType: service.engineType,
         currency: "USD",
         baseSubtotalCents: estimate.estimatedTotalCents,
