@@ -92,3 +92,12 @@
 - Published premium stat-price bands are optional, non-overlapping 1–99 level ranges for Ranged, Magic, Defence, and Prayer. The server applies the same bands to displayed quotes and cart repricing. No surcharge is seeded; normal pricing updates use staged, authorized Admin publishing.
 - Direct catalogue quotes call the same cart resolver used for insertion, including published global adjustments. All automatic calculators invalidate stale cart sources immediately and preserve edited values during quote requests.
 - Three additive migrations cover direct ordering, the allocation enum, and premium stat pricing. Local-only E2E fixtures opt in to a guarded loopback database, restore Gold/Product inventory, and remove only the newly inserted test product revision.
+
+## Screenshot-led storefront refinement — 2026-09-10
+
+- This pass replaces the previous oversized catalogue/form presentation with the client's compact header, illustrated service navigation, left-hand selectors, right-hand summaries, quest/item tables, and regional diary cards. Public styling is scoped in `reference-storefront.css`; staff screens and deployment scripts are unchanged.
+- The existing official wordmark is preserved and displayed in red in the public header/footer, regardless of an older green-logo environment override. Its original raster is cropped through CSS rather than edited. Client reference boards supply artwork-only CSS crops; missing boss portraits retain a clearly generic fallback rather than another boss's image.
+- Commercial content still comes from existing published records, not prices, ETAs, difficulty labels, or stock shown in design mockups. Gold cards label their calculated pre-adjustment amounts as base prices; the order summary uses the server-confirmed quote including discounts/global adjustments.
+- Items now reuse the existing product quote/cart component inside a real marketplace table, including variant selection, quantities, validation and manual-review/stock states. Product-detail ordering remains available.
+- Homepage service shortcuts are navigation, not invented products. Existing Admin-managed categories, featured cards and service promotions still render with their schedules, item limits, overrides and section switches. The homepage is dynamic so published merchandising updates do not require rebuilding.
+- No new schema, seed, rate, payment, authorization, or inventory rules are introduced. This delivery is a GitHub source update; no production deployment or production database mutation is performed.

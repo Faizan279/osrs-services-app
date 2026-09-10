@@ -2,12 +2,7 @@
 
 import {
   BookOpenCheck,
-  Check,
-  ChevronDown,
   Clock3,
-  Filter,
-  Leaf,
-  MapPinned,
   Search,
   ShieldCheck,
   ShoppingCart,
@@ -15,7 +10,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 
 import { AddEstimateToCart } from "@/components/add-estimate-to-cart";
-import { Badge } from "@/components/ui/badge";
+import { ReferenceArt } from "@/components/reference-art";
 import {
   calculateDirectOrderEstimate,
   diaryPrerequisiteSlugs,
@@ -66,14 +61,6 @@ const modeCopy = {
   },
 } as const;
 
-function difficultyTone(value: string | null) {
-  if (value === "grandmaster") return "danger" as const;
-  if (value === "master") return "warning" as const;
-  if (value === "experienced") return "info" as const;
-  if (value === "novice") return "success" as const;
-  return "neutral" as const;
-}
-
 function displayTier(offering: DirectOrderOffering, mode: Mode) {
   if (mode === "QUESTS") {
     return facetLabel(offering, "difficulty") ?? offering.tierLabel;
@@ -86,6 +73,19 @@ function offeringGroup(offering: DirectOrderOffering, mode: Mode) {
     return facetLabel(offering, "region") ?? offering.groupLabel ?? "Other";
   }
   return offering.groupLabel ?? "Services";
+}
+
+function gatheringArt(name: string): [number, number, number, number] {
+  const value = name.toLowerCase();
+  if (/fish|karambwan/.test(value)) return [933, 329, 59, 70];
+  if (/wood|log/.test(value)) return [47, 532, 61, 67];
+  if (/ore|mining/.test(value)) return [268, 532, 60, 67];
+  if (/birdhouse/.test(value)) return [490, 329, 61, 70];
+  if (/seaweed/.test(value)) return [710, 331, 61, 68];
+  if (/flax/.test(value)) return [710, 532, 61, 66];
+  if (/chinchompa/.test(value)) return [936, 532, 60, 67];
+  if (/herb|fungus/.test(value)) return [45, 330, 62, 69];
+  return [267, 329, 61, 69];
 }
 
 export function DirectOrderEngine({
@@ -261,333 +261,390 @@ export function DirectOrderEngine({
     ? formatDirectOrderPrice(currentQuote.totalCents!)
     : (estimate?.estimatedTotal ?? "$0.00");
 
+  const regionNames = [
+    "Ardougne",
+    "Desert",
+    "Falador",
+    "Fremennik",
+    "Kandarin",
+    "Karamja",
+    "Kourend",
+    "Lumbridge",
+    "Morytania",
+    "Varrock",
+    "Western",
+    "Wilderness",
+  ];
+  const regionIndex = (name: string) =>
+    regionNames.findIndex((region) =>
+      name.toLowerCase().startsWith(region.toLowerCase()),
+    );
+  const regions = [
+    ...new Set(visibleOfferings.map((item) => offeringGroup(item, mode))),
+  ].sort((a, b) => regionIndex(a) - regionIndex(b));
+  const summaryRequirements = selectedOfferings.flatMap(
+    ({ offering }) => offering.requirements,
+  );
+  const orderButton = (
+    <AddEstimateToCart
+      kind="CATALOGUE_OFFERING_ESTIMATE"
+      source={ready ? cartSource : null}
+    />
+  );
+  function requirementList(offering: DirectOrderOffering) {
+    return (
+      <details className="store-details">
+        <summary>Requirements</summary>
+        {offering.requirements.map((r) => (
+          <p key={r.id}>
+            <strong>{r.title}:</strong> {r.description}
+          </p>
+        ))}
+        {!offering.requirements.length && (
+          <p>Contact support to confirm requirements.</p>
+        )}
+      </details>
+    );
+  }
   return (
-    <div className="mx-auto max-w-[1500px] px-4 py-7 sm:px-6 lg:px-8">
-      <section className="service-order-layout">
-        <div className="service-catalogue-panel">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="text-primary kicker-type">{copy.select}</p>
-              <h2 className="display-type mt-2 text-3xl uppercase">
-                {copy.title}
-              </h2>
-            </div>
-            <p className="text-text-muted text-sm">
-              {service.offerings.length.toLocaleString()} available options
-            </p>
-          </div>
-
-          <div className="mt-6 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-            <label className="relative block">
-              <span className="sr-only">{copy.search}</span>
-              <Search
-                className="text-text-muted absolute top-1/2 left-4 size-5 -translate-y-1/2"
-                aria-hidden="true"
-              />
-              <input
-                className="service-search-input"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder={copy.search}
-              />
-            </label>
-            <div className="text-text-muted flex items-center gap-2 text-xs font-bold">
-              <Filter className="size-4" aria-hidden="true" />
-              Fast client-side filtering
-            </div>
-          </div>
-          {service.gameModes.length > 1 ? (
-            <label className="mt-4 block max-w-xs text-xs font-bold">
-              Account mode
-              <select
-                className="service-number-input mt-2"
-                value={gameMode}
-                onChange={(event) => setGameMode(event.target.value)}
-              >
-                {service.gameModes.map((item) => (
-                  <option value={item.gameMode} key={item.gameMode}>
-                    {item.gameMode
-                      .toLowerCase()
-                      .split("_")
-                      .map((part) => part[0]?.toUpperCase() + part.slice(1))
-                      .join(" ")}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-
-          {filterOptions.length ? (
-            <div
-              className="mt-4 flex gap-2 overflow-x-auto pb-2"
-              aria-label="Filters"
+    <div
+      className={"reference-order-layout reference-order-" + mode.toLowerCase()}
+    >
+      <section className="store-panel reference-catalogue">
+        <div className="reference-filter-row">
+          <button
+            className={
+              "service-filter-chip " +
+              (activeFilter === "all" ? "is-active" : "")
+            }
+            onClick={() => setActiveFilter("all")}
+          >
+            All
+          </button>
+          {filterOptions.map((option) => (
+            <button
+              key={option.value}
+              className={
+                "service-filter-chip " +
+                (activeFilter === option.value ? "is-active" : "")
+              }
+              onClick={() => setActiveFilter(option.value)}
             >
-              <button
-                className={`service-filter-chip ${activeFilter === "all" ? "is-active" : ""}`}
-                type="button"
-                onClick={() => setActiveFilter("all")}
-              >
-                All
-              </button>
-              {filterOptions.map((option) => (
-                <button
-                  className={`service-filter-chip ${activeFilter === option.value ? "is-active" : ""}`}
-                  key={option.value}
-                  type="button"
-                  onClick={() => setActiveFilter(option.value)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
-
-          {visibleOfferings.length ? (
-            <div
-              className={`mt-5 ${mode === "QUESTS" ? "quest-order-list" : "direct-order-grid"}`}
-            >
-              {visibleOfferings.map((offering) => {
-                const isSelected = selected[offering.slug] != null;
-                const tier = displayTier(offering, mode);
-                const difficulty = facetValue(offering, "difficulty");
-                const questPoints = facetLabel(offering, "quest-points");
-                const GroupIcon =
-                  mode === "QUESTS"
-                    ? BookOpenCheck
-                    : mode === "DIARIES"
-                      ? MapPinned
-                      : Leaf;
-                return (
-                  <article
-                    className={`direct-order-card ${isSelected ? "is-selected" : ""}`}
-                    key={offering.slug}
-                  >
-                    <button
-                      className="direct-order-card-main"
-                      type="button"
-                      aria-pressed={isSelected}
-                      onClick={() => toggle(offering)}
-                    >
-                      <span className="direct-order-card-icon">
-                        <GroupIcon className="size-5" aria-hidden="true" />
-                      </span>
-                      <span className="min-w-0 flex-1 text-left">
-                        <span className="flex flex-wrap items-center gap-2">
-                          <strong className="break-words">
-                            {offering.name}
-                          </strong>
-                          {tier ? (
-                            <Badge variant={difficultyTone(difficulty)}>
-                              {tier}
-                            </Badge>
-                          ) : null}
-                          {questPoints ? (
-                            <Badge variant="info">{questPoints} QP</Badge>
-                          ) : null}
-                        </span>
-                        <span className="text-text-secondary mt-1 line-clamp-2 text-xs leading-5">
-                          {offering.shortSummary}
-                        </span>
-                        <span className="text-text-muted mt-2 block text-[0.7rem] font-bold uppercase">
-                          {offeringGroup(offering, mode)}
-                        </span>
-                        <span className="text-text-muted mt-1 block text-[0.7rem]">
-                          ETA:{" "}
-                          {offering.estimatedDeliveryText ??
-                            "Confirmed after review"}
-                        </span>
-                      </span>
-                      <span className="text-right">
-                        <strong className="text-primary block text-lg">
-                          {formatDirectOrderPrice(offering.basePriceCents ?? 0)}
-                        </strong>
-                        <span className="text-text-muted text-[0.65rem]">
-                          {offering.pricingUnit ?? "configured service"}
-                        </span>
-                      </span>
-                      <span className="direct-order-check" aria-hidden="true">
-                        {isSelected ? <Check className="size-4" /> : "+"}
-                      </span>
-                    </button>
-                    {isSelected && offering.quantityEnabled ? (
-                      <label className="border-border mt-3 grid gap-2 border-t pt-3 text-xs font-bold">
-                        Amount ({offering.quantityUnit ?? "units"})
-                        <input
-                          className="service-number-input"
-                          type="number"
-                          min={offering.minimumQuantity ?? 1}
-                          max={offering.maximumQuantity ?? undefined}
-                          step={offering.minimumQuantity ?? 1}
-                          value={selected[offering.slug]}
-                          onChange={(event) =>
-                            updateQuantity(offering, event.target.value)
-                          }
-                        />
-                      </label>
-                    ) : null}
-                    {offering.requirements.length ? (
-                      <details className="direct-order-requirements">
-                        <summary>
-                          Requirements{" "}
-                          <ChevronDown className="size-4" aria-hidden="true" />
-                        </summary>
-                        <ul>
-                          {offering.requirements.map((requirement) => (
-                            <li key={requirement.id}>
-                              <ShieldCheck
-                                className="text-success size-3.5"
-                                aria-hidden="true"
-                              />
-                              <span>
-                                <strong>{requirement.title}:</strong>{" "}
-                                {requirement.description}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </details>
-                    ) : null}
-                  </article>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="border-border bg-background/40 text-text-secondary mt-5 rounded-xl border p-8 text-center">
-              {copy.empty}
-            </div>
-          )}
+              {option.label}
+            </button>
+          ))}
         </div>
-
-        <aside className="service-order-summary" aria-live="polite">
-          <div className="flex items-center gap-3">
-            <span className="service-summary-icon">
-              <ShoppingCart className="size-5" aria-hidden="true" />
-            </span>
-            <div>
-              <p className="text-primary kicker-type">Order summary</p>
-              <h2 className="font-black">
-                {mode === "QUESTS"
-                  ? "Selected quests"
-                  : mode === "DIARIES"
-                    ? "Selected diary tiers"
-                    : "Gathering order"}
-              </h2>
-            </div>
+        <div className="reference-catalogue-search">
+          <label className="store-search">
+            <Search size={18} />
+            <input
+              placeholder={copy.search}
+              aria-label={copy.search}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </label>
+          <label className="store-field">
+            <span className="sr-only">Account mode</span>
+            <select
+              aria-label="Account mode"
+              value={gameMode}
+              onChange={(e) => setGameMode(e.target.value)}
+            >
+              {service.gameModes.map((item) => (
+                <option value={item.gameMode} key={item.gameMode}>
+                  {item.gameMode.toLowerCase().replaceAll("_", " ")}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        {!visibleOfferings.length && (
+          <p className="store-empty">{copy.empty}</p>
+        )}
+        {mode === "QUESTS" && (
+          <div className="reference-quest-table-wrap">
+            <table className="reference-quest-table">
+              <thead>
+                <tr>
+                  <th>Quest Name</th>
+                  <th>Quest Points</th>
+                  <th>Difficulty</th>
+                  <th>Price</th>
+                  <th>ETA</th>
+                  <th>Requirements</th>
+                  <th>Select</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleOfferings.map((offering) => (
+                  <tr
+                    key={offering.slug}
+                    className={
+                      "direct-order-card " +
+                      (selected[offering.slug] != null ? "is-selected" : "")
+                    }
+                  >
+                    <td>
+                      <BookOpenCheck size={22} />
+                      <strong>{offering.name}</strong>
+                    </td>
+                    <td data-label="Quest points">
+                      {facetLabel(offering, "quest-points") ?? "—"}
+                    </td>
+                    <td data-label="Difficulty">
+                      <span
+                        className={
+                          "reference-difficulty difficulty-" +
+                          (facetValue(offering, "difficulty") ?? "other")
+                        }
+                      >
+                        {displayTier(offering, mode) ?? "Special"}
+                      </span>
+                    </td>
+                    <td data-label="Price">
+                      {formatDirectOrderPrice(offering.basePriceCents ?? 0)}
+                    </td>
+                    <td data-label="ETA">
+                      {offering.estimatedDeliveryText ?? "Confirm with support"}
+                    </td>
+                    <td>{requirementList(offering)}</td>
+                    <td>
+                      <button
+                        className="direct-order-card-main reference-select-button"
+                        aria-label={offering.name}
+                        aria-pressed={selected[offering.slug] != null}
+                        onClick={() => toggle(offering)}
+                      >
+                        {selected[offering.slug] != null ? "✓" : "+"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <dl className="mt-5 grid gap-3 text-sm">
-            <div className="flex justify-between gap-4">
-              <dt className="text-text-muted">Selected</dt>
-              <dd className="font-bold">{selectedOfferings.length}</dd>
+        )}
+        {mode === "DIARIES" && (
+          <div className="reference-diary-grid">
+            {regions.map((region) => {
+              const index = Math.max(0, regionIndex(region));
+              const tiers = ["easy", "medium", "hard", "elite"];
+              const offerings = visibleOfferings
+                .filter((item) => offeringGroup(item, mode) === region)
+                .sort(
+                  (a, b) =>
+                    tiers.indexOf((displayTier(a, mode) ?? "").toLowerCase()) -
+                    tiers.indexOf((displayTier(b, mode) ?? "").toLowerCase()),
+                );
+              return (
+                <article
+                  key={region}
+                  className={
+                    "reference-diary-card " +
+                    (offerings.some((o) => selected[o.slug] != null)
+                      ? "is-selected"
+                      : "")
+                  }
+                >
+                  <ReferenceArt
+                    board="diary"
+                    crop={[
+                      28 + (index % 4) * 255,
+                      258 + Math.floor(index / 4) * 210,
+                      244,
+                      96,
+                    ]}
+                    className="reference-diary-art"
+                  />
+                  <h3>{region}</h3>
+                  <div className="reference-diary-tiers">
+                    {offerings.map((offering) => (
+                      <button
+                        className="direct-order-card-main"
+                        key={offering.slug}
+                        aria-label={offering.name}
+                        aria-pressed={selected[offering.slug] != null}
+                        onClick={() => toggle(offering)}
+                      >
+                        <span>
+                          {displayTier(offering, mode) ?? offering.name}
+                        </span>
+                        <small>
+                          {formatDirectOrderPrice(offering.basePriceCents ?? 0)}
+                        </small>
+                      </button>
+                    ))}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+        {mode === "GATHERING" && (
+          <div className="reference-gathering-grid">
+            {visibleOfferings.map((offering) => (
+              <article
+                className={
+                  "direct-order-card reference-gathering-card " +
+                  (selected[offering.slug] != null ? "is-selected" : "")
+                }
+                key={offering.slug}
+              >
+                <ReferenceArt
+                  board="gathering"
+                  crop={gatheringArt(offering.name)}
+                  className="reference-gathering-art"
+                />
+                <h3>
+                  <strong>{offering.name}</strong>
+                </h3>
+                <p>
+                  {offering.quantityEnabled
+                    ? (offering.minimumQuantity ?? 1).toLocaleString() +
+                      " " +
+                      (offering.quantityUnit ?? "units")
+                    : offering.pricingUnit}
+                </p>
+                <strong className="store-price">
+                  {formatDirectOrderPrice(offering.basePriceCents ?? 0)}
+                </strong>
+                <small>
+                  <Clock3 size={13} />{" "}
+                  {offering.estimatedDeliveryText ??
+                    "Timing confirmed after review"}
+                </small>
+                <button
+                  className="direct-order-card-main reference-primary-button"
+                  aria-pressed={selected[offering.slug] != null}
+                  onClick={() => toggle(offering)}
+                >
+                  {selected[offering.slug] != null
+                    ? "Selected ✓"
+                    : "Select Service"}
+                </button>
+                {selected[offering.slug] != null &&
+                  offering.quantityEnabled && (
+                    <label className="store-field">
+                      Amount
+                      <input
+                        type="number"
+                        min={offering.minimumQuantity ?? 1}
+                        max={offering.maximumQuantity ?? undefined}
+                        value={selected[offering.slug]}
+                        onChange={(e) =>
+                          updateQuantity(offering, e.target.value)
+                        }
+                      />
+                    </label>
+                  )}
+                {requirementList(offering)}
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+      <aside className="reference-order-side">
+        <section className="store-panel">
+          <h2>
+            <ShoppingCart size={23} />{" "}
+            {mode === "QUESTS" ? "Quest Calculator" : "Order Summary"}
+          </h2>
+          <dl className="reference-summary-lines">
+            <div>
+              <dt>Selected {mode === "QUESTS" ? "quests" : "services"}</dt>
+              <dd>{selectedOfferings.length}</dd>
             </div>
-            <div className="flex justify-between gap-4">
-              <dt className="text-text-muted">Account</dt>
-              <dd className="font-bold">
-                {gameMode
-                  .toLowerCase()
-                  .split("_")
-                  .map((part) => part[0]?.toUpperCase() + part.slice(1))
-                  .join(" ")}
-              </dd>
-            </div>
-            {mode === "QUESTS" ? (
-              <div className="flex justify-between gap-4">
-                <dt className="text-text-muted">Quest points</dt>
-                <dd className="font-bold">
+            {mode === "QUESTS" && (
+              <div>
+                <dt>Quest points</dt>
+                <dd>
                   {selectedOfferings.reduce(
-                    (total, { offering }) =>
-                      total + Number(facetValue(offering, "quest-points") ?? 0),
+                    (sum, { offering }) =>
+                      sum + Number(facetLabel(offering, "quest-points") || 0),
                     0,
                   )}
                 </dd>
               </div>
-            ) : null}
-          </dl>
-          <div className="service-summary-selection mt-5">
-            {selectedOfferings.length ? (
-              <ul>
-                {selectedOfferings
-                  .slice(0, 8)
-                  .map(({ offering, selection }) => (
-                    <li key={offering.slug}>
-                      <span>{offering.name}</span>
-                      <strong>
-                        {offering.quantityEnabled
-                          ? selection.quantity?.toLocaleString()
-                          : formatDirectOrderPrice(
-                              offering.basePriceCents ?? 0,
-                            )}
-                      </strong>
-                    </li>
-                  ))}
-                {selectedOfferings.length > 8 ? (
-                  <li className="text-text-muted">
-                    +{selectedOfferings.length - 8} more selected
-                  </li>
-                ) : null}
-              </ul>
-            ) : (
-              <p className="text-text-secondary text-sm leading-6">
-                Choose one or more options to see the total instantly.
-              </p>
             )}
+            <div>
+              <dt>Account type</dt>
+              <dd>{gameMode.toLowerCase().replaceAll("_", " ")}</dd>
+            </div>
+          </dl>
+          <div className="reference-selections">
+            {selectedOfferings.map(({ offering, selection }) => (
+              <div key={offering.slug}>
+                <span>
+                  {offering.name}
+                  {offering.quantityEnabled ? " × " + selection.quantity : ""}
+                </span>
+                <button
+                  aria-label={"Remove " + offering.name}
+                  onClick={() => toggle(offering)}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
           </div>
-          {mode === "DIARIES" ? (
-            <div className="border-warning/30 bg-warning/10 text-text-secondary mt-4 rounded-lg border p-3 text-xs leading-5">
-              {service.offerings.some(
-                (offering) =>
-                  facetValue(offering, "dependency-behavior") ===
-                  "auto-include",
-              )
-                ? "Configured rule: selecting a tier automatically includes its earlier regional tiers."
-                : "Configured rule: earlier tiers must already be complete unless they are also selected. Staff verifies dependencies before work starts."}
-            </div>
-          ) : null}
-          <div className="border-border mt-5 border-t pt-5">
-            <div className="flex items-end justify-between gap-4">
-              <span className="font-black">Total price</span>
-              <strong className="display-type text-primary text-3xl">
-                {displayedTotal}
-              </strong>
-            </div>
-            <p className="text-text-muted mt-2 flex items-center gap-2 text-xs">
-              <Clock3 className="size-3.5" aria-hidden="true" />
-              Completion time depends on your selected services.
+          {calculation.error && (
+            <p role="alert" className="store-error">
+              {calculation.error}
             </p>
-            {estimate && !ready && !currentQuote?.error ? (
-              <p className="text-text-muted mt-2 text-xs">
-                Updating final price…
-              </p>
-            ) : null}
-            {calculation.error || currentQuote?.error ? (
-              <p role="alert" className="text-danger mt-2 text-sm">
-                {calculation.error ?? currentQuote?.error}
-              </p>
-            ) : null}
+          )}
+          {currentQuote?.error && (
+            <p role="alert" className="store-error">
+              {currentQuote.error}
+            </p>
+          )}
+          <div className="reference-total">
+            <span>Total Price:</span>
+            <strong>{displayedTotal}</strong>
           </div>
-          <div className="mt-5">
-            <AddEstimateToCart
-              kind="CATALOGUE_OFFERING_ESTIMATE"
-              source={cartSource}
-              disabled={!ready}
-            />
-          </div>
-        </aside>
-      </section>
-      {estimate && cartSource ? (
+          {orderButton}
+          {!!estimate && !ready && !currentQuote?.error && (
+            <p role="status">Confirming price…</p>
+          )}
+        </section>
+        <section className="store-panel">
+          <h2>
+            <ShieldCheck size={22} /> Requirements & Information
+          </h2>
+          {mode === "DIARIES" && (
+            <p>
+              Earlier tiers must already be complete unless the selected package
+              automatically includes them.
+            </p>
+          )}
+          {selectedOfferings.map(({ offering }) => (
+            <div key={offering.slug}>
+              <h3>{offering.name}</h3>
+              <p>
+                ETA:{" "}
+                {offering.estimatedDeliveryText ?? "Confirmed after review"}
+              </p>
+            </div>
+          ))}
+          {summaryRequirements.slice(0, 12).map((r, i) => (
+            <p key={i}>
+              ✓ {r.title}: {r.description}
+            </p>
+          ))}
+          {!summaryRequirements.length && (
+            <p>
+              Select a service to view its requirements and delivery
+              information.
+            </p>
+          )}
+        </section>
+      </aside>
+      {selectedOfferings.length > 0 && (
         <div className="service-mobile-checkout-bar">
-          <div>
-            <span className="text-text-muted block text-[0.65rem] font-bold uppercase">
-              {selectedOfferings.length} selected
-            </span>
-            <strong className="text-primary text-xl">{displayedTotal}</strong>
-          </div>
-          <AddEstimateToCart
-            kind="CATALOGUE_OFFERING_ESTIMATE"
-            source={cartSource}
-            disabled={!ready}
-          />
+          <strong>{displayedTotal}</strong>
+          {orderButton}
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+import Link from "next/link";
 import { Calculator, ShoppingCart } from "lucide-react";
 import {
   useCallback,
@@ -35,9 +37,17 @@ function formatCents(amountCents: number) {
 export function ProductEstimatePanel({
   productSlug,
   variants,
+  row,
 }: {
   productSlug: string;
   variants: PublicProductVariantSnapshot[];
+  row?: {
+    title: string;
+    category: string;
+    imagePath?: string;
+    imageAlt?: string;
+    startingPrice: string;
+  };
 }) {
   const sortedVariants = useMemo(
     () =>
@@ -145,6 +155,134 @@ export function ProductEstimatePanel({
     });
   }
 
+  if (row) {
+    function setRowQuantity(value: string) {
+      requestIdRef.current++;
+      setEstimate(null);
+      setCartMessage(null);
+      setQuantity(value);
+    }
+    return (
+      <tr className="reference-item-row">
+        <td>
+          <Link aria-label={row.title} href={"/products/" + productSlug}>
+            {row.imagePath ? (
+              <Image
+                src={row.imagePath}
+                alt={row.imageAlt ?? row.title}
+                width={42}
+                height={42}
+              />
+            ) : (
+              <ShoppingCart size={28} />
+            )}
+            <strong>{row.title}</strong>
+          </Link>
+          {sortedVariants.length > 1 && (
+            <select
+              aria-label={"Variant for " + row.title}
+              value={variantStableKey}
+              onChange={(e) => {
+                setVariantStableKey(e.target.value);
+                setRowQuantity(
+                  sortedVariants.find((v) => v.stableKey === e.target.value)
+                    ?.minimumQuantity ?? "1",
+                );
+              }}
+            >
+              {sortedVariants.map((v) => (
+                <option key={v.stableKey} value={v.stableKey}>
+                  {v.publicName}
+                </option>
+              ))}
+            </select>
+          )}
+        </td>
+        <td>
+          <span className="reference-item-category">{row.category}</span>
+        </td>
+        <td>{row.startingPrice}</td>
+        <td>
+          <span className="store-stepper">
+            <button
+              type="button"
+              aria-label={"Decrease quantity for " + row.title}
+              onClick={() =>
+                setRowQuantity(
+                  String(
+                    Math.max(
+                      Number(selectedVariant?.minimumQuantity ?? 1),
+                      Number(quantity) -
+                        Number(selectedVariant?.quantityIncrement ?? 1),
+                    ),
+                  ),
+                )
+              }
+            >
+              −
+            </button>
+            <input
+              aria-label={"Quantity for " + row.title}
+              type="number"
+              min={selectedVariant?.minimumQuantity}
+              max={selectedVariant?.maximumQuantity}
+              step={selectedVariant?.quantityIncrement}
+              value={quantity}
+              onChange={(e) => setRowQuantity(e.target.value)}
+            />
+            <button
+              type="button"
+              aria-label={"Increase quantity for " + row.title}
+              onClick={() =>
+                setRowQuantity(
+                  String(
+                    Math.min(
+                      Number(selectedVariant?.maximumQuantity ?? 1),
+                      Number(quantity) +
+                        Number(selectedVariant?.quantityIncrement ?? 1),
+                    ),
+                  ),
+                )
+              }
+            >
+              +
+            </button>
+          </span>
+        </td>
+        <td className="store-price">
+          {estimate?.estimatedTotal ?? (isPending ? "…" : "Review required")}
+        </td>
+        <td>
+          <Button
+            type="button"
+            onClick={addToCart}
+            disabled={
+              isCartPending ||
+              !estimate?.estimatedTotal ||
+              !["AVAILABLE", "LOW_STOCK"].includes(estimate.state)
+            }
+          >
+            <ShoppingCart size={17} />
+            {isCartPending ? "Adding…" : "Add to Cart"}
+          </Button>
+          {error && <p role="alert">{error}</p>}
+          {cartMessage && (
+            <p role="status">
+              {cartMessage}{" "}
+              {cartMessage === "Added to cart." && (
+                <Link href="/cart" prefetch={false}>
+                  View cart
+                </Link>
+              )}
+            </p>
+          )}
+          {estimate?.estimatedTotal == null && !isPending && !error && (
+            <Link href={"/products/" + productSlug}>View requirements</Link>
+          )}
+        </td>
+      </tr>
+    );
+  }
   if (!selectedVariant) {
     return (
       <div className="border-warning/30 bg-warning/10 rounded-xl border p-5">

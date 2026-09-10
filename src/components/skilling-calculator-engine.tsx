@@ -1,42 +1,9 @@
 "use client";
 
-import {
-  AlertCircle,
-  ArrowUpRight,
-  Axe,
-  Calculator,
-  CheckCircle2,
-  CircleDot,
-  Clock3,
-  CookingPot,
-  Crosshair,
-  Dumbbell,
-  Eye,
-  Fish,
-  Flame,
-  FlaskConical,
-  Footprints,
-  Gem,
-  Hammer,
-  Heart,
-  House,
-  Orbit,
-  PawPrint,
-  Pickaxe,
-  Radio,
-  Shield,
-  ShieldCheck,
-  Skull,
-  Sparkles,
-  Sprout,
-  Sword,
-  WandSparkles,
-  type LucideIcon,
-} from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Search } from "lucide-react";
+import { StoreNumberField } from "@/components/store-number-field";
 import {
   AddEstimateToCart,
   MobileEstimateCart,
@@ -119,32 +86,6 @@ function formatCents(value: number) {
   }).format(value / 100);
 }
 
-const skillIcons: Record<string, LucideIcon> = {
-  sword: Sword,
-  strength: Dumbbell,
-  shield: Shield,
-  bow: Crosshair,
-  prayer: Sparkles,
-  magic: WandSparkles,
-  rune: Orbit,
-  house: House,
-  heart: Heart,
-  footprints: Footprints,
-  flask: FlaskConical,
-  mask: Eye,
-  gem: Gem,
-  arrow: ArrowUpRight,
-  skull: Skull,
-  trap: PawPrint,
-  pickaxe: Pickaxe,
-  anvil: Hammer,
-  fish: Fish,
-  flame: CookingPot,
-  campfire: Flame,
-  axe: Axe,
-  sprout: Sprout,
-};
-
 function deliveryOptions(rule: PublicRule | null) {
   if (!rule) return [];
   return [
@@ -195,6 +136,7 @@ export function SkillingCalculatorEngine({
   requestHref: string;
 }) {
   const initialSkill = skills[0]?.skillKey ?? "ATTACK";
+  const [skillSearch, setSkillSearch] = useState("");
   const [skillKey, setSkillKey] = useState<SkillingSkillKey>(initialSkill);
   const selectedSkill =
     skills.find((skill) => skill.skillKey === skillKey) ?? skills[0] ?? null;
@@ -284,472 +226,293 @@ export function SkillingCalculatorEngine({
     });
   }
 
+  function invalidate() {
+    requestIdRef.current += 1;
+    setCartSource(null);
+    setResult(null);
+    setEstimateRevision((v) => v + 1);
+  }
   return (
-    <div className="service-engine-shell mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:py-10">
-      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_23rem]">
-        <div className="border-border bg-surface-1 rounded-2xl border p-6">
-          <h2 className="display-type text-3xl">About this service</h2>
-          <div className="text-text-secondary mt-4 space-y-3 leading-7">
-            {service.content.split(/\n{2,}/).map((paragraph) => (
-              <p key={paragraph}>{paragraph}</p>
-            ))}
-          </div>
-          {service.requirements.length > 0 && (
-            <ul className="mt-6 grid gap-3">
-              {service.requirements.map((requirement) => (
-                <li
-                  key={requirement.id}
-                  className="border-border bg-background/40 flex gap-3 rounded-xl border p-4"
+    <div className="reference-skill-layout">
+      <div className="reference-skill-left">
+        <section className="store-panel">
+          <label className="store-search">
+            <Search size={18} />
+            <input
+              aria-label="Search skills"
+              placeholder="Search for a skill..."
+              value={skillSearch}
+              onChange={(e) => setSkillSearch(e.target.value)}
+            />
+          </label>
+          <div className="reference-skill-grid">
+            {skills
+              .filter((skill) =>
+                skill.name.toLowerCase().includes(skillSearch.toLowerCase()),
+              )
+              .map((skill) => (
+                <button
+                  key={skill.skillKey}
+                  type="button"
+                  aria-pressed={skillKey === skill.skillKey}
+                  className={skillKey === skill.skillKey ? "is-selected" : ""}
+                  onClick={() => {
+                    changeSkill(skill.skillKey);
+                    invalidate();
+                  }}
                 >
-                  <ShieldCheck
-                    className="text-primary mt-0.5 size-5 shrink-0"
-                    aria-hidden="true"
-                  />
-                  <div>
-                    <h3 className="font-bold">{requirement.title}</h3>
-                    <p className="text-text-secondary mt-1 text-sm leading-6">
-                      {requirement.description}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <aside className="border-gold/25 bg-gold/5 rounded-2xl border p-6">
-          <p className="text-gold kicker-type">Estimate preview</p>
-          <h2 className="display-type mt-3 text-2xl">
-            Server-confirmed calculator
-          </h2>
-          <p className="text-text-secondary mt-3 text-sm leading-6">
-            Estimated total is calculated from the current published skilling
-            rules. Final price is confirmed before checkout.
-          </p>
-          <div className="mt-5">
-            <h3 className="text-sm font-bold">Supported account modes</h3>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {service.gameModes.map(({ gameMode }) => (
-                <Badge variant="info" key={gameMode}>
-                  {gameModeLabels[gameMode]}
-                </Badge>
-              ))}
-            </div>
-          </div>
-          <Button asChild className="mt-6 w-full" variant="secondary">
-            <a href={requestHref}>Request quote</a>
-          </Button>
-        </aside>
-      </section>
-
-      <section className="mt-10 grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <form
-          ref={formRef}
-          onSubmit={(event) => {
-            event.preventDefault();
-            submit(new FormData(event.currentTarget));
-          }}
-          onChangeCapture={() => {
-            requestIdRef.current += 1;
-            setCartSource(null);
-            setResult(null);
-            setEstimateRevision((value) => value + 1);
-          }}
-          className="border-primary/25 rounded-3xl border bg-[linear-gradient(135deg,rgba(20,38,22,.92),rgba(5,12,8,.98))] p-5 sm:p-7"
-        >
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-primary kicker-type">Skilling calculator</p>
-              <h2 className="display-type mt-3 text-3xl">{service.name}</h2>
-            </div>
-            <Badge variant="info">Estimated total</Badge>
-          </div>
-
-          {!skills.length || !rule ? (
-            <div className="border-warning/30 bg-warning/10 text-text-secondary mt-6 rounded-2xl border p-5">
-              This calculator is waiting for enabled methods and review-ready
-              rules.
-            </div>
-          ) : (
-            <>
-              <fieldset className="mt-7 border-0 p-0">
-                <legend className="text-sm font-bold">Choose a skill</legend>
-                <div className="skill-grid-picker mt-3">
-                  {skills.map((skill) => {
-                    const SkillIcon =
-                      skillIcons[skill.iconKey ?? ""] ?? CircleDot;
-                    return (
-                      <button
-                        className={`skill-picker-card ${skill.skillKey === skillKey ? "is-active" : ""}`}
-                        type="button"
-                        aria-pressed={skill.skillKey === skillKey}
-                        key={skill.skillKey}
-                        onClick={() => changeSkill(skill.skillKey)}
-                      >
-                        {serviceReferenceIcon(
-                          skill.name,
-                          "skill",
-                          skill.iconKey,
-                        ) ? (
-                          <span
-                            className="skill-reference-art"
-                            aria-hidden="true"
-                            style={serviceReferenceIcon(
-                              skill.name,
-                              "skill",
-                              skill.iconKey,
-                            )}
-                          />
-                        ) : (
-                          <SkillIcon aria-hidden="true" className="size-5" />
-                        )}
-                        <span>{skill.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </fieldset>
-
-              <div className="mt-5 grid gap-5 md:grid-cols-2">
-                <label className="text-sm font-bold">
-                  Training method
-                  <select
-                    className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
-                    value={selectedMethod?.slug ?? ""}
-                    onChange={(event) => {
-                      setMethodSlug(event.target.value);
-                      setIncludeSupplies(false);
-                      setResult(null);
-                    }}
-                  >
-                    {selectedSkill?.methods.map((method) => (
-                      <option value={method.slug} key={method.slug}>
-                        {method.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              {selectedMethod && (
-                <div className="border-border bg-background/35 mt-5 rounded-2xl border p-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="success">
-                      Levels {selectedMethod.minimumLevel}-
-                      {selectedMethod.maximumLevel}
-                    </Badge>
-                    {selectedMethod.xpPerHour && (
-                      <Badge variant="info">
-                        {formatNumber(selectedMethod.xpPerHour)} XP/hr estimate
-                      </Badge>
+                  <span
+                    className="skill-reference-art"
+                    style={serviceReferenceIcon(
+                      skill.name,
+                      "skill",
+                      skill.iconKey,
                     )}
-                  </div>
-                  <p className="text-text-secondary mt-3 text-sm leading-6">
-                    {selectedMethod.shortDescription}
-                  </p>
-                </div>
+                  />
+                  <span>{skill.name}</span>
+                </button>
+              ))}
+          </div>
+        </section>
+        <section className="store-panel reference-skill-info">
+          <h2>Skill Information</h2>
+          <div className="reference-selected-skill">
+            <span
+              className="skill-reference-art"
+              style={serviceReferenceIcon(
+                selectedSkill?.name ?? "",
+                "skill",
+                selectedSkill?.iconKey,
               )}
-
-              <fieldset className="mt-6 border-0 p-0">
-                <legend className="text-sm font-bold">Input mode</legend>
-                <div className="mt-3 flex flex-wrap gap-3">
-                  {[
-                    ["LEVEL", "Level"],
-                    ["XP", "XP"],
-                  ].map(([value, label]) => (
-                    <label
-                      key={value}
-                      className={`border-border flex min-h-11 items-center gap-2 rounded-xl border px-4 text-sm font-semibold ${inputMode === value ? "bg-primary/15 text-primary" : "bg-background/45 text-text-secondary"}`}
-                    >
-                      <input
-                        type="radio"
-                        name="inputMode"
-                        value={value}
-                        checked={inputMode === value}
-                        onChange={() => {
-                          setInputMode(value as "LEVEL" | "XP");
-                          setResult(null);
-                        }}
-                      />
-                      <Radio className="size-4" aria-hidden="true" />
-                      {label}
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-
-              {inputMode === "LEVEL" ? (
-                <div className="mt-5 grid gap-5 md:grid-cols-2">
-                  <label className="text-sm font-bold">
-                    Current level
-                    <input
-                      className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
-                      name="currentLevel"
-                      type="number"
-                      min="1"
-                      max="99"
-                      defaultValue="1"
-                      required
-                    />
-                  </label>
-                  <label className="text-sm font-bold">
-                    Target level
-                    <input
-                      className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
-                      name="targetLevel"
-                      type="number"
-                      min="2"
-                      max="99"
-                      defaultValue="50"
-                      required
-                    />
-                  </label>
-                </div>
-              ) : (
-                <div className="mt-5 grid gap-5 md:grid-cols-2">
-                  <label className="text-sm font-bold">
-                    Current XP
-                    <input
-                      className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
-                      name="currentXp"
-                      type="number"
-                      min="0"
-                      max="200000000"
-                      defaultValue="0"
-                      required
-                    />
-                  </label>
-                  <label className="text-sm font-bold">
-                    Target XP
-                    <input
-                      className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
-                      name="targetXp"
-                      type="number"
-                      min="1"
-                      max="200000000"
-                      defaultValue="101333"
-                      required
-                    />
-                  </label>
-                </div>
-              )}
-
-              <div className="mt-5 grid gap-5 md:grid-cols-2">
-                <label className="text-sm font-bold">
-                  Account game mode
-                  <select
-                    className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
-                    name="gameMode"
-                  >
-                    {service.gameModes.map(({ gameMode }) => (
-                      <option value={gameMode} key={gameMode}>
-                        {gameModeLabels[gameMode]} account
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-sm font-bold">
-                  Delivery speed
-                  <select
-                    className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
-                    value={deliverySpeed}
-                    onChange={(event) => {
-                      setDeliverySpeed(
-                        event.target.value as SkillingDeliverySpeed,
-                      );
-                      setResult(null);
-                    }}
-                  >
-                    {delivery.map((option) => (
-                      <option value={option.speed} key={option.speed}>
-                        {option.label}
-                        {option.estimate ? ` - ${option.estimate}` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                {selectedMethod?.suppliesEnabled && (
-                  <label className="border-border bg-background/45 flex min-h-12 items-center gap-3 rounded-xl border px-4 text-sm font-semibold">
-                    <input
-                      type="checkbox"
-                      checked={includeSupplies}
-                      onChange={(event) => {
-                        setIncludeSupplies(event.target.checked);
-                        setResult(null);
-                      }}
-                    />
-                    {selectedMethod.suppliesLabel || "Supplies and materials"}
-                  </label>
-                )}
-                {rule.discordStreamEnabled && (
-                  <label className="border-border bg-background/45 flex min-h-12 items-center gap-3 rounded-xl border px-4 text-sm font-semibold">
-                    <input
-                      type="checkbox"
-                      checked={includeDiscordStream}
-                      onChange={(event) => {
-                        setIncludeDiscordStream(event.target.checked);
-                        setResult(null);
-                      }}
-                    />
-                    Discord Stream add-on
-                  </label>
-                )}
-              </div>
-
-              <div className="mt-7 flex flex-wrap items-center gap-3">
-                <Button type="submit" disabled={pending || !selectedMethod}>
-                  <Calculator className="mr-2 size-4" aria-hidden="true" />
-                  {pending ? "Calculating..." : "Refresh estimate"}
-                </Button>
-                <p
-                  id="skilling-calculator-status"
-                  role="status"
-                  aria-live="polite"
-                  className="text-text-muted text-sm"
-                >
-                  {pending
-                    ? "Live server calculation in progress."
-                    : result?.message}
-                </p>
-              </div>
-            </>
-          )}
-        </form>
-
-        <EstimatePanel
-          result={result}
-          requestHref={requestHref}
-          cartSource={cartSource}
-        />
-      </section>
-    </div>
-  );
-}
-
-function EstimatePanel({
-  result,
-  requestHref,
-  cartSource,
-}: {
-  result: EstimateResponse | null;
-  requestHref: string;
-  cartSource: Record<string, unknown> | null;
-}) {
-  if (!result) {
-    return (
-      <aside className="border-border bg-surface-1 h-fit rounded-2xl border p-6">
-        <div className="flex items-center gap-3">
-          <Clock3 className="text-gold size-5" aria-hidden="true" />
-          <h2 className="font-bold">Estimate summary</h2>
-        </div>
-        <p className="text-text-secondary mt-4 text-sm leading-6">
-          Select a method and calculate an estimate before requesting review.
-        </p>
-      </aside>
-    );
-  }
-  if (!result.ok || !result.estimate) {
-    return (
-      <aside
-        className="border-danger/30 bg-danger/10 h-fit rounded-2xl border p-6"
-        role="alert"
-      >
-        <div className="flex gap-3">
-          <AlertCircle
-            className="text-danger mt-0.5 size-5 shrink-0"
-            aria-hidden="true"
-          />
-          <p>{result.message}</p>
-        </div>
-      </aside>
-    );
-  }
-  const estimate = result.estimate;
-  return (
-    <aside
-      className="border-border bg-surface-1 h-fit rounded-2xl border p-6"
-      aria-live="polite"
-    >
-      <MobileEstimateCart
-        kind="SKILLING_ESTIMATE"
-        source={cartSource}
-        total={estimate.estimatedTotal}
-      />
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-gold kicker-type">Estimated total</p>
-          <h2 className="display-type mt-2 text-4xl">
-            {estimate.estimatedTotal}
-          </h2>
-        </div>
-        <CheckCircle2 className="text-success size-7" aria-hidden="true" />
-      </div>
-      <dl className="mt-6 grid gap-3 text-sm">
-        <SummaryRow label="Skill" value={estimate.selectedSkill} />
-        <SummaryRow label="Method" value={estimate.selectedMethod} />
-        <SummaryRow label="Progress">
-          Level {estimate.currentLevel} to {estimate.targetLevel}
-        </SummaryRow>
-        <SummaryRow label="XP required">
-          {formatNumber(estimate.xpRequired)}
-        </SummaryRow>
-        <SummaryRow label="Account mode" value={estimate.accountMode} />
-        <SummaryRow label="Delivery" value={estimate.delivery.label} />
-        {estimate.delivery.estimate && (
-          <SummaryRow
-            label="Time estimate"
-            value={estimate.delivery.estimate}
-          />
-        )}
-        {estimate.estimatedHours && (
-          <SummaryRow
-            label="Training hours"
-            value={`${estimate.estimatedHours.toLocaleString()} hrs`}
-          />
-        )}
-      </dl>
-      <div className="border-border mt-6 border-t pt-5">
-        <h3 className="text-sm font-bold">Estimate breakdown</h3>
-        <ul className="mt-3 space-y-2">
-          {estimate.lineItems.map((item) => (
-            <li
-              className="text-text-secondary flex items-center justify-between gap-4 text-sm"
-              key={item.label}
-            >
-              <span>{item.label}</span>
-              <span className="font-bold">{formatCents(item.amountCents)}</span>
+            />
+            <div>
+              <h3>{selectedSkill?.name}</h3>
+              <p>{selectedMethod?.shortDescription}</p>
+            </div>
+          </div>
+          <ul>
+            <li>Maximum level: 99</li>
+            <li>
+              Available methods:{" "}
+              {selectedSkill?.methods.map((m) => m.name).join(", ")}
             </li>
-          ))}
-        </ul>
+            {service.requirements.map((r) => (
+              <li key={r.id}>
+                <strong>{r.title}</strong> — {r.description}
+              </li>
+            ))}
+          </ul>
+          <a href={requestHref}>Need help choosing a method?</a>
+        </section>
       </div>
-      <p className="text-text-muted mt-5 text-xs leading-5">
-        {estimate.finalPriceNote}
-      </p>
-      <div className="mt-6 grid gap-2">
-        <AddEstimateToCart kind="SKILLING_ESTIMATE" source={cartSource} />
-        <Button asChild className="w-full" variant="secondary">
-          <a href={requestHref}>Need a custom order?</a>
-        </Button>
-      </div>
-    </aside>
-  );
-}
-
-function SummaryRow({
-  label,
-  value,
-  children,
-}: {
-  label: string;
-  value?: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div className="border-border flex items-start justify-between gap-4 border-b pb-3">
-      <dt className="text-text-muted">{label}</dt>
-      <dd className="text-right font-bold">{children ?? value}</dd>
+      <form
+        ref={formRef}
+        className="store-panel reference-skill-config"
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit(new FormData(e.currentTarget));
+        }}
+        onChangeCapture={invalidate}
+      >
+        <div className="reference-selected-skill">
+          <span
+            className="skill-reference-art"
+            style={serviceReferenceIcon(
+              selectedSkill?.name ?? "",
+              "skill",
+              selectedSkill?.iconKey,
+            )}
+          />
+          <div>
+            <h2>{selectedSkill?.name} Training</h2>
+            <p>Choose your levels and training method.</p>
+          </div>
+        </div>
+        {!rule || !skills.length ? (
+          <p role="status">Training methods are currently unavailable.</p>
+        ) : (
+          <>
+            <div className="reference-level-settings">
+              {inputMode === "LEVEL" ? (
+                <>
+                  <StoreNumberField
+                    label="Current level"
+                    name="currentLevel"
+                    initial={1}
+                    onAdjust={invalidate}
+                  />
+                  <StoreNumberField
+                    label="Target level"
+                    name="targetLevel"
+                    initial={50}
+                    min={2}
+                    onAdjust={invalidate}
+                  />
+                </>
+              ) : (
+                <>
+                  <StoreNumberField
+                    label="Current XP"
+                    name="currentXp"
+                    initial={0}
+                    min={0}
+                    max={200000000}
+                    onAdjust={invalidate}
+                  />
+                  <StoreNumberField
+                    label="Target XP"
+                    name="targetXp"
+                    initial={101333}
+                    max={200000000}
+                    onAdjust={invalidate}
+                  />
+                </>
+              )}
+              <fieldset className="store-training-type">
+                <legend>Training Type</legend>
+                {[
+                  ["LEVEL", "Level to Level"],
+                  ["XP", "Buy XP"],
+                ].map(([mode, label]) => (
+                  <label key={mode}>
+                    <input
+                      type="radio"
+                      name="inputMode"
+                      checked={inputMode === mode}
+                      onChange={() => setInputMode(mode as "LEVEL" | "XP")}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </fieldset>
+            </div>
+            <h3 className="reference-method-heading">Select Training Method</h3>
+            <div className="reference-training-methods">
+              {selectedSkill?.methods.map((method) => (
+                <label
+                  className={
+                    selectedMethod?.slug === method.slug ? "is-selected" : ""
+                  }
+                  key={method.slug}
+                >
+                  <span
+                    className="skill-reference-art"
+                    style={serviceReferenceIcon(
+                      selectedSkill.name,
+                      "skill",
+                      selectedSkill.iconKey,
+                    )}
+                  />
+                  <span>
+                    <strong>{method.name}</strong>
+                    <p>{method.shortDescription}</p>
+                    <small>
+                      Levels {method.minimumLevel}–{method.maximumLevel}
+                      {method.xpPerHour
+                        ? " · " + formatNumber(method.xpPerHour) + " XP/hr"
+                        : ""}
+                    </small>
+                  </span>
+                  <input
+                    type="radio"
+                    name="methodChoice"
+                    value={method.slug}
+                    checked={selectedMethod?.slug === method.slug}
+                    onChange={() => {
+                      setMethodSlug(method.slug);
+                      setIncludeSupplies(false);
+                    }}
+                  />
+                </label>
+              ))}
+            </div>
+            <div className="store-fields-two">
+              <label className="store-field">
+                Account game mode
+                <select name="gameMode">
+                  {service.gameModes.map(({ gameMode }) => (
+                    <option key={gameMode} value={gameMode}>
+                      {gameModeLabels[gameMode]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="store-field">
+                Delivery speed
+                <select
+                  value={deliverySpeed}
+                  onChange={(e) =>
+                    setDeliverySpeed(e.target.value as SkillingDeliverySpeed)
+                  }
+                >
+                  {delivery.map((d) => (
+                    <option key={d.speed} value={d.speed}>
+                      {d.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="store-inline-options">
+              {selectedMethod?.suppliesEnabled && (
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={includeSupplies}
+                    onChange={(e) => setIncludeSupplies(e.target.checked)}
+                  />
+                  {selectedMethod.suppliesLabel || "Include supplies"}
+                </label>
+              )}
+              {rule.discordStreamEnabled && (
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={includeDiscordStream}
+                    onChange={(e) => setIncludeDiscordStream(e.target.checked)}
+                  />
+                  Stream add-on
+                </label>
+              )}
+            </div>
+            {result && !result.ok && (
+              <p role="alert" className="store-error">
+                {result.message}
+              </p>
+            )}
+            <div className="reference-price-footer">
+              <div>
+                <span>Total Price: </span>
+                <strong>
+                  {result?.estimate?.estimatedTotal ??
+                    (pending ? "Calculating…" : "—")}
+                </strong>
+                {result?.estimate?.estimatedHours && (
+                  <small>
+                    Estimated training:{" "}
+                    {formatNumber(result.estimate.estimatedHours)} hours
+                  </small>
+                )}
+              </div>
+              <AddEstimateToCart kind="SKILLING_ESTIMATE" source={cartSource} />
+            </div>
+            <details className="store-details">
+              <summary>Price breakdown & requirements</summary>
+              {result?.estimate?.lineItems.map((line, i) => (
+                <p key={i}>
+                  {line.label}: {formatCents(line.amountCents)}
+                </p>
+              ))}
+              <p>{result?.estimate?.finalPriceNote}</p>
+            </details>
+            <MobileEstimateCart
+              kind="SKILLING_ESTIMATE"
+              source={cartSource}
+              total={result?.estimate?.estimatedTotal ?? "—"}
+            />
+          </>
+        )}
+      </form>
     </div>
   );
 }

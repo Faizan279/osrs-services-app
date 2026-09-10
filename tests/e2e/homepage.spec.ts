@@ -1,231 +1,115 @@
 import { expect, test } from "@playwright/test";
 
-test("homepage renders the primary public experience", async ({
-  page,
-}, testInfo) => {
-  await page.goto("/");
-
-  await expect(
-    page.getByRole("heading", {
-      name: "Your next OSRS milestone, handled with care.",
-    }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "OSRS Services home" }).first(),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", {
-      name: "Go straight to the progress you have in mind.",
-    }),
-  ).toBeVisible();
-
-  if (testInfo.project.name === "desktop-chromium") {
-    await expect(
-      page.getByRole("navigation", { name: "Main navigation" }),
-    ).toBeVisible();
-  } else {
-    await expect(
-      page.getByRole("button", { name: "Open mobile navigation" }),
-    ).toBeVisible();
-  }
-});
-
-test("desktop services menu supports click, outside click and Escape", async ({
-  page,
-}, testInfo) => {
-  test.skip(
-    testInfo.project.name !== "desktop-chromium",
-    "Desktop navigation behavior",
-  );
-
-  await page.goto("/");
-  const trigger = page.getByRole("button", { name: "Services", exact: true });
-  const menu = page.locator("#desktop-services-menu");
-
-  await trigger.click();
-  await expect(trigger).toHaveAttribute("aria-expanded", "true");
-  await expect(menu).toBeVisible();
-
-  await page.keyboard.press("Escape");
-  await expect(trigger).toHaveAttribute("aria-expanded", "false");
-  await expect(menu).toBeHidden();
-
-  await trigger.click();
-  const viewport = page.viewportSize() ?? { width: 1440, height: 900 };
-  await page.mouse.click(viewport.width - 24, viewport.height - 24);
-  await expect(menu).toBeHidden();
-});
-
-test("mobile navigation traps the page and closes with Escape", async ({
-  page,
-}, testInfo) => {
-  test.skip(
-    testInfo.project.name !== "mobile-chromium",
-    "Mobile navigation behavior",
-  );
-
-  await page.goto("/");
-  const openButton = page.getByRole("button", {
-    name: "Open mobile navigation",
-  });
-  await openButton.click();
-
-  const dialog = page.getByRole("dialog", { name: "Mobile navigation" });
-  await expect(dialog).toBeVisible();
-  await expect(page.locator("body")).toHaveCSS("overflow", "hidden");
-  await expect(
-    page.getByRole("button", { name: "Close mobile navigation", exact: true }),
-  ).toBeFocused();
-
-  await page.keyboard.press("Escape");
-  await expect(dialog).toBeHidden();
-  await expect(openButton).toBeFocused();
-});
-
-test("FAQ controls expose the correct expanded state", async ({ page }) => {
-  await page.goto("/#faq");
-  const firstQuestion = page.getByRole("button", {
-    name: "How does an OSRS Services order work?",
-  });
-  const secondQuestion = page.getByRole("button", {
-    name: "What information will I need to provide?",
-  });
-
-  await expect(firstQuestion).toHaveAttribute("aria-expanded", "true");
-  await secondQuestion.click();
-  await expect(firstQuestion).toHaveAttribute("aria-expanded", "false");
-  await expect(secondQuestion).toHaveAttribute("aria-expanded", "true");
-  await expect(
-    page.getByText("That depends on the service. Typical details include"),
-  ).toBeVisible();
-});
-
-test("important homepage calls to action use the planned destinations", async ({
-  page,
-}, testInfo) => {
-  await page.goto("/");
-
-  await expect(
-    page.getByRole("link", { name: "Browse services" }).first(),
-  ).toHaveAttribute("href", "/services");
-  await expect(
-    page.getByRole("link", { name: "Get an Estimate" }),
-  ).toHaveAttribute("href", "/#calculator-preview");
-  if (testInfo.project.name === "mobile-chromium") {
-    await page.getByRole("button", { name: "Open mobile navigation" }).click();
-    const mobileDialog = page.getByRole("dialog", {
-      name: "Mobile navigation",
-    });
-    await expect(mobileDialog).toBeVisible();
-    await expect(
-      mobileDialog.locator('a[href="/account/login"]'),
-    ).toContainText("Sign in");
-  } else {
-    await expect(
-      page
-        .getByRole("banner")
-        .getByRole("link", { name: "Sign in", exact: true }),
-    ).toHaveAttribute("href", "/account/login");
-  }
-});
-
-test("marketplace search discovers a matching service path", async ({
+test("homepage presents the reference layout and all direct service shortcuts", async ({
   page,
 }) => {
   await page.goto("/");
-
-  const search = page.getByPlaceholder(
-    "Search quests, skills, bosses, gold or account services",
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    /CONQUER.*ACHIEVE.*LEVEL UP/,
   );
-  await expect(search).toBeVisible();
-  await search.fill("quest");
-  await expect(
-    page
-      .locator("#hero-search-results")
-      .getByRole("link", { name: /Questing/ }),
-  ).toHaveAttribute("href", "/services/quests");
-});
-
-test("featured service filters never show unrelated category listings", async ({
-  page,
-}) => {
-  await page.goto("/#featured-services");
-
-  const filters = page.getByRole("tablist", {
-    name: "Featured service categories",
-  });
-  await filters.getByRole("tab", { name: "Questing", exact: true }).click();
-
-  await expect(
-    page.getByRole("heading", { name: "Quest progression", exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Skill training request", exact: true }),
-  ).toBeHidden();
-  await expect(
-    page.getByRole("heading", { name: "PvM support", exact: true }),
-  ).toBeHidden();
-  await expect(
-    page.getByRole("heading", { name: "Diary progression", exact: true }),
-  ).toBeHidden();
-
-  await filters.getByRole("tab", { name: "All services", exact: true }).click();
-
-  for (const service of [
-    "Skill training request",
-    "Quest progression",
-    "PvM support",
-    "Diary progression",
+  await expect(page.locator(".reference-home-service")).toHaveCount(9);
+  for (const route of [
+    "/skills",
+    "/bossing",
+    "/infernal",
+    "/quests",
+    "/diaries",
+    "/gold",
+    "/products",
+    "/accounts",
+    "/misc-gathering",
   ]) {
     await expect(
-      page.getByRole("heading", { name: service, exact: true }),
+      page.locator('.reference-home-service[href="' + route + '"]'),
     ).toBeVisible();
   }
+  await expect(
+    page.getByRole("link", { name: "Browse Services", exact: true }),
+  ).toHaveAttribute("href", "#main-services");
+  await expect(
+    page.locator("header [data-brand-asset=official]"),
+  ).toBeVisible();
 });
 
-test("public navigation omits Reviews while verified content is unavailable", async ({
+test("desktop service navigation points directly to the selector", async ({
   page,
-}, testInfo) => {
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/");
-
-  if (testInfo.project.name === "mobile-chromium") {
-    await page.getByRole("button", { name: "Open mobile navigation" }).click();
-    await expect(
-      page
-        .getByRole("dialog", { name: "Mobile navigation" })
-        .getByRole("link", { name: "Reviews", exact: true }),
-    ).toHaveCount(0);
-  } else {
-    await expect(
-      page
-        .getByRole("navigation", { name: "Main navigation" })
-        .getByRole("link", { name: "Reviews", exact: true }),
-    ).toHaveCount(0);
-  }
+  const nav = page.getByRole("navigation", { name: "Main navigation" });
+  await nav.getByRole("link", { name: "Quests", exact: true }).click();
+  await expect(page).toHaveURL(/\/quests$/, { timeout: 30_000 });
+  await expect(
+    nav.getByRole("link", { name: "Quests", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
+  await expect(page.locator(".reference-quest-table")).toBeVisible();
 });
 
-test("homepage has no horizontal overflow at target widths", async ({
+test("mobile navigation traps focus and restores it on Escape", async ({
   page,
-}, testInfo) => {
-  test.skip(
-    testInfo.project.name !== "desktop-chromium",
-    "Single viewport matrix is sufficient",
-  );
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const open = page.getByRole("button", {
+    name: "Open mobile navigation",
+    exact: true,
+  });
+  await open.click();
+  const dialog = page.getByRole("dialog", { name: "Mobile navigation" });
+  const close = dialog.getByRole("button", {
+    name: "Close mobile navigation",
+    exact: true,
+  });
+  await expect(close).toBeFocused();
+  await expect(page.locator("body")).toHaveCSS("overflow", "hidden");
+  await page.keyboard.press("Shift+Tab");
+  await expect(
+    dialog.getByRole("link", { name: "Contact support" }),
+  ).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(close).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(open).toBeFocused();
+});
 
-  for (const width of [320, 390, 768, 1024, 1440]) {
-    await page.setViewportSize({ width, height: width < 700 ? 844 : 1000 });
-    await page.goto("/", { waitUntil: "domcontentloaded" });
-    await expect(
-      page.getByRole("heading", {
-        name: "Your next OSRS milestone, handled with care.",
-      }),
-    ).toBeVisible();
-    const sizes = await page.evaluate(() => ({
-      clientWidth: document.documentElement.clientWidth,
-      scrollWidth: document.documentElement.scrollWidth,
-    }));
-    expect(sizes.scrollWidth, `overflow at ${width}px`).toBeLessThanOrEqual(
-      sizes.clientWidth,
+test("header search supports keyboard navigation to direct services", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/");
+  await page.getByLabel("Search services", { exact: true }).fill("quest");
+  const result = page
+    .locator(".reference-search-results")
+    .getByRole("link", { name: "Quests", exact: true });
+  await expect(result).toBeVisible();
+  await page.keyboard.press("Tab");
+  await expect(result).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/quests$/, { timeout: 30_000 });
+});
+
+test("navigation does not invent unverified review claims", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(
+    page.locator("header").getByRole("link", { name: "Reviews", exact: true }),
+  ).toHaveCount(0);
+});
+
+test("homepage remains within all required viewport widths", async ({
+  page,
+}) => {
+  for (const width of [390, 430, 768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto("/");
+    await expect(page.locator(".reference-home-service")).toHaveCount(9);
+    const overflow = await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth -
+        document.documentElement.clientWidth,
     );
+    expect(overflow).toBeLessThanOrEqual(1);
   }
 });

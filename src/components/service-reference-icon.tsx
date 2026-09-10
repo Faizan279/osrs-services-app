@@ -80,14 +80,14 @@ export function serviceReferenceIcon(
     if (kind === "boss")
       return {
         backgroundImage: 'url("/artwork/client-boss-reference.jpeg")',
-        backgroundSize: "1228.8px 819.2px",
-        backgroundPosition: `${-(31 + column * 138.5) * 0.8}px ${-(283 + row * 154) * 0.8}px`,
+        backgroundSize: `${(1536 / 114) * 100}% ${(1024 / 85) * 100}%`,
+        backgroundPosition: `${((31 + column * 138.5) / (1536 - 114)) * 100}% ${((282 + row * 154) / (1024 - 85)) * 100}%`,
         backgroundRepeat: "no-repeat",
       };
     return {
       backgroundImage: 'url("/artwork/client-skill-reference.jpeg")',
-      backgroundSize: "1180.8px 1079.1px",
-      backgroundPosition: `${-(48 + column * 88.3) * 0.9}px ${-(267 + row * 101.5) * 0.9}px`,
+      backgroundSize: `${(1312 / 57) * 100}% ${(1199 / 58) * 100}%`,
+      backgroundPosition: `${((48 + column * 88.3) / (1312 - 57)) * 100}% ${((267 + row * 101.5) / (1199 - 58)) * 100}%`,
       backgroundRepeat: "no-repeat",
     };
   }

@@ -7,12 +7,25 @@ const officialLogo = "/branding/osrs-services-logo-red.png";
 export function BrandLogo({
   className,
   priority = false,
+  forceRed = false,
 }: {
   className?: string;
   priority?: boolean;
+  forceRed?: boolean;
 }) {
-  const logoSource =
-    process.env.NEXT_PUBLIC_OSRS_SERVICES_LOGO_SRC ?? officialLogo;
+  const logoSource = forceRed
+    ? officialLogo
+    : (process.env.NEXT_PUBLIC_OSRS_SERVICES_LOGO_SRC ?? officialLogo);
+
+  if (forceRed)
+    return (
+      <span
+        role="img"
+        aria-label="OSRS Services"
+        data-brand-asset="official"
+        className={cn("reference-official-logo", className)}
+      />
+    );
 
   return (
     <span

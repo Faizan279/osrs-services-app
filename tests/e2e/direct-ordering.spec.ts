@@ -113,7 +113,7 @@ test("home to gold custom amount and checkout", async ({ page }) => {
     await page.getByLabel("RuneScape name", { exact: true }).fill("Test Buyer");
     await expect(
       page.getByText(
-        "Manual review is required for this amount before any final trade instruction.",
+        "Manual review is required for this amount before the trade.",
       ),
     ).toBeVisible();
     await page.getByPlaceholder("Enter amount").fill("10");
@@ -128,7 +128,7 @@ const directRoutes = [
   { path: "/quests", heading: /Quest Services/i },
   { path: "/diaries", heading: /Achievement Diaries/i },
   { path: "/gold", heading: /Buy OSRS Gold/i },
-  { path: "/products", heading: /OSRS product marketplace/i },
+  { path: "/products", heading: /OSRS Items/i },
   { path: "/misc-gathering", heading: /Misc Gathering/i },
 ] as const;
 
@@ -207,29 +207,28 @@ test("quest multi-select updates immediately and retains the cart configuration"
 
 test("items search and automatic quantity estimates remain separate from gold", async ({
   page,
-}, testInfo) => {
+}) => {
   await page.goto("/products");
-  const mobile = testInfo.project.name === "mobile-chromium";
-  if (mobile) {
-    await page.getByText("Product filters", { exact: true }).click();
-  }
   const filterForm = page.locator('form[action="/products"]:visible');
   await filterForm
     .getByPlaceholder("Search public product text")
     .fill("Brimstone Ring");
   await filterForm.getByRole("button", { name: "Apply filters" }).click();
   await expect(
-    page.getByRole("heading", { name: "Brimstone Ring", exact: true }),
+    page.getByRole("link", { name: "Brimstone Ring", exact: true }),
   ).toBeVisible();
   await page
     .getByRole("link", { name: /Brimstone Ring/ })
     .first()
     .click();
-  await expect(page.getByLabel("Quantity")).toBeVisible();
+  await expect(page).toHaveURL(/\/products\/brimstone-ring$/, {
+    timeout: 30_000,
+  });
+  await expect(page.getByLabel("Quantity", { exact: true })).toBeVisible();
   await expect(page.getByText("Estimated total", { exact: true })).toBeVisible({
     timeout: 30_000,
   });
-  await expect(page.getByLabel("Quantity")).toHaveValue("1");
+  await expect(page.getByLabel("Quantity", { exact: true })).toHaveValue("1");
   await expect(
     page.getByRole("button", { name: "Add to cart" }),
   ).toBeDisabled();
@@ -257,4 +256,32 @@ test("direct storefronts have no horizontal overflow at required widths", async 
       ).toBeLessThanOrEqual(sizes.clientWidth + 1);
     }
   }
+});
+test("items can be priced and added directly from the marketplace table", async ({
+  page,
+}) => {
+  test.skip(
+    !process.env.DIRECT_ORDER_FIXTURE_DATABASE_URL,
+    "Requires isolated local stock.",
+  );
+  await withLocalProductStock(async () => {
+    await page.goto("/products?q=Brimstone+Ring");
+    const row = page.locator(".reference-item-row");
+    await expect(row).toHaveCount(1);
+    await row
+      .getByLabel("Quantity for Brimstone Ring", { exact: true })
+      .fill("2");
+    await expect(row.getByText("$24.68", { exact: true })).toBeVisible({
+      timeout: 30000,
+    });
+    await row.getByRole("button", { name: "Add to Cart", exact: true }).click();
+    await expect(row.getByRole("status")).toContainText("Added to cart.");
+    await row.getByRole("link", { name: "View cart", exact: true }).click();
+    await expect(page).toHaveURL(/\/cart$/);
+    await expect(
+      page.getByText("$24.68", { exact: true }).first(),
+    ).toBeVisible();
+    await page.getByRole("link", { name: "Checkout", exact: true }).click();
+    await expect(page).toHaveURL(/\/checkout$/);
+  });
 });

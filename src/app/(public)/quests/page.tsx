@@ -24,7 +24,7 @@ export default async function QuestsPage() {
         eyebrow="Direct ordering · quests"
         title="Quest"
         accent="Services"
-        description="Search the approved quest catalogue, select one or many quests, see the combined price instantly and keep the full selection in your cart."
+        description="Select one or multiple quests and have them completed by our team."
         icon={ScrollText}
       />
       <DirectOrderEngine mode="QUESTS" service={service} />

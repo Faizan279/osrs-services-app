@@ -5,6 +5,7 @@ import { OfflineIndicator } from "@/components/offline-indicator";
 import { Toaster } from "@/components/ui/toast";
 
 import "./globals.css";
+import "./reference-storefront.css";
 
 export const metadata: Metadata = {
   title: { default: "OSRS Services", template: "%s | OSRS Services" },

@@ -1,17 +1,8 @@
 "use client";
 
-import {
-  AlertCircle,
-  Banknote,
-  CheckCircle2,
-  Coins,
-  HandCoins,
-  ShieldCheck,
-} from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { ReferenceArt } from "@/components/reference-art";
 import {
   AddEstimateToCart,
   MobileEstimateCart,
@@ -23,6 +14,7 @@ import {
 } from "@/lib/gold/constants";
 import {
   formatGoldQuantity,
+  calculateRateMinorUnits,
   type GoldAvailabilityState,
   type GoldTradeDirection,
   type PublishedGoldRateRevisionSnapshotV1,
@@ -203,408 +195,263 @@ export function GoldTradingEngine({
     });
   }
 
+  function invalidate() {
+    requestIdRef.current++;
+    setCartSource(null);
+    setResult(null);
+    setEstimateRevision((v) => v + 1);
+  }
   return (
-    <div className="service-engine-shell mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:py-10">
-      <section className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_24rem]">
-        <div>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="info">Gold engine</Badge>
-            <Badge variant={featureEnabled ? "success" : "warning"}>
-              {featureEnabled ? "Published rates required" : "Review mode"}
-            </Badge>
-          </div>
-          <h2 className="display-type mt-5 text-3xl">{market.publicName}</h2>
-          <div className="text-text-secondary mt-4 space-y-4 leading-7">
-            {(market.description || service.content)
-              .split(/\n{2,}/)
-              .map((paragraph) => (
-                <p key={paragraph}>{paragraph}</p>
-              ))}
-          </div>
-          {service.requirements.length > 0 && (
-            <div className="mt-6 grid gap-3">
-              {service.requirements.map((requirement) => (
-                <div
-                  className="border-border bg-surface-1 rounded-2xl border p-4"
-                  key={requirement.id}
-                >
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck
-                      className="text-primary size-4"
-                      aria-hidden="true"
-                    />
-                    <h3 className="text-sm font-bold">{requirement.title}</h3>
-                  </div>
-                  <p className="text-text-secondary mt-2 text-sm leading-6">
-                    {requirement.description}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <aside className="border-gold/25 bg-gold/5 h-fit rounded-2xl border p-6">
-          <p className="text-gold kicker-type">Availability</p>
-          <h2 className="display-type mt-3 text-2xl">
-            {goldAvailabilityLabels[market.availabilityState]}
-          </h2>
-          <p className="text-text-secondary mt-3 text-sm leading-6">
-            Estimates are server-authoritative previews. They do not reserve
-            stock, buying capacity or a final trade price.
-          </p>
-          <Button asChild className="mt-6 w-full" variant="secondary">
-            <a href={requestHref}>Request review</a>
-          </Button>
-        </aside>
-      </section>
-
-      <section className="mt-10 grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <form
-          ref={formRef}
-          onSubmit={(event) => {
-            event.preventDefault();
-            submit(new FormData(event.currentTarget));
-          }}
-          onChangeCapture={() => {
-            requestIdRef.current += 1;
-            setCartSource(null);
-            setResult(null);
-            setEstimateRevision((value) => value + 1);
-          }}
-          className="border-primary/25 rounded-3xl border bg-[linear-gradient(135deg,rgba(15,34,22,.94),rgba(4,9,7,.98))] p-5 sm:p-7"
-        >
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-primary kicker-type">Gold trading</p>
-              <h2 className="display-type mt-3 text-3xl">
-                Estimate a gold trade
-              </h2>
-            </div>
-            <Coins className="text-gold size-8" aria-hidden="true" />
-          </div>
-
-          {!featureEnabled || !latestRevision ? (
+    <div className="reference-order-layout reference-gold-layout">
+      <form
+        ref={formRef}
+        className="reference-gold-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit(new FormData(e.currentTarget));
+        }}
+        onChangeCapture={invalidate}
+      >
+        {!featureEnabled || !latestRevision ? (
+          <section className="store-panel">
+            <p role="status">
+              Gold trading is currently in review mode. Contact our team for
+              availability.
+            </p>
+          </section>
+        ) : (
+          <>
             <div
-              className="border-warning/30 bg-warning/10 text-text-secondary mt-6 rounded-2xl border p-5"
-              role="status"
+              className="reference-filter-row"
+              role="tablist"
+              aria-label="Gold trade direction"
             >
-              Gold trading is in review mode. Admin configuration remains
-              available, but live rates are not presented publicly.
+              {directions.map((item) => (
+                <button
+                  type="button"
+                  role="tab"
+                  key={item}
+                  aria-selected={direction === item}
+                  className={
+                    "service-filter-chip " +
+                    (direction === item ? "is-active" : "")
+                  }
+                  onClick={() => {
+                    switchDirection(item);
+                    invalidate();
+                  }}
+                >
+                  {goldTradeDirectionLabels[item]}
+                </button>
+              ))}
             </div>
-          ) : (
-            <>
-              <div
-                aria-label="Gold trade direction"
-                className="border-border bg-background/40 mt-6 grid gap-2 rounded-2xl border p-2 sm:grid-cols-2"
-                role="tablist"
-              >
-                {directions.map((item) => {
-                  const active = item === direction;
-                  const Icon =
-                    item === "CUSTOMER_BUYS_GOLD" ? Banknote : HandCoins;
-                  return (
-                    <button
-                      aria-selected={active}
-                      className={`focus-visible:ring-primary min-h-12 rounded-xl px-4 text-left text-sm font-bold focus-visible:ring-2 focus-visible:outline-none ${active ? "bg-primary text-background" : "text-text-secondary hover:bg-surface-2"}`}
-                      key={item}
-                      role="tab"
-                      type="button"
-                      onClick={() => switchDirection(item)}
-                    >
-                      <span className="flex items-center gap-2">
-                        <Icon className="size-4" aria-hidden="true" />
-                        {goldTradeDirectionLabels[item]}
+            <div className="reference-gold-packs">
+              {directionPresets.map((preset, i) => (
+                <label
+                  className={presetId === preset.id ? "is-selected" : ""}
+                  key={preset.id}
+                >
+                  <ReferenceArt
+                    board="gold"
+                    crop={[50 + Math.min(i, 5) * 177, 280, 115, 95]}
+                    className="reference-gold-coins"
+                  />
+                  <strong>{preset.publicLabel}</strong>
+                  <small>{preset.quantityLabel}</small>
+                  {activeRate && (
+                    <>
+                      <span className="store-price">
+                        {formatCents(
+                          calculateRateMinorUnits({
+                            rateMinorUnitsPerMillion:
+                              activeRate.rateMinorUnitsPerMillion,
+                            quantityGp: preset.quantityGp,
+                          }),
+                          market.currencyCode,
+                        )}
                       </span>
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="text-text-muted mt-3 text-xs leading-5">
-                {goldTradeDirectionDescriptions[direction]}
-              </p>
-
-              <fieldset className="mt-6 grid gap-3 border-0 p-0">
-                <legend className="text-sm font-bold">Quantity presets</legend>
-                {directionPresets.length ? (
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {directionPresets.map((preset) => (
-                      <label
-                        className={`border-border bg-background/45 flex min-h-12 items-center gap-3 rounded-xl border px-4 text-sm font-semibold ${presetId === preset.id ? "border-primary" : ""}`}
-                        key={preset.id}
-                      >
-                        <input
-                          type="radio"
-                          name="presetId"
-                          checked={presetId === preset.id}
-                          onChange={() => {
-                            setPresetId(preset.id);
-                            setCustomQuantity("");
-                            setResult(null);
-                          }}
-                        />
-                        <span>
-                          {preset.publicLabel}
-                          <span className="text-text-muted block text-xs">
-                            {preset.quantityLabel}
-                          </span>
-                        </span>
-                      </label>
-                    ))}
-                    <label
-                      className={`border-border bg-background/45 flex min-h-12 items-center gap-3 rounded-xl border px-4 text-sm font-semibold ${!presetId ? "border-primary" : ""}`}
-                    >
-                      <input
-                        type="radio"
-                        name="presetId"
-                        checked={!presetId}
-                        onChange={() => {
-                          setPresetId("");
-                          setResult(null);
-                        }}
-                      />
-                      Custom quantity
-                    </label>
-                  </div>
-                ) : (
-                  <p className="text-text-muted text-sm">
-                    No active presets are configured for this direction.
-                  </p>
-                )}
-              </fieldset>
-
-              <div className="mt-5 grid gap-5 md:grid-cols-2">
-                <label className="text-sm font-bold">
+                      <small>
+                        {formatCents(
+                          activeRate.rateMinorUnitsPerMillion,
+                          market.currencyCode,
+                        )}{" "}
+                        / M · base price
+                      </small>
+                    </>
+                  )}
+                  <input
+                    type="radio"
+                    name="presetId"
+                    checked={presetId === preset.id}
+                    onChange={() => {
+                      setPresetId(preset.id);
+                      setCustomQuantity("");
+                    }}
+                  />
+                </label>
+              ))}
+            </div>
+            <section className="store-panel reference-gold-custom">
+              <h2>Custom Amount</h2>
+              <label className="store-inline-options">
+                <input
+                  type="radio"
+                  name="presetId"
+                  checked={!presetId}
+                  onChange={() => setPresetId("")}
+                />{" "}
+                Custom quantity
+              </label>
+              <div className="store-fields-two">
+                <label className="store-field">
                   Custom quantity in millions of GP
                   <input
-                    className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
                     name="quantity"
-                    value={customQuantity}
-                    onChange={(event) => {
-                      setPresetId("");
-                      setCustomQuantity(event.target.value);
-                      setResult(null);
-                    }}
                     placeholder="Enter amount"
+                    value={customQuantity}
+                    onChange={(e) => {
+                      setPresetId("");
+                      setCustomQuantity(e.target.value);
+                    }}
                     disabled={Boolean(presetId)}
-                    aria-describedby="gold-quantity-help"
                   />
-                  <span
-                    className="text-text-muted mt-2 block text-xs"
-                    id="gold-quantity-help"
-                  >
-                    Whole GP is calculated on the server from this display
-                    value.
-                  </span>
                 </label>
                 {market.rsnRequired && (
-                  <label className="text-sm font-bold">
+                  <label className="store-field">
                     RuneScape name
                     <input
-                      className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
                       name="rsn"
                       maxLength={12}
-                      autoComplete="off"
                       required
-                      placeholder="No password, PIN or authenticator code"
+                      autoComplete="off"
+                      placeholder="Your in-game name"
                     />
                   </label>
                 )}
               </div>
-
               {activeRate && (
-                <div className="border-border bg-background/35 mt-5 grid gap-3 rounded-2xl border p-4 text-sm sm:grid-cols-3">
-                  <SummaryText
-                    label="Published rate"
-                    value={`${formatCents(activeRate.rateMinorUnitsPerMillion, market.currencyCode)} / 1M GP`}
-                  />
-                  <SummaryText
-                    label="Minimum"
-                    value={formatGoldQuantity(activeRate.minimumQuantityGp)}
-                  />
-                  <SummaryText
-                    label="Maximum"
-                    value={formatGoldQuantity(activeRate.maximumQuantityGp)}
-                  />
-                </div>
+                <dl className="reference-summary-lines mt-4">
+                  <div>
+                    <dt>Price per million</dt>
+                    <dd>
+                      {formatCents(
+                        activeRate.rateMinorUnitsPerMillion,
+                        market.currencyCode,
+                      )}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Minimum order</dt>
+                    <dd>{formatGoldQuantity(activeRate.minimumQuantityGp)}</dd>
+                  </div>
+                  <div>
+                    <dt>Maximum order</dt>
+                    <dd>{formatGoldQuantity(activeRate.maximumQuantityGp)}</dd>
+                  </div>
+                </dl>
               )}
-
               {secureAvailable && (
-                <label className="border-border bg-background/45 mt-5 flex min-h-12 items-center gap-3 rounded-xl border px-4 text-sm font-semibold">
+                <label className="store-inline-options">
                   <input
                     type="checkbox"
                     checked={secureServiceSelected}
-                    onChange={(event) => {
-                      setSecureServiceSelected(event.target.checked);
-                      setResult(null);
-                    }}
+                    onChange={(e) => setSecureServiceSelected(e.target.checked)}
                   />
                   Secure 100+ Combat Service
                 </label>
               )}
-
-              <div className="mt-7 flex flex-wrap items-center gap-3">
-                <Button type="submit" disabled={pending}>
-                  <Coins className="mr-2 size-4" aria-hidden="true" />
-                  {pending ? "Calculating..." : "Refresh estimate"}
-                </Button>
-                <p
-                  id="gold-estimate-status"
-                  role="status"
-                  aria-live="polite"
-                  className="text-text-muted text-sm"
-                >
-                  {pending
-                    ? "Live server calculation in progress."
-                    : result?.message}
-                </p>
-              </div>
-            </>
-          )}
-        </form>
-
-        <GoldEstimatePanel
-          result={result}
-          requestHref={requestHref}
-          cartSource={cartSource}
-        />
-      </section>
-    </div>
-  );
-}
-
-function GoldEstimatePanel({
-  result,
-  requestHref,
-  cartSource,
-}: {
-  result: EstimateResponse | null;
-  requestHref: string;
-  cartSource: Record<string, unknown> | null;
-}) {
-  if (!result) {
-    return (
-      <aside className="border-border bg-surface-1 h-fit rounded-2xl border p-6">
-        <div className="flex items-center gap-3">
-          <Coins className="text-gold size-5" aria-hidden="true" />
-          <h2 className="font-bold">Estimate summary</h2>
-        </div>
-        <p className="text-text-secondary mt-4 text-sm leading-6">
-          Select buy or sell, choose a configured preset or custom quantity,
-          then run a server estimate.
-        </p>
-      </aside>
-    );
-  }
-  if (!result.ok || !result.estimate) {
-    return (
-      <aside
-        className="border-danger/30 bg-danger/10 h-fit rounded-2xl border p-6"
-        role="alert"
-      >
-        <div className="flex gap-3">
-          <AlertCircle
-            className="text-danger mt-0.5 size-5 shrink-0"
-            aria-hidden="true"
-          />
-          <p>{result.message}</p>
-        </div>
-      </aside>
-    );
-  }
-  const estimate = result.estimate;
-  return (
-    <aside
-      className="border-border bg-surface-1 h-fit rounded-2xl border p-6"
-      aria-live="polite"
-    >
-      <MobileEstimateCart
-        kind="GOLD_BUY_ESTIMATE"
-        source={cartSource}
-        total={estimate.estimatedTotal}
-      />
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-gold kicker-type">
-            {estimate.direction === "CUSTOMER_BUYS_GOLD"
-              ? "Estimated payment"
-              : "Estimated payout"}
-          </p>
-          <h2 className="display-type mt-2 text-4xl">
-            {estimate.estimatedTotal}
-          </h2>
-        </div>
-        <CheckCircle2 className="text-success size-7" aria-hidden="true" />
-      </div>
-      <dl className="mt-6 grid gap-3 text-sm">
-        <SummaryRow label="Direction" value={estimate.directionLabel} />
-        <SummaryRow label="Quantity" value={estimate.quantityLabel} />
-        <SummaryRow
-          label="Availability"
-          value={goldAvailabilityLabels[estimate.availabilityState]}
-        />
-      </dl>
-      {estimate.manualReviewRequired && (
-        <div className="border-warning/30 bg-warning/10 mt-5 rounded-xl border p-4 text-sm">
-          Manual review is required for this amount before any final trade
-          instruction.
-        </div>
-      )}
-      <div className="border-border mt-6 border-t pt-5">
-        <h3 className="text-sm font-bold">Estimate breakdown</h3>
-        <ul className="mt-3 space-y-2">
-          {estimate.lineItems.map((item) => (
-            <li
-              className="text-text-secondary flex items-center justify-between gap-4 text-sm"
-              key={item.label}
-            >
-              <span>{item.label}</span>
-              <span className="font-bold">{formatCents(item.amountCents)}</span>
-            </li>
+              {pending && <p role="status">Updating price…</p>}
+            </section>
+          </>
+        )}
+        <section className="store-panel">
+          <h2>Delivery Information</h2>
+          <p>{market.publicTradeInstructions}</p>
+          {service.requirements.map((r) => (
+            <p key={r.id}>
+              ✓ {r.title}: {r.description}
+            </p>
           ))}
-        </ul>
-      </div>
-      <div className="border-border mt-5 border-t pt-5">
-        <h3 className="text-sm font-bold">Trade instructions</h3>
-        <p className="text-text-secondary mt-2 text-sm leading-6">
-          {estimate.tradeInstructions}
-        </p>
-      </div>
-      <p className="text-text-muted mt-5 text-xs leading-5">
-        {estimate.availabilityMessage} {estimate.finalPriceNote} Valid until{" "}
-        {new Date(estimate.validUntil).toLocaleTimeString()}.
-      </p>
-      <div className="mt-6 grid gap-2">
-        {estimate.direction === "CUSTOMER_BUYS_GOLD" &&
-        !estimate.manualReviewRequired ? (
+        </section>
+      </form>
+      <aside className="reference-order-side">
+        <section className="store-panel">
+          <h2>Order Summary</h2>
+          {result && !result.ok && (
+            <p role="alert" className="store-error">
+              {result.message}
+            </p>
+          )}
+          <dl className="reference-summary-lines">
+            <div>
+              <dt>Selected amount</dt>
+              <dd>{result?.estimate?.quantityLabel ?? "Choose an amount"}</dd>
+            </div>
+            <div>
+              <dt>Availability</dt>
+              <dd>
+                {
+                  goldAvailabilityLabels[
+                    result?.estimate?.availabilityState ??
+                      market.availabilityState
+                  ]
+                }
+              </dd>
+            </div>
+          </dl>
+          <div className="reference-total">
+            <span>Total Price:</span>
+            <strong>{result?.estimate?.estimatedTotal ?? "—"}</strong>
+          </div>
+          {result?.estimate?.manualReviewRequired && (
+            <p role="status">
+              Manual review is required for this amount before the trade.
+            </p>
+          )}
           <AddEstimateToCart
             kind="GOLD_BUY_ESTIMATE"
             source={cartSource}
-            disabled={!cartSource}
             label="Buy gold · Add to cart"
           />
-        ) : null}
-        <Button asChild className="w-full" variant="secondary">
-          <a href={requestHref}>Request review</a>
-        </Button>
-      </div>
-    </aside>
-  );
-}
-
-function SummaryText({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-text-muted text-xs font-bold uppercase">{label}</p>
-      <p className="mt-1 font-semibold">{value}</p>
-    </div>
-  );
-}
-
-function SummaryRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-border flex items-start justify-between gap-4 border-b pb-3">
-      <dt className="text-text-muted">{label}</dt>
-      <dd className="text-right font-bold">{value}</dd>
+          {result?.estimate && (
+            <details className="store-details">
+              <summary>Price breakdown</summary>
+              {result.estimate.lineItems.map((line, i) => (
+                <p key={i}>
+                  {line.label}: {formatCents(line.amountCents)}
+                </p>
+              ))}
+              <p>
+                {result.estimate.availabilityMessage}{" "}
+                {result.estimate.finalPriceNote}
+              </p>
+            </details>
+          )}
+        </section>
+        <section className="store-panel">
+          <h2>Important Information</h2>
+          <p>{goldTradeDirectionDescriptions[direction]}</p>
+          <p>
+            Never share your account password, bank PIN or authenticator code
+            for a gold trade.
+          </p>
+          <p>
+            Rates and availability are checked again when ordering. A preview
+            does not reserve stock.
+          </p>
+          <a
+            className="reference-secondary-button mt-4 w-full"
+            href={requestHref}
+          >
+            Contact our team
+          </a>
+        </section>
+      </aside>
+      <MobileEstimateCart
+        kind="GOLD_BUY_ESTIMATE"
+        source={cartSource}
+        total={result?.estimate?.estimatedTotal ?? "—"}
+      />
     </div>
   );
 }

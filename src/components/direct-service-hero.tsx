@@ -1,21 +1,15 @@
 import type { LucideIcon } from "lucide-react";
-import {
-  Check,
-  Clock3,
-  Headphones,
-  ShieldCheck,
-  UserRoundCheck,
-} from "lucide-react";
-import Image from "next/image";
+import { ReferenceArt } from "@/components/reference-art";
+import { StoreTrustStrip } from "@/components/store-trust-strip";
 
 export function DirectServiceHero({
-  eyebrow,
   title,
   accent,
   description,
-  icon: Icon,
   inferno = false,
+  eyebrow,
   artwork,
+  icon,
 }: {
   eyebrow: string;
   title: string;
@@ -25,57 +19,42 @@ export function DirectServiceHero({
   inferno?: boolean;
   artwork?: string;
 }) {
+  void icon;
+  void artwork;
+  const topic = (title + " " + accent + " " + eyebrow).toLowerCase();
+  const plain = topic.includes("skill") || topic.includes("boss");
+  const board = topic.includes("quest")
+    ? "quest"
+    : topic.includes("diar")
+      ? "diary"
+      : topic.includes("gold")
+        ? "gold"
+        : topic.includes("item")
+          ? "items"
+          : topic.includes("gather")
+            ? "gathering"
+            : null;
   return (
     <section
-      className={`service-hero ${inferno ? "service-hero-inferno" : ""}`}
+      className={
+        "reference-service-hero " +
+        (plain ? "is-plain" : "") +
+        (inferno ? " is-infernal" : "")
+      }
     >
-      {inferno || artwork ? (
-        <Image
-          src={artwork ?? "/artwork/zuk-inferno-hero.png"}
-          alt=""
-          fill
-          priority
-          sizes="100vw"
-          className="z-0 object-cover object-[66%_44%]"
+      {board && (
+        <ReferenceArt
+          board={board}
+          crop={[920, 65, 610, 120]}
+          className="reference-service-banner-art"
         />
-      ) : null}
-      <div className="service-hero-shade" />
-      <div className="relative z-10 mx-auto max-w-[1500px] px-5 py-7 sm:px-8 lg:py-8">
-        <p className="text-primary text-xs font-black tracking-[0.18em] uppercase">
-          {eyebrow}
-        </p>
-        <div className="mt-3 flex items-center gap-4">
-          <span className="service-hero-icon">
-            <Icon className="size-7" aria-hidden="true" />
-          </span>
-          <h1 className="display-type max-w-4xl text-3xl sm:text-5xl">
-            {title}{" "}
-            {accent ? <span className="text-primary">{accent}</span> : null}
-          </h1>
-        </div>
-        <p className="text-text-secondary mt-3 max-w-3xl text-base leading-7 sm:text-lg">
-          {description}
-        </p>
-        <ul className="mt-5 grid max-w-4xl grid-cols-2 gap-3 text-xs font-bold lg:grid-cols-4">
-          {[
-            [UserRoundCheck, "100% hand played"],
-            [ShieldCheck, "Account safety first"],
-            [Clock3, "Clear delivery estimate"],
-            [Headphones, "Support when you need it"],
-          ].map(([TrustIcon, label]) => {
-            const ItemIcon = TrustIcon as LucideIcon;
-            return (
-              <li key={String(label)} className="service-trust-item">
-                <ItemIcon className="text-primary size-4" aria-hidden="true" />
-                <span>{String(label)}</span>
-                <Check
-                  className="text-success ml-auto size-3"
-                  aria-hidden="true"
-                />
-              </li>
-            );
-          })}
-        </ul>
+      )}
+      <div className="reference-service-hero-content">
+        <h1>
+          {title} <span>{accent}</span>
+        </h1>
+        <p>{description}</p>
+        {!plain && <StoreTrustStrip compact />}
       </div>
     </section>
   );

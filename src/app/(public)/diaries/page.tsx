@@ -27,7 +27,7 @@ export default async function DiariesPage() {
         eyebrow="Direct ordering · diaries"
         title="Achievement"
         accent="Diaries"
-        description="Choose regions and tiers directly. Multi-selection, dependency guidance and the running total stay visible as you build the order."
+        description="Select your desired regions and tiers."
         icon={MapPinned}
       />
       <DirectOrderEngine mode="DIARIES" service={service} />

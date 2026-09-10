@@ -1,20 +1,9 @@
 "use client";
 
-import {
-  AlertCircle,
-  Calculator,
-  CheckCircle2,
-  Clock3,
-  Crosshair,
-  Radio,
-  Search,
-  ShieldCheck,
-  Swords,
-} from "lucide-react";
+import { Crosshair, Search, Swords } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { StoreNumberField } from "@/components/store-number-field";
 import {
   AddEstimateToCart,
   MobileEstimateCart,
@@ -134,10 +123,6 @@ type EstimateResponse = {
   };
 };
 
-function formatNumber(value: number) {
-  return new Intl.NumberFormat("en-US").format(value);
-}
-
 function formatCents(value: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -196,7 +181,10 @@ export function BossingCalculatorEngine({
   requestHref: string;
   eligibilityEnabled: boolean;
 }) {
-  const initialBoss = bosses[0]?.bossKey ?? "";
+  const initialBoss =
+    bosses.find((b) => b.name === "Zulrah")?.bossKey ??
+    bosses[0]?.bossKey ??
+    "";
   const [bossKey, setBossKey] = useState(initialBoss);
   const selectedBoss =
     bosses.find((boss) => boss.bossKey === bossKey) ?? bosses[0] ?? null;
@@ -306,383 +294,311 @@ export function BossingCalculatorEngine({
     });
   }
 
+  function invalidate() {
+    requestIdRef.current++;
+    setResult(null);
+    setCartSource(null);
+    setEstimateRevision((v) => v + 1);
+  }
+  const groups = [...new Set(bosses.map((b) => b.groupLabel).filter(Boolean))];
   return (
-    <div className="service-engine-shell mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:py-10">
-      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_23rem]">
-        <div className="border-border bg-surface-1 rounded-2xl border p-6">
-          <h2 className="display-type text-3xl">About this service</h2>
-          <div className="text-text-secondary mt-4 space-y-3 leading-7">
-            {service.content.split(/\n{2,}/).map((paragraph) => (
-              <p key={paragraph}>{paragraph}</p>
-            ))}
-          </div>
-          {service.requirements.length > 0 && (
-            <ul className="mt-6 grid gap-3">
-              {service.requirements.map((requirement) => (
-                <li
-                  key={requirement.id}
-                  className="border-border bg-background/40 flex gap-3 rounded-xl border p-4"
-                >
-                  <ShieldCheck
-                    className="text-primary mt-0.5 size-5 shrink-0"
-                    aria-hidden="true"
-                  />
-                  <div>
-                    <h3 className="font-bold">{requirement.title}</h3>
-                    <p className="text-text-secondary mt-1 text-sm leading-6">
-                      {requirement.description}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+    <div className="reference-boss-layout">
+      <section className="reference-boss-catalogue">
+        <label className="store-search">
+          <Search size={18} />
+          <input
+            aria-label="Search and select a boss"
+            placeholder="Try zul, vork or nex…"
+            value={bossSearch}
+            onChange={(e) => setBossSearch(e.target.value)}
+          />
+        </label>
+        <div className="reference-filter-row">
+          <button
+            className={
+              "service-filter-chip " + (!bossSearch ? "is-active" : "")
+            }
+            onClick={() => setBossSearch("")}
+          >
+            All
+          </button>
+          {groups.map((group) => (
+            <button
+              key={group}
+              className={
+                "service-filter-chip " +
+                (bossSearch === group ? "is-active" : "")
+              }
+              onClick={() => setBossSearch(group ?? "")}
+            >
+              {group}
+            </button>
+          ))}
         </div>
-        <aside className="border-gold/25 bg-gold/5 rounded-2xl border p-6">
-          <p className="text-gold kicker-type">Estimate preview</p>
-          <h2 className="display-type mt-3 text-2xl">
-            Server-backed PvM calculator
-          </h2>
-          <p className="text-text-secondary mt-3 text-sm leading-6">
-            Estimated total is calculated from current published bossing rules.
-            Final price is confirmed before checkout.
-          </p>
-          <div className="mt-5">
-            <h3 className="text-sm font-bold">Supported account modes</h3>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {service.gameModes.map(({ gameMode }) => (
-                <Badge variant="info" key={gameMode}>
-                  {gameModeLabels[gameMode]}
-                </Badge>
-              ))}
-            </div>
-          </div>
-          <Button asChild className="mt-6 w-full" variant="secondary">
-            <a href={requestHref}>Request quote</a>
-          </Button>
-        </aside>
+        <div className="reference-boss-grid">
+          {filteredBosses.map((boss) => (
+            <button
+              type="button"
+              key={boss.bossKey}
+              aria-pressed={bossKey === boss.bossKey}
+              aria-label={boss.name}
+              onClick={() => {
+                changeBoss(boss.bossKey);
+                invalidate();
+              }}
+            >
+              <span
+                className="reference-boss-portrait"
+                style={serviceReferenceIcon(boss.name, "boss", boss.iconKey)}
+              >
+                {!serviceReferenceIcon(boss.name, "boss", boss.iconKey) && (
+                  <Swords aria-hidden="true" />
+                )}
+              </span>
+              <strong>{boss.name}</strong>
+            </button>
+          ))}
+        </div>
+        {!filteredBosses.length && (
+          <p className="store-empty">No bosses match your search.</p>
+        )}
       </section>
-
-      <section className="mt-10 grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <form
-          ref={formRef}
-          onSubmit={(event) => {
-            event.preventDefault();
-            submit(new FormData(event.currentTarget));
-          }}
-          onChangeCapture={(event) => {
-            if ((event.target as HTMLElement).dataset.noEstimate != null)
-              return;
-            requestIdRef.current += 1;
-            setCartSource(null);
-            setResult(null);
-            setEstimateRevision((value) => value + 1);
-          }}
-          className="border-primary/25 rounded-3xl border bg-[linear-gradient(135deg,rgba(20,38,22,.92),rgba(5,12,8,.98))] p-5 sm:p-7"
-        >
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-primary kicker-type">Bossing calculator</p>
-              <h2 className="display-type mt-3 text-3xl">{service.name}</h2>
-            </div>
-            <Badge variant="info">Estimated total</Badge>
+      <form
+        ref={formRef}
+        className="store-panel reference-boss-config"
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit(new FormData(e.currentTarget));
+        }}
+        onChangeCapture={invalidate}
+      >
+        <div className="reference-selected-boss">
+          <span
+            className="reference-boss-portrait"
+            style={serviceReferenceIcon(
+              selectedBoss?.name ?? "",
+              "boss",
+              selectedBoss?.iconKey,
+            )}
+          />
+          <div>
+            <h2>{selectedBoss?.name ?? "Bossing Services"}</h2>
+            <p>{selectedBoss?.description}</p>
           </div>
-
-          {!bosses.length || !rule ? (
-            <div className="border-warning/30 bg-warning/10 text-text-secondary mt-6 rounded-2xl border p-5">
-              This calculator is waiting for enabled bosses, methods and
-              review-ready rules.
+        </div>
+        {!rule || !bosses.length ? (
+          <p>Bossing services are currently unavailable.</p>
+        ) : (
+          <>
+            <label className="store-field">
+              Select Service
+              <select
+                value={methodSlug}
+                onChange={(e) => {
+                  setMethodSlug(e.target.value);
+                  setCustomerGearConfirmed(false);
+                  setIncludeSupplies(false);
+                }}
+              >
+                {selectedBoss?.methods.map((method) => (
+                  <option key={method.slug} value={method.slug}>
+                    {method.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="store-inline-options">
+              <label>
+                <input
+                  type="radio"
+                  checked={killMode === "DIRECT"}
+                  onChange={() => setKillMode("DIRECT")}
+                />
+                Number of kills
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  checked={killMode === "TARGET_KC"}
+                  onChange={() => setKillMode("TARGET_KC")}
+                />
+                Target KC
+              </label>
             </div>
-          ) : (
-            <>
-              <div className="mt-7 grid gap-5">
-                <div>
-                  <label className="text-sm font-bold" htmlFor="boss-search">
-                    Search and select a boss
-                  </label>
-                  <span className="relative mt-2 block">
-                    <Search
-                      className="text-text-muted absolute top-1/2 left-3 size-4 -translate-y-1/2"
-                      aria-hidden="true"
-                    />
-                    <input
-                      id="boss-search"
-                      data-no-estimate
-                      className="border-border bg-background min-h-11 w-full rounded-xl border pr-3 pl-10"
-                      value={bossSearch}
-                      onChange={(event) => setBossSearch(event.target.value)}
-                      placeholder="Try zul, vork or nex…"
-                    />
-                  </span>
-                  <div className="boss-grid-picker mt-3">
-                    {filteredBosses.map((boss) => (
-                      <button
-                        className={`boss-picker-card ${boss.bossKey === bossKey ? "is-active" : ""}`}
-                        key={boss.bossKey}
-                        type="button"
-                        aria-pressed={boss.bossKey === bossKey}
-                        onClick={() => changeBoss(boss.bossKey)}
-                      >
-                        <span
-                          className="boss-picker-art"
-                          aria-hidden="true"
-                          style={serviceReferenceIcon(
-                            boss.name,
-                            "boss",
-                            boss.iconKey,
-                          )}
-                        >
-                          {!serviceReferenceIcon(
-                            boss.name,
-                            "boss",
-                            boss.iconKey,
-                          ) ? (
-                            <Swords className="size-8" />
-                          ) : null}
-                        </span>
-                        <span className="truncate">{boss.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <label className="text-sm font-bold">
-                  Method or package
-                  <select
-                    className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
-                    value={selectedMethod?.slug ?? ""}
-                    onChange={(event) => {
-                      setMethodSlug(event.target.value);
-                      setIncludeSupplies(false);
-                      setCustomerGearConfirmed(false);
-                      setResult(null);
-                    }}
-                  >
-                    {selectedBoss?.methods.map((method) => (
-                      <option value={method.slug} key={method.slug}>
-                        {method.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+            {killMode === "DIRECT" ? (
+              <StoreNumberField
+                label="Desired kill count"
+                name="killQuantity"
+                initial={25}
+                min={1}
+                max={selectedMethod?.maximumKillCount ?? 1000000}
+                onAdjust={invalidate}
+              />
+            ) : (
+              <div className="store-fields-two">
+                <StoreNumberField
+                  label="Current kill count"
+                  name="currentKillCount"
+                  initial={0}
+                  min={0}
+                  max={1000000}
+                  onAdjust={invalidate}
+                />
+                <StoreNumberField
+                  label="Target kill count"
+                  name="targetKillCount"
+                  initial={25}
+                  max={1000000}
+                  onAdjust={invalidate}
+                />
               </div>
-
-              {selectedMethod && (
-                <div className="border-border bg-background/35 mt-5 rounded-2xl border p-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {selectedMethod.difficultyTierLabel && (
-                      <Badge variant="success">
-                        {selectedMethod.difficultyTierLabel}
-                      </Badge>
-                    )}
-                    <Badge variant="info">
-                      {selectedMethod.minimumKillCount.toLocaleString()}
-                      {selectedMethod.maximumKillCount
-                        ? `-${selectedMethod.maximumKillCount.toLocaleString()}`
-                        : "+"}{" "}
-                      kills
-                    </Badge>
-                    {selectedMethod.estimatedKillsPerHour && (
-                      <Badge variant="info">
-                        {formatNumber(selectedMethod.estimatedKillsPerHour)}{" "}
-                        kills/hr estimate
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-text-secondary mt-3 text-sm leading-6">
-                    {selectedMethod.shortDescription}
-                  </p>
-                </div>
-              )}
-
-              <fieldset className="mt-6 border-0 p-0">
-                <legend className="text-sm font-bold">Kill request mode</legend>
-                <div className="mt-3 flex flex-wrap gap-3">
-                  {[
-                    ["DIRECT", "Direct kills"],
-                    ["TARGET_KC", "Current KC to target KC"],
-                  ].map(([value, label]) => (
-                    <label
-                      key={value}
-                      className={`border-border flex min-h-11 items-center gap-2 rounded-xl border px-4 text-sm font-semibold ${killMode === value ? "bg-primary/15 text-primary" : "bg-background/45 text-text-secondary"}`}
-                    >
-                      <input
-                        type="radio"
-                        name="killMode"
-                        value={value}
-                        checked={killMode === value}
-                        onChange={() => {
-                          setKillMode(value as BossingKillMode);
-                          setResult(null);
-                        }}
-                      />
-                      <Radio className="size-4" aria-hidden="true" />
-                      {label}
-                    </label>
+            )}
+            <div className="store-fields-two">
+              <label className="store-field">
+                Account type
+                <select name="gameMode">
+                  {service.gameModes.map(({ gameMode }) => (
+                    <option key={gameMode} value={gameMode}>
+                      {gameModeLabels[gameMode]}
+                    </option>
                   ))}
-                </div>
-              </fieldset>
-
-              {killMode === "DIRECT" ? (
-                <label className="mt-5 block text-sm font-bold">
-                  Desired kill count
-                  <input
-                    className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
-                    name="killQuantity"
-                    type="number"
-                    min="1"
-                    max="1000000"
-                    defaultValue="25"
-                    required
-                  />
-                </label>
-              ) : (
-                <div className="mt-5 grid gap-5 md:grid-cols-2">
-                  <label className="text-sm font-bold">
-                    Current KC
-                    <input
-                      className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
-                      name="currentKillCount"
-                      type="number"
-                      min="0"
-                      max="1000000"
-                      defaultValue="0"
-                      required
-                    />
-                  </label>
-                  <label className="text-sm font-bold">
-                    Target KC
-                    <input
-                      className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
-                      name="targetKillCount"
-                      type="number"
-                      min="1"
-                      max="1000000"
-                      defaultValue="25"
-                      required
-                    />
-                  </label>
-                </div>
-              )}
-
-              <div className="mt-5 grid gap-5 md:grid-cols-2">
-                <label className="text-sm font-bold">
-                  Account game mode
-                  <select
-                    className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
-                    name="gameMode"
-                  >
-                    {service.gameModes.map(({ gameMode }) => (
-                      <option value={gameMode} key={gameMode}>
-                        {gameModeLabels[gameMode]} account
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-sm font-bold">
-                  Delivery speed
-                  <select
-                    className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
-                    value={deliverySpeed}
-                    onChange={(event) => {
-                      setDeliverySpeed(
-                        event.target.value as BossingDeliverySpeed,
-                      );
-                      setResult(null);
-                    }}
-                  >
-                    {delivery.map((option) => (
-                      <option value={option.speed} key={option.speed}>
-                        {option.label}
-                        {option.estimate ? ` - ${option.estimate}` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                {selectedMethod?.customerGearRequired && (
-                  <label className="border-border bg-background/45 flex min-h-12 items-center gap-3 rounded-xl border px-4 text-sm font-semibold">
-                    <input
-                      type="checkbox"
-                      checked={customerGearConfirmed}
-                      onChange={(event) => {
-                        setCustomerGearConfirmed(event.target.checked);
-                        setResult(null);
-                      }}
-                    />
-                    {selectedMethod.customerGearLabel ||
-                      "Customer-provided gear confirmed"}
-                  </label>
-                )}
-                {selectedMethod?.suppliesEnabled && (
-                  <label className="border-border bg-background/45 flex min-h-12 items-center gap-3 rounded-xl border px-4 text-sm font-semibold">
-                    <input
-                      type="checkbox"
-                      checked={includeSupplies}
-                      onChange={(event) => {
-                        setIncludeSupplies(event.target.checked);
-                        setResult(null);
-                      }}
-                    />
-                    {selectedMethod.suppliesLabel || "Supplies and materials"}
-                  </label>
-                )}
-                {rule.discordStreamEnabled && (
-                  <label className="border-border bg-background/45 flex min-h-12 items-center gap-3 rounded-xl border px-4 text-sm font-semibold">
-                    <input
-                      type="checkbox"
-                      checked={includeDiscordStream}
-                      onChange={(event) => {
-                        setIncludeDiscordStream(event.target.checked);
-                        setResult(null);
-                      }}
-                    />
-                    Discord Stream add-on
-                  </label>
-                )}
-              </div>
-
-              {eligibilityEnabled && (
-                <label className="mt-5 block text-sm font-bold">
-                  Optional RSN public stat check
-                  <input
-                    className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
-                    name="rsn"
-                    maxLength={12}
-                    placeholder="Do not enter a password"
-                  />
-                </label>
-              )}
-
-              <RequirementPanels method={selectedMethod} />
-
-              <div className="mt-7 flex flex-wrap items-center gap-3">
-                <Button type="submit" disabled={pending || !selectedMethod}>
-                  <Calculator className="mr-2 size-4" aria-hidden="true" />
-                  {pending ? "Calculating..." : "Refresh estimate"}
-                </Button>
-                <p
-                  id="bossing-calculator-status"
-                  role="status"
-                  aria-live="polite"
-                  className="text-text-muted text-sm"
+                </select>
+              </label>
+              <label className="store-field">
+                Delivery speed
+                <select
+                  value={deliverySpeed}
+                  onChange={(e) =>
+                    setDeliverySpeed(e.target.value as BossingDeliverySpeed)
+                  }
                 >
-                  {pending
-                    ? "Live server calculation in progress."
-                    : result?.message}
+                  {delivery.map((d) => (
+                    <option key={d.speed} value={d.speed}>
+                      {d.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <h3 className="mt-4">Additional Options</h3>
+            <div className="store-inline-options">
+              {selectedMethod?.customerGearRequired && (
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={customerGearConfirmed}
+                    onChange={(e) => setCustomerGearConfirmed(e.target.checked)}
+                  />
+                  {selectedMethod.customerGearLabel ??
+                    "I confirm I have the required gear"}
+                </label>
+              )}
+              {selectedMethod?.suppliesEnabled && (
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={includeSupplies}
+                    onChange={(e) => setIncludeSupplies(e.target.checked)}
+                  />
+                  {selectedMethod.suppliesLabel ?? "Include supplies"}
+                </label>
+              )}
+              {rule.discordStreamEnabled && (
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={includeDiscordStream}
+                    onChange={(e) => setIncludeDiscordStream(e.target.checked)}
+                  />
+                  Stream add-on
+                </label>
+              )}
+            </div>
+            {eligibilityEnabled && (
+              <details className="store-details">
+                <summary>Check account stats (optional)</summary>
+                <label className="store-field">
+                  RuneScape name
+                  <input name="rsn" maxLength={12} />
+                </label>
+              </details>
+            )}
+            <section className="reference-boss-summary">
+              <h2>Order Summary</h2>
+              {result?.estimate && (
+                <dl className="reference-summary-lines">
+                  <div>
+                    <dt>Service</dt>
+                    <dd>{result.estimate.selectedBoss}</dd>
+                  </div>
+                  <div>
+                    <dt>Kills</dt>
+                    <dd>{result.estimate.requestedKills}</dd>
+                  </div>
+                  <div>
+                    <dt>Account</dt>
+                    <dd>{result.estimate.accountMode}</dd>
+                  </div>
+                  <div>
+                    <dt>Estimated time</dt>
+                    <dd>
+                      {result.estimate.delivery.estimate ??
+                        (result.estimate.estimatedHours
+                          ? result.estimate.estimatedHours + " hours"
+                          : "Confirmed after review")}
+                    </dd>
+                  </div>
+                </dl>
+              )}
+              {result && !result.ok && (
+                <p role="alert" className="store-error">
+                  {result.message}
                 </p>
+              )}
+              <div className="reference-total">
+                <span>Total Price:</span>
+                <strong>
+                  {result?.estimate?.estimatedTotal ??
+                    (pending ? "Calculating…" : "—")}
+                </strong>
               </div>
-            </>
-          )}
-        </form>
-
-        <EstimatePanel
-          result={result}
-          requestHref={requestHref}
-          cartSource={cartSource}
-        />
-      </section>
+              <AddEstimateToCart kind="BOSSING_ESTIMATE" source={cartSource} />
+              {result?.estimate && (
+                <details className="store-details">
+                  <summary>Price breakdown</summary>
+                  {result.estimate.lineItems.map((line, i) => (
+                    <p key={i}>
+                      {line.label}: {formatCents(line.amountCents)}
+                    </p>
+                  ))}
+                  <p>{result.estimate.finalPriceNote}</p>
+                </details>
+              )}
+              {result && <EligibilityPanel result={result} />}
+            </section>
+            <details className="store-details">
+              <summary>Requirements & Information</summary>
+              <p>{selectedMethod?.expectedRequirementsSummary}</p>
+              <p>{selectedMethod?.gearNotes}</p>
+              <p>{selectedMethod?.supplyNotes}</p>
+              <RequirementPanels method={selectedMethod} />
+              {service.requirements.map((r) => (
+                <p key={r.id}>
+                  {r.title}: {r.description}
+                </p>
+              ))}
+            </details>
+            <a href={requestHref} className="text-primary text-sm">
+              Need a custom order?
+            </a>
+            <MobileEstimateCart
+              kind="BOSSING_ESTIMATE"
+              source={cartSource}
+              total={result?.estimate?.estimatedTotal ?? "—"}
+            />
+          </>
+        )}
+      </form>
     </div>
   );
 }
@@ -738,120 +654,6 @@ function RequirementPanels({ method }: { method: BossingMethod | null }) {
   );
 }
 
-function EstimatePanel({
-  result,
-  requestHref,
-  cartSource,
-}: {
-  result: EstimateResponse | null;
-  requestHref: string;
-  cartSource: Record<string, unknown> | null;
-}) {
-  if (!result) {
-    return (
-      <aside className="border-border bg-surface-1 h-fit rounded-2xl border p-6">
-        <div className="flex items-center gap-3">
-          <Clock3 className="text-gold size-5" aria-hidden="true" />
-          <h2 className="font-bold">Estimate summary</h2>
-        </div>
-        <p className="text-text-secondary mt-4 text-sm leading-6">
-          Select a boss, method and kill count before requesting review.
-        </p>
-      </aside>
-    );
-  }
-  if (!result.ok || !result.estimate) {
-    return (
-      <aside
-        className="border-danger/30 bg-danger/10 h-fit rounded-2xl border p-6"
-        role="alert"
-      >
-        <div className="flex gap-3">
-          <AlertCircle
-            className="text-danger mt-0.5 size-5 shrink-0"
-            aria-hidden="true"
-          />
-          <p>{result.message}</p>
-        </div>
-      </aside>
-    );
-  }
-  const estimate = result.estimate;
-  return (
-    <aside
-      className="border-border bg-surface-1 h-fit rounded-2xl border p-6"
-      aria-live="polite"
-    >
-      <MobileEstimateCart
-        kind="BOSSING_ESTIMATE"
-        source={cartSource}
-        total={estimate.estimatedTotal}
-      />
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-gold kicker-type">Estimated total</p>
-          <h2 className="display-type mt-2 text-4xl">
-            {estimate.estimatedTotal}
-          </h2>
-        </div>
-        <CheckCircle2 className="text-success size-7" aria-hidden="true" />
-      </div>
-      <dl className="mt-6 grid gap-3 text-sm">
-        <SummaryRow label="Boss" value={estimate.selectedBoss} />
-        <SummaryRow label="Method" value={estimate.selectedMethod} />
-        <SummaryRow
-          label="Requested kills"
-          value={formatNumber(estimate.requestedKills)}
-        />
-        {estimate.currentKillCount != null && (
-          <SummaryRow label="Current KC">
-            {formatNumber(estimate.currentKillCount)} to{" "}
-            {formatNumber(estimate.targetKillCount ?? 0)}
-          </SummaryRow>
-        )}
-        <SummaryRow label="Account mode" value={estimate.accountMode} />
-        <SummaryRow label="Delivery" value={estimate.delivery.label} />
-        {estimate.delivery.estimate && (
-          <SummaryRow
-            label="Time estimate"
-            value={estimate.delivery.estimate}
-          />
-        )}
-        {estimate.estimatedHours && (
-          <SummaryRow
-            label="Estimated hours"
-            value={`${estimate.estimatedHours.toLocaleString()} hrs`}
-          />
-        )}
-      </dl>
-      <div className="border-border mt-6 border-t pt-5">
-        <h3 className="text-sm font-bold">Estimate breakdown</h3>
-        <ul className="mt-3 space-y-2">
-          {estimate.lineItems.map((item) => (
-            <li
-              className="text-text-secondary flex items-center justify-between gap-4 text-sm"
-              key={item.label}
-            >
-              <span>{item.label}</span>
-              <span className="font-bold">{formatCents(item.amountCents)}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <EligibilityPanel result={result} />
-      <p className="text-text-muted mt-5 text-xs leading-5">
-        {estimate.finalPriceNote}
-      </p>
-      <div className="mt-6 grid gap-2">
-        <AddEstimateToCart kind="BOSSING_ESTIMATE" source={cartSource} />
-        <Button asChild className="w-full" variant="secondary">
-          <a href={requestHref}>Need a custom order?</a>
-        </Button>
-      </div>
-    </aside>
-  );
-}
-
 function EligibilityPanel({ result }: { result: EstimateResponse }) {
   if (!result.eligibility) return null;
   if (!result.eligibility.ok) {
@@ -877,23 +679,6 @@ function EligibilityPanel({ result }: { result: EstimateResponse }) {
           </li>
         ))}
       </ul>
-    </div>
-  );
-}
-
-function SummaryRow({
-  label,
-  value,
-  children,
-}: {
-  label: string;
-  value?: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div className="border-border flex items-start justify-between gap-4 border-b pb-3">
-      <dt className="text-text-muted">{label}</dt>
-      <dd className="text-right font-bold">{children ?? value}</dd>
     </div>
   );
 }

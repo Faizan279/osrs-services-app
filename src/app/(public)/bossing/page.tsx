@@ -35,7 +35,7 @@ export default async function BossingPage() {
         eyebrow="Direct ordering · PvM"
         title="Bossing"
         accent="Services"
-        description="Search the full enabled boss list, choose a method and kill count, then receive a server-authoritative total without an intermediate category page."
+        description="Choose a boss, select your options and get instant pricing."
         icon={Swords}
       />
       <BossingCalculatorEngine

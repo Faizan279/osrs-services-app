@@ -28,7 +28,7 @@ export default async function GoldPage() {
         eyebrow="Direct ordering · marketplace"
         title="Buy OSRS"
         accent="Gold"
-        description="Choose a configured amount or enter a custom amount. Published rates, minimums, limits and discounts are applied on the server."
+        description="Choose your amount and see the current gold price."
         icon={Coins}
       />
       <GoldTradingEngine

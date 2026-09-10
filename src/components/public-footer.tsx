@@ -2,6 +2,7 @@ import { Headphones, MessageCircle, MonitorPlay, Send } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 
+import { StoreTrustStrip } from "@/components/store-trust-strip";
 import { BrandLogo } from "@/components/brand-logo";
 import { getDiscordHref } from "@/config/public-navigation";
 
@@ -37,7 +38,7 @@ const columns = [
       ["Terms of service", "/terms"],
       ["Privacy policy", "/privacy"],
       ["Refund policy", "/refund-policy"],
-      ["FAQ", "/#faq"],
+      ["FAQ", "/support"],
     ],
   },
 ] as const;
@@ -55,7 +56,8 @@ const socialLinks: ReadonlyArray<{
 export function PublicFooter() {
   const year = new Date().getFullYear();
   return (
-    <footer className="border-primary/20 border-t bg-[#030303]">
+    <footer className="reference-footer border-primary/20 border-t bg-[#030303]">
+      <StoreTrustStrip />
       <div className="mx-auto max-w-7xl px-5 pt-10 pb-6 sm:px-8">
         <div className="grid gap-10 lg:grid-cols-[1.15fr_1.8fr_1fr]">
           <div>
@@ -64,7 +66,7 @@ export function PublicFooter() {
               aria-label="OSRS Services home"
               className="inline-block"
             >
-              <BrandLogo className="w-52" />
+              <BrandLogo forceRed className="w-52" />
             </Link>
             <p className="text-text-secondary mt-4 max-w-sm text-sm leading-6">
               Professional OSRS services with clear estimates, secure

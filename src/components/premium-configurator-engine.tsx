@@ -7,11 +7,11 @@ import {
   Clock3,
   Crown,
   PackageCheck,
-  ShieldCheck,
   Sparkles,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
+import { ReferenceArt } from "@/components/reference-art";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -388,67 +388,19 @@ export function PremiumConfiguratorEngine({
   }
 
   return (
-    <div className="service-engine-shell mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:py-10">
-      <section className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_24rem]">
-        <div>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="info">Premium configurator</Badge>
-            <Badge variant="warning">Review required</Badge>
-          </div>
-          <h2 className="display-type mt-5 text-3xl">
-            Build the service request
-          </h2>
-          <div className="text-text-secondary mt-4 space-y-4 leading-7">
-            {service.content.split(/\n{2,}/).map((paragraph) => (
-              <p key={paragraph}>{paragraph}</p>
-            ))}
-          </div>
-          {service.requirements.length > 0 && (
-            <div className="mt-6 grid gap-3">
-              {service.requirements.map((requirement) => (
-                <div
-                  className="border-border bg-surface-1 rounded-2xl border p-4"
-                  key={requirement.id}
-                >
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck
-                      className="text-primary size-4"
-                      aria-hidden="true"
-                    />
-                    <h3 className="text-sm font-bold">{requirement.title}</h3>
-                  </div>
-                  <p className="text-text-secondary mt-2 text-sm leading-6">
-                    {requirement.description}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <aside className="border-gold/25 bg-gold/5 rounded-2xl border p-6">
-          <p className="text-gold kicker-type">Quote preview</p>
-          <h2 className="display-type mt-3 text-2xl">Server-backed estimate</h2>
-          <p className="text-text-secondary mt-3 text-sm leading-6">
-            Estimated totals use the currently published premium configuration.
-            Final scope is confirmed before checkout.
-          </p>
-          <div className="mt-5">
-            <h3 className="text-sm font-bold">Supported account modes</h3>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {service.gameModes.map(({ gameMode }) => (
-                <Badge variant="info" key={gameMode}>
-                  {gameModeLabels[gameMode]}
-                </Badge>
-              ))}
-            </div>
-          </div>
-          <Button asChild className="mt-6 w-full" variant="secondary">
-            <a href={requestHref}>Request quote</a>
-          </Button>
-        </aside>
-      </section>
-
-      <section className="mt-10 grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
+    <div className="reference-premium-layout">
+      <section
+        className={
+          "reference-premium-grid " + (isInfernal ? "has-infernal-art" : "")
+        }
+      >
+        {isInfernal && (
+          <ReferenceArt
+            board="infernal"
+            crop={[25, 270, 310, 600]}
+            className="reference-infernal-figure"
+          />
+        )}
         <form
           ref={formRef}
           onSubmit={(event) => {
@@ -461,12 +413,11 @@ export function PremiumConfiguratorEngine({
             setResult(null);
             setEstimateRevision((value) => value + 1);
           }}
-          className="border-primary/25 rounded-3xl border bg-[linear-gradient(135deg,rgba(24,35,21,.92),rgba(5,12,8,.98))] p-5 sm:p-7"
+          className="store-panel reference-premium-form"
         >
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-primary kicker-type">Premium service</p>
-              <h2 className="display-type mt-3 text-3xl">{service.name}</h2>
+              <h2>Configure Your Order</h2>
             </div>
             <Crown className="text-gold size-8" aria-hidden="true" />
           </div>
@@ -478,88 +429,7 @@ export function PremiumConfiguratorEngine({
             </div>
           ) : (
             <>
-              <div className="mt-7 grid gap-5 md:grid-cols-2">
-                <label className="text-sm font-bold">
-                  {rule.configuratorType === "INFERNAL_CAPE"
-                    ? "Main weapon / setup"
-                    : "Package"}
-                  <select
-                    className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
-                    value={selectedPackage?.slug ?? ""}
-                    onChange={(event) => changePackage(event.target.value)}
-                  >
-                    {packages.map((premiumPackage) => (
-                      <option
-                        value={premiumPackage.slug}
-                        key={premiumPackage.slug}
-                      >
-                        {premiumPackage.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-sm font-bold">
-                  Account game mode
-                  <select
-                    className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
-                    name="gameMode"
-                  >
-                    {service.gameModes.map(({ gameMode }) => (
-                      <option value={gameMode} key={gameMode}>
-                        {gameModeLabels[gameMode]} account
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              {selectedPackage && (
-                <div className="border-border bg-background/35 mt-5 rounded-2xl border p-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {selectedPackage.difficultyTierLabel && (
-                      <Badge variant="success">
-                        {selectedPackage.difficultyTierLabel}
-                      </Badge>
-                    )}
-                    {selectedPackage.estimatedHours && (
-                      <Badge variant="info">
-                        {selectedPackage.estimatedHours.toLocaleString()} hr
-                        estimate
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-text-secondary mt-3 text-sm leading-6">
-                    {selectedPackage.shortDescription}
-                  </p>
-                </div>
-              )}
-
-              <div className="mt-5 grid gap-5 md:grid-cols-2">
-                <label className="text-sm font-bold">
-                  {rule.configuratorType === "INFERNAL_CAPE"
-                    ? "Service method"
-                    : "Delivery speed"}
-                  <select
-                    className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
-                    value={deliverySpeed}
-                    onChange={(event) => {
-                      setDeliverySpeed(
-                        event.target.value as PremiumDeliverySpeed,
-                      );
-                      setResult(null);
-                    }}
-                  >
-                    {delivery.map((option) => (
-                      <option value={option.speed} key={option.speed}>
-                        {option.label}
-                        {option.estimate ? ` - ${option.estimate}` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              <fieldset className="border-border bg-background/35 mt-5 grid gap-3 rounded-2xl border p-4">
+              <fieldset className="reference-premium-stats">
                 <legend className="px-2 text-sm font-bold">Stat check</legend>
                 <div className="grid gap-3 md:grid-cols-3">
                   {eligibilityEnabled && rule.rsnEligibilityEnabled && (
@@ -620,7 +490,7 @@ export function PremiumConfiguratorEngine({
                 {statCheckMode === "MANUAL" &&
                   rule.supportsManualStatFallback &&
                   manualMetricRequirements.length > 0 && (
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="reference-stat-fields">
                       {manualMetricRequirements.map((requirement) => (
                         <label
                           className="text-sm font-bold"
@@ -647,6 +517,87 @@ export function PremiumConfiguratorEngine({
                     </div>
                   )}
               </fieldset>
+
+              <div className="mt-7 grid gap-5 md:grid-cols-2">
+                <label className="text-sm font-bold">
+                  {rule.configuratorType === "INFERNAL_CAPE"
+                    ? "Main weapon / setup"
+                    : "Package"}
+                  <select
+                    className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
+                    value={selectedPackage?.slug ?? ""}
+                    onChange={(event) => changePackage(event.target.value)}
+                  >
+                    {packages.map((premiumPackage) => (
+                      <option
+                        value={premiumPackage.slug}
+                        key={premiumPackage.slug}
+                      >
+                        {premiumPackage.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm font-bold">
+                  Account game mode
+                  <select
+                    className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
+                    name="gameMode"
+                  >
+                    {service.gameModes.map(({ gameMode }) => (
+                      <option value={gameMode} key={gameMode}>
+                        {gameModeLabels[gameMode]} account
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              {selectedPackage && (
+                <div className="reference-premium-package-note">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {selectedPackage.difficultyTierLabel && (
+                      <Badge variant="success">
+                        {selectedPackage.difficultyTierLabel}
+                      </Badge>
+                    )}
+                    {selectedPackage.estimatedHours && (
+                      <Badge variant="info">
+                        {selectedPackage.estimatedHours.toLocaleString()} hr
+                        estimate
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-text-secondary mt-3 text-sm leading-6">
+                    {selectedPackage.shortDescription}
+                  </p>
+                </div>
+              )}
+
+              <div className="mt-5 grid gap-5 md:grid-cols-2">
+                <label className="text-sm font-bold">
+                  {rule.configuratorType === "INFERNAL_CAPE"
+                    ? "Service method"
+                    : "Delivery speed"}
+                  <select
+                    className="border-border bg-background mt-2 min-h-11 w-full rounded-xl border px-3"
+                    value={deliverySpeed}
+                    onChange={(event) => {
+                      setDeliverySpeed(
+                        event.target.value as PremiumDeliverySpeed,
+                      );
+                      setResult(null);
+                    }}
+                  >
+                    {delivery.map((option) => (
+                      <option value={option.speed} key={option.speed}>
+                        {option.label}
+                        {option.estimate ? ` - ${option.estimate}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
 
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
                 {selectedPackage?.customerGearRequired && (
@@ -811,7 +762,10 @@ export function PremiumConfiguratorEngine({
                 </fieldset>
               )}
 
-              <RequirementPanels premiumPackage={selectedPackage} />
+              <details className="store-details">
+                <summary>Requirements & recommended gear</summary>
+                <RequirementPanels premiumPackage={selectedPackage} />
+              </details>
 
               {selectedPackage?.faqs.length ? (
                 <section className="mt-6">
@@ -980,7 +934,7 @@ function EstimatePanel({
       />
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-gold kicker-type">Estimated total</p>
+          <p className="text-gold kicker-type">Order Summary</p>
           <h2 className="display-type mt-2 text-4xl">
             {estimate.estimatedTotal}
           </h2>
@@ -1017,8 +971,8 @@ function EstimatePanel({
           </ul>
         </div>
       ) : null}
-      <div className="border-border mt-6 border-t pt-5">
-        <h3 className="text-sm font-bold">Estimate breakdown</h3>
+      <details className="store-details border-border mt-6 border-t pt-5">
+        <summary className="text-sm font-bold">Estimate breakdown</summary>
         <ul className="mt-3 space-y-2">
           {estimate.lineItems.map((item) => (
             <li
@@ -1030,7 +984,7 @@ function EstimatePanel({
             </li>
           ))}
         </ul>
-      </div>
+      </details>
       <EligibilityPanel result={result} />
       <p className="text-text-muted mt-5 text-xs leading-5">
         {estimate.finalPriceNote}

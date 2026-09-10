@@ -3,7 +3,6 @@ import {
   BadgeCheck,
   Boxes,
   Filter,
-  ImageIcon,
   Search,
   ShieldCheck,
 } from "lucide-react";
@@ -11,6 +10,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { DirectServiceHero } from "@/components/direct-service-hero";
 import { ProductEstimatePanel } from "@/components/product-estimate-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,104 +39,115 @@ export function ProductMarketplacePage({
   filters: Record<string, string>;
   requestHref: string;
 }) {
-  const marketplace = data.marketplace;
   return (
-    <main id="main-content" className="min-h-[70vh]">
-      <section className="border-border bg-surface-1 border-b py-14 sm:py-20">
-        <div className="mx-auto max-w-7xl px-5 sm:px-8">
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="info">Product marketplace</Badge>
-            <Badge variant={data.featureEnabled ? "success" : "warning"}>
-              {data.featureEnabled ? "Published products" : "Review mode"}
-            </Badge>
-          </div>
-          <p className="text-gold kicker-type mt-8">
-            {marketplace.service.category.name}
-          </p>
-          <h1 className="display-type mt-4 max-w-4xl text-4xl sm:text-6xl">
-            {marketplace.publicName}
-          </h1>
-          <p className="text-text-secondary mt-5 max-w-3xl text-lg leading-8">
-            {marketplace.description}
-          </p>
-        </div>
-      </section>
-
-      <div className="mx-auto grid max-w-7xl gap-8 px-5 py-10 sm:px-8 lg:grid-cols-[20rem_minmax(0,1fr)] lg:py-14">
-        <div className="lg:hidden">
-          <details className="border-border bg-surface-1 rounded-2xl border p-4">
-            <summary className="cursor-pointer font-bold">
-              Product filters
-            </summary>
-            <div className="mt-5">
-              <ProductFilters
-                filters={filters}
-                facets={data.facets}
-                total={data.total}
+    <main id="main-content" className="service-storefront reference-items-page">
+      <DirectServiceHero
+        eyebrow="Items marketplace"
+        title="OSRS"
+        accent="Items"
+        description="Find gear and supplies for your account. Choose your quantity and order directly."
+        icon={Boxes}
+      />
+      <div className="reference-order-layout">
+        <section className="store-panel">
+          <ProductTypeNavigation filters={filters} />
+          <form action="/products" className="reference-item-filters">
+            <label className="store-search">
+              <Search size={18} />
+              <input
+                name="q"
+                aria-label="Search"
+                defaultValue={filters.q ?? ""}
+                placeholder="Search public product text"
               />
-            </div>
+            </label>
+            <label className="store-field">
+              <span className="sr-only">Category</span>
+              <select
+                name="category"
+                aria-label="Category"
+                defaultValue={filters.category ?? ""}
+              >
+                <option value="">All categories</option>
+                {data.facets.categories.map((c) => (
+                  <option value={c.slug} key={c.stableKey}>
+                    {c.publicName}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="store-field">
+              <span className="sr-only">Sort</span>
+              <select
+                name="sort"
+                aria-label="Sort"
+                defaultValue={filters.sort ?? "featured"}
+              >
+                {productSortOptions.map((sort) => (
+                  <option key={sort} value={sort}>
+                    {productSortLabels[sort]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <input type="hidden" name="type" value={filters.type ?? ""} />
+            <Button type="submit">Apply filters</Button>
+          </form>
+          <details className="store-details">
+            <summary>More filters</summary>
+            <ProductFilters
+              filters={filters}
+              facets={data.facets}
+              total={data.total}
+            />
           </details>
-        </div>
-        <div className="hidden lg:block">
-          <ProductFilters
-            filters={filters}
-            facets={data.facets}
-            total={data.total}
-          />
-        </div>
-        <section aria-labelledby="product-results-heading">
           {!data.featureEnabled ? (
             <ReviewMode requestHref={requestHref} />
           ) : (
             <>
-              <ProductTypeNavigation filters={filters} />
-              {data.featuredProducts.length > 0 && (
-                <div className="mb-8">
-                  <p className="text-primary kicker-type">Featured</p>
-                  <div className="mt-4 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-                    {data.featuredProducts.map((product) => (
-                      <ProductCard key={product.stableKey} product={product} />
-                    ))}
-                  </div>
-                </div>
+              <table className="reference-item-table">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>Category</th>
+                    <th>Starting Price</th>
+                    <th>Quantity</th>
+                    <th>Total Price</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.products.map((product) => {
+                    const cover =
+                      product.revision.images.find(
+                        (i) => i.imageType === "COVER",
+                      ) ?? product.revision.images[0];
+                    return (
+                      <ProductEstimatePanel
+                        key={product.stableKey}
+                        productSlug={product.slug}
+                        variants={product.revision.variants}
+                        row={{
+                          title: product.revision.product.publicTitle,
+                          category:
+                            product.revision.product.category.publicName,
+                          imagePath: cover?.assetPath,
+                          imageAlt: cover?.altText,
+                          startingPrice: product.startingPrice,
+                        }}
+                      />
+                    );
+                  })}
+                </tbody>
+              </table>
+              {!data.products.length && (
+                <p className="store-empty">
+                  No products found. Try another search.
+                </p>
               )}
-              <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2
-                    id="product-results-heading"
-                    className="display-type text-3xl"
-                  >
-                    Products
-                  </h2>
-                  <p
-                    className="text-text-muted mt-1 text-sm"
-                    aria-live="polite"
-                  >
-                    {data.total} result{data.total === 1 ? "" : "s"}
-                  </p>
-                </div>
-                <Badge variant="info">
-                  Page {data.page} of {data.pages}
-                </Badge>
-              </div>
-              {data.products.length ? (
-                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                  {data.products.map((product) => (
-                    <ProductCard key={product.stableKey} product={product} />
-                  ))}
-                </div>
-              ) : (
-                <div className="border-border bg-surface-1 rounded-2xl border p-8">
-                  <h3 className="display-type text-2xl">No products found</h3>
-                  <p className="text-text-secondary mt-3">
-                    Adjust filters or contact support for current product
-                    availability.
-                  </p>
-                  <Button asChild className="mt-5" variant="secondary">
-                    <a href={requestHref}>Contact support</a>
-                  </Button>
-                </div>
-              )}
+              <p className="text-text-muted mt-4 text-xs">
+                {data.total} results · Page {data.page} of {data.pages}
+              </p>
               <Pagination
                 page={data.page}
                 pages={data.pages}
@@ -145,6 +156,44 @@ export function ProductMarketplacePage({
             </>
           )}
         </section>
+        <aside className="reference-order-side">
+          <section className="store-panel">
+            <h2>Order Summary</h2>
+            <p>
+              Add items using the table. Your cart shows the confirmed
+              selections and combined total.
+            </p>
+            <Link
+              href="/cart"
+              prefetch={false}
+              className="reference-primary-button mt-5 w-full"
+            >
+              View Cart
+            </Link>
+          </section>
+          <section className="store-panel">
+            <h2>Trading Information</h2>
+            <p>{data.marketplace.description}</p>
+            <p>
+              Availability and prices are checked when you add an item. A price
+              preview does not reserve stock.
+            </p>
+            <p>
+              Never share your password, PIN or authenticator code for an item
+              trade.
+            </p>
+          </section>
+          <section className="store-panel">
+            <h2>Need a Custom Order?</h2>
+            <p>Looking for a specific item or a bulk order?</p>
+            <a
+              href={requestHref}
+              className="reference-secondary-button mt-4 w-full"
+            >
+              Contact Us
+            </a>
+          </section>
+        </aside>
       </div>
     </main>
   );
@@ -414,61 +463,6 @@ function ProductTypeNavigation({
         </Button>
       ))}
     </nav>
-  );
-}
-
-function ProductCard({ product }: { product: PublicProductListing }) {
-  return (
-    <article className="border-border bg-surface-1 overflow-hidden rounded-2xl border">
-      <Link href={`/products/${product.slug}`} className="block">
-        <div className="relative aspect-[16/10] bg-black/30">
-          {product.coverImage ? (
-            <Image
-              src={product.coverImage.assetPath}
-              alt={product.coverImage.altText}
-              fill
-              sizes="(min-width: 1024px) 28vw, 100vw"
-              className="object-cover"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <ImageIcon className="text-text-muted size-8" aria-hidden />
-            </div>
-          )}
-        </div>
-        <div className="p-5">
-          <div className="flex flex-wrap gap-2">
-            <Badge
-              variant={
-                product.availabilityState === "AVAILABLE"
-                  ? "success"
-                  : product.availabilityState === "OUT_OF_STOCK"
-                    ? "danger"
-                    : "warning"
-              }
-            >
-              {productAvailabilityLabels[product.availabilityState]}
-            </Badge>
-            <Badge variant="info">
-              {productTypeLabels[product.productType]}
-            </Badge>
-          </div>
-          <h3 className="mt-4 text-lg font-bold">{product.title}</h3>
-          <p className="text-text-secondary mt-2 line-clamp-3 text-sm leading-6">
-            {product.shortDescription}
-          </p>
-          <div className="mt-5 flex items-end justify-between gap-4">
-            <div>
-              <p className="text-text-muted text-xs font-bold uppercase">
-                From
-              </p>
-              <p className="display-type text-2xl">{product.startingPrice}</p>
-            </div>
-            <span className="text-primary text-sm font-bold">View details</span>
-          </div>
-        </div>
-      </Link>
-    </article>
   );
 }
 

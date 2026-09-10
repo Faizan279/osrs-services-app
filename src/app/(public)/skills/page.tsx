@@ -35,7 +35,7 @@ export default async function SkillsPage() {
         eyebrow="Direct ordering · skills"
         title="Skilling"
         accent="Services"
-        description="Choose a skill, set any valid level range from 1 to 99, pick an available training method and add the server-priced configuration to cart."
+        description="Choose a skill, set your levels, pick a method and get an instant price."
         icon={Pickaxe}
       />
       <SkillingCalculatorEngine
